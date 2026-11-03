@@ -1,0 +1,171 @@
+# desk
+
+A work manager: a Kanban board of Claude Code sessions in a Gio window, with an infra workspace
+of shared SSH terminals (internal/infra) in the same look; `internal/ui/kit` holds the design
+tokens and primitives both use. Module `github.com/lfdominguez/desk`, MIT.
+
+## Build and test
+
+Gio needs cgo plus the Wayland, xkbcommon, EGL and PipeWire headers; the flake's dev shell has them
+(and sets `-tags nox11`, `CGO_CFLAGS_ALLOW=-fno-strict-overflow`, `GOTOOLCHAIN=local`):
+
+```sh
+nix develop -c go test ./...
+nix develop -c go build -o desk ./cmd/desk
+nix build                         # the package; bump vendorHash in flake.nix when go.sum changes
+```
+
+Without the flake, the same through
+`nix-shell -p go pkg-config wayland libxkbcommon libGL vulkan-headers pipewire --run 'CGO_CFLAGS_ALLOW=-fno-strict-overflow GOTOOLCHAIN=local go test -tags nox11 ./...'`.
+
+Packaging: `.github/workflows/release.yml` builds the `.deb` and the AppImage on every push, from
+`packaging/` (desktop file, icon). Releases are dated tags, `2026.11.03` then `2026.11.03.1`, `.2`…
+the same day (checked by the workflow, which publishes them); the version reaches the binary as
+`-X main.version=…` (`ui.Version`, shown in the settings' nav and by `desk --version`; without it,
+`dev-<commit>`).
+
+The tests' own checks (`cmd/qa`, Go toolchain only), under the same shell:
+
+- `go run ./cmd/qa cover`: every package's coverage against its floor (`floors` in cmd/qa). It fails
+  under a floor or for a package without one. Raise a floor when tests grow; never lower one to land
+  a change.
+- `go run ./cmd/qa mutate [-j N] [-file S] ./internal/fzf …`: mutation testing. One small change
+  at a time (`==`↔`!=`, `<`↔`>=`, `&&`↔`||`, `+`↔`-`, a `!` dropped, `true`↔`false`, `++`↔`--`),
+  the package's tests run on it through `go test -overlay` (the tree is never touched), then the
+  score and every change no test noticed (`file:line: from → to`). A survivor is behavior no test
+  pins down: add the test that fails on it, unless the change does the same thing. Each mutant
+  reruns only the tests whose coverage reaches its line. Fast on the small packages (seconds to
+  minutes); infra and ui have thousands of mutants, so narrow those with `-file` and keep `-j` low
+  (each mutant starts shells and terminals: six at once ran the machine out of memory).
+
+The board lives in `$XDG_DATA_HOME/desk/board.json` (`~/.local/share/desk/board.json`). Point
+`XDG_DATA_HOME` at a scratch dir when running checks, never at the real board.
+
+Checks: key/pointer flows go through `gioui.org/io/input.Router` in a test (see `internal/ui/ui_test.go`).
+The bare Router doesn't move focus on Tab (`app.Window` does, via `Router.MoveFocus`), so tests call
+`MoveFocus` themselves; buttons are focusable too, so tab until the field rather than counting;
+for a picture, render a frame with `gioui.org/gpu/headless` from a throwaway test. Headless sway works
+for screenshots with its default renderer (not pixman: Vulkan has no surface there), but has no input.
+
+## Layout
+
+| Path | Concern |
+|---|---|
+| cmd/desk | `main`: load the board, open the window; `desk mcp`/`peer`/`servers` subcommands go to internal/infra; `desk demo` calls `ui.Demo` first |
+| internal/ui/demo.go | `desk demo`, for recordings: `Demo` makes a temp world (XDG dirs, `DESK_ROOT` under its `HOME`, orgs Acme/Globex/Initech with dummy accounts, a seeded board and chats) and `demoFakes` replaces every provider var (`startClaude` with `demoSession`'s scripted stream-json turns: the fix, then a push it asks permission for; `optimize`, `describe`, `linkCheck`, `assigned`, `nagiosAlerts`, `ciRuns`, `planLimits`…). demoinfra.go: Globex's servers (`demoServers`), each host a local bash with `demoHostRC`'s canned answers (`infra.HostCmd` in place of ssh), and the infra Claude as `desk demo-infra <sock>` (`infra.ClaudeCmd`; `DemoInfra` plays `demoInfraTurns`, running their commands on the tab's tools socket). Its sockets go to its own `XDG_RUNTIME_DIR` (`WAYLAND_DISPLAY` made absolute first). `demo` titles the window `desk demo`; `demoPace` is a scripted millisecond (0 in tests). Keep its names generic |
+| internal/fzf | every search box's matching: `Match` (junegunn/fzf's algorithm and extended syntax: fuzzy terms ANDed, `'exact`, `^prefix`, `suffix$`, `!not`, `a \| b`, smart case), `Sort` (best first) and `Runes` (highlight). Card search, archive, tickets, alerts, server picker, org field, the infra palette, sidebar and terminal find all use it |
+| internal/kanban | data: `Board`/`Column`/`Card` (key `DESK-n`, org, folder, status + note, last message, `Link`s, `Session` stats), archive, `MoveBefore`, search match, `DueIn`, JSON load/save (atomic, `migrate` for old boards), chat logs (JSONL per card). No GUI imports |
+| internal/orgs | organizations = the subfolders of each search `Folder` (desk's `settings.toml`, `Folders`/`SaveFolders`; default `$DESK_ROOT` (~/Work) depth 2), (with `only_toml`, only those with a `desk.toml`; `Scan` also says which it skipped), plus deeper ones with a `desk.toml` to the folder's depth and, with `root`, the folder itself (named by its `org = "Name"` or the folder: `Dir`, `File`, `Account`/`AccountAt` = the outer org's Claude profile; `root` params are only the cache key and default folder, settings apply when it is `Root()`); per-org `desk.toml` with any number of `[[github]]`/`[[jira]]`/`[[bitbucket]]`/`[[gitlab]]`/`[[nagios]]`/`[[vault]]`, and `[servers] file` (the infra servers file); `Secret` (vault item, token_env, token_cmd; vault items resolve in `links.secret`) |
+| internal/vault | password vaults: Bitwarden/Vaultwarden by hand (prelogin, KDF, token, sync, EncString/RSA unwrapping, item keys), Passbolt via `go-passbolt`; `Get` (cached 10 min) or `*LockedError`, `Unlock`; keys only in memory |
+| internal/links | Nagios: `Alerts` (statusjson.cgi; on its 404, a Nagios 3's `status.cgi` pages, `Status3Pages` + `ParseStatus3` in nagios3.go, which infra's nagios tool uses too), `NagiosLogin` (the vault item's username when no user), `DigestAuth`; `Parse` (URL or bare Jira key → `kanban.Link`), `Tracker` + `Create` (a card's ticket: the first Jira project, `issue_type` from createmeta, the Markdown description as ADF by `go-adf`, assigned to `/myself`; else a GitHub account's `repo`, assigned to `/user`), `Push` (a Jira transition by status category or the account's `status` table by name, a GitHub issue closed or reopened; `sync = false` opts an account out), `Check` (state + tone; an open PR/MR adds its CI, " · CI failed" turns it bad) over each provider's REST API with `net/http` (no CLIs); picks the org's matching account, and without one (or with an empty token) asks nothing: `*NoAccountError` (`tokenAuth`), which ui turns into "no GitHub account" on the chip, no CI view, no ticket-move toast. Never anonymous calls. ci.go: `CI` (GitHub Actions workflow runs by the PR's head sha or the commit, with jobs; GitLab's latest MR or commit pipeline with jobs), `JobLog`, `Summary`, `HasCI`; commit links are `KindGitHubCommit`/`KindGitLabCommit` |
+| internal/ui/ci.go | an org's `ci:<org>` view: the CI of the PR/MR/commit links on its cards not in Done (`checkCI` with the links poll, `ciRuns` stub), failed and running runs show their jobs; the sidebar counts failures |
+| internal/ui/cardtools.go | the card session's desk tools: `infra.ServeCards` (socket, `u.cardSock`) answers `desk mcp <sock> card=<id>` (infra's `cardTools`: alerts, tickets, link, ci, ci_log) with `cardTool`; `agentArgs` adds `infra.CardMCP`'s `--mcp-config` and one `--allowedTools` (those plus `Bash(desk peer:*)` with servers), System gets `claude.CardTools` |
+| internal/claude | one `claude -p` stream-json process per card (`Start`, `Send`, `Interrupt`), `Parse` of events (`total_cost_usd` is cumulative per process, `usage` per turn), per-org profile via bwrap (`Command`; it strips a parent Claude Code's session markers from the env, and binds a copy of a symlinked `~/.ssh/config` since ssh rejects the store-owned file in the namespace), context (`KindUsage`, the result's window), subagents and background shells (`KindTask`; a subagent's text and tools carry its `Parent`) and published artifact URLs (`KindArtifact`) from the stream, plan limits (`Limits`, the OAuth usage endpoint with the profile's login; `usageURL` for tests), `addRoot` (a session in a folder adds its organization's with `--add-dir`, so the org's `.claude/skills` load), the TUI command (`Interactive`: `--resume`, or `--session-id` for a card's minted `NewSessionID` until `SessionExists`); `System` + `Take` for the `DESK-STATUS`/`DESK-LINK`/`DESK-TICKET`/`DESK-CARD` lines |
+| internal/ui/app.go | window loop, frame (sidebar · board/archive · chat panel), toolbar, toasts; `u.later` brings other goroutines' work onto the UI goroutine; `save` bumps `gen` at once and writes the board `saveAfter` later (500 ms in the window, 0 in tests; `flush` on close and on SIGTERM/Ctrl+C) |
+| internal/ui/views.go | sidebar views (`inView` filters), counts, header sentence |
+| internal/ui/sessions.go | the bridge: `send`, `onEvent` (status, chat, cost, column moves), link polling (`checkLinks`) |
+| third_party/ | patched ultraviolet and x/vt (scroll and scrollback speed), wired by go.mod `replace`; see its README. Don't edit casually |
+| internal/clip | the Wayland clipboard's image (`Image`), spoken on the compositor's socket by hand: registry, seat, data-control (ext or wlroots) device, the selection's offer received through a pipe (fd over `SCM_RIGHTS`). No libraries, no wl-paste. Tested against a fake compositor |
+| internal/term | a program in a PTY behind charmbracelet/x/vt (a slimmer internal/infra term.go): `Start`, `Grid` (styled runs), `SendKey` (normalized: vt matches keys by struct equality), `Paste`, `Resize`, `Exited`, `Close`. No GUI imports |
+| internal/ui/terminal.go | a card's Claude Code TUI in its own view (`term:<id>`, its Agent Sessions row while open): drawn cell by cell from `Grid`, keys via `termKey`; output redraws through `u.termGen` (atomic, checked by `frame`), exits reaped each frame |
+| internal/ui/panel.go | a card's session (`chatPane`): header, links, conversation, composer; as the side panel or full window (`sess:<id>`, the sidebar's Agent Sessions) |
+| internal/ui/tasks.go | a session's subagents and background shells (`claude.Task` from task_started/_progress/_updated/_notification, merged by `onTask`; subagent messages routed by `Parent`, SendMessage resumes by `To`, the model from their messages): the bar under the header (`taskBar`), the session view's rail (`u.rail`, `taskRail`: running and just finished, `split` moves them to history after `settle`), the history (`u.sub == historyKey`), one shown in place of the conversation (`u.sub`), and why a running subagent is held (`waiting`: its pending tool uses from `KindTool`/`KindToolDone`, its own shells, its last activity) |
+| internal/ui/selectable.go | chat text the mouse selects (`selText`, `widget.Selectable` by id in `u.sels`); a Claude reply's Copy in its name line (`msgTools`) |
+| internal/ui/selrich.go | rich text that selects (as infra's `gui_select.go`): `rich` shapes each word itself so the markdown blocks keep bold, code and link styles and still select (drag, double-click a word, triple the block), copied on release; a click with no selection opens a link. `span` is a `richtext.SpanStyle` with its url. A selection stays inside one block |
+| internal/ui/menu.go | a card's right-click menu (`u.menu`, opened by the board's pointer handler, drawn over the board on one blocking area so its gaps don't hover what's beneath; items run after it is drawn): icons, key caps, Move to's columns as a submenu (hover opens it), and its keys (`menuFilters`/`menuKey`, from last frame's `items`: digits move, Backspace archives, Ctrl+C copies through `copyPending`); `archiveCard` and the undo toast (`showUndo`, `runUndo`, Ctrl+Z, the toast's Undo with a timer bar) |
+| internal/ui/notify.go | desktop notifications (`gioui.org/x/notify`, `desktopNotify` is a var tests replace) when a card turns to the user's, from `onEvent`; skipped for the card in view in the focused window (`u.focused`, from `app.ConfigEvent`) |
+| internal/ui/explain.go | shell commands explained: Claude's own description (asked for in `claude.System`, carried as `ChatMsg.Detail`) and Haiku's breakdown (`claude.Explain`; `explainCmd` is a var tests replace), cached per command in `u.explains`; asked on Explain in the chat, by itself in a shell's view |
+| internal/ui/diff.go | an Edit's change as a diff (`lineDiff`: common ends trimmed, LCS between; `wordDiff` the same over words, with how alike two lines are; `pairLines` aligns a block's removed lines with its added ones by alikeness; `diffRows` lays each block out per view, Auto picking unified, words or split per block; `diffBlock` draws it with the view switch in `u.diffMode`, folds past `diffFold`). Rows draw as a monospace cell grid (`diffSide`, wrapped by hand, `drawRun` from terminal.go) so changed words get backgrounds. A Write as its size (`wrote`). The edits come in `ChatMsg.Edits` (`toolMsg`) |
+| internal/ui/ticketsync.go | tickets follow their card: `save` runs `syncTickets`, which pushes (`links.Push`, `pushTicket` for tests) the tickets of cards whose column differs from `Card.Pushed`, and every card's on each link poll, at start and every 3 minutes (`syncTickets(true)`: a ticket moved remotely is moved back) |
+| internal/ui/usage.go | the session view's foot: context meter and plan limits (`planLimits`, cached per account, 3 min), artifact chip names |
+| internal/ui/markdown.go | Claude's replies as rich text, as infra's chat: goldmark (GFM) → `mdBlock`s (paragraphs, headings, nested lists, quotes, GitHub alerts, code highlighted by chroma with Copy, tables sized to content with % meters), drawn with `gioui.org/x/richtext` (links clickable); caches bounded |
+| internal/ui/ask.go | Claude's open request (`claude.Request` from a `can_use_tool` control request), docked above the composer: the interview one question at a time (steps, digits pick, circles for one answer and squares for several, a free answer, enter goes on) or the permission (Deny N, Edit E for a Bash command, Allow once Y, the chevron's Allow every <tool> S: `u.allowed`, answered by `onEvent` until desk quits); keys only while no editor has them (`askKeys`); answered with `Proc.Respond` |
+| internal/ui/archive.go | the archive view |
+| internal/ui/tickets.go | an org's tickets assigned to the user (`links.Assigned`, polled with the links), by project; a click opens or makes its card |
+| internal/ui/alerts.go | an org's Nagios alerts (`links.Alerts` over its `[[nagios]]`, statusjson.cgi, polled with the links): the `al:<org>` view, errors then warnings, acknowledged dimmed; the sidebar count is the unacknowledged ones, colored by the worst; with servers, Investigate makes the alert a card (`investigate`; the infra palette's items too, via `Workspace.OnInvestigate`) |
+| internal/ui/servers.go | the infra workspace in desk: `u.infra` (started in `Run`, nil in tests), its `Tree` and `Tasks` read once a frame (`infraFrame`); sidebar rows under an org (`srv:<org>` the view; `srvc:`/`grp:`/`host:` rows act on a click, `serverClick`); `serversView` draws `Layout` and follows `ActiveOrg`; a card's open peer task (`cardTask`, From = its key) shows as ⇄ on the card and its header (`showTask`). Card sessions of orgs with servers get `claude.ServerWork` and `Bash(desk peer:*)`. `infra.SetCards` (in `Run`) routes peer events for card keys into the card's session (`cardTell`, a "peer" chat entry; `peerOut` holds them while its terminal, a "!" command or a permission question is up) and backs the infra Claude's `message_card`/`create_card` tools (`cardNew`), through `onBoard`. desk's board keys stay off in `srv:` (the panes and the workspace's Ctrl+Shift keys take them) |
+| internal/ui/board.go | columns laid out by hand (so every card's rect is known: `boardLayout`), per-column scroll, add buttons |
+| internal/ui/card.go | how a card draws: priority stripe, label colors (hashed into `kit.Accents`), due pill |
+| internal/ui/drag.go | the board's single pointer handler: hover, wheel, click, drag and drop (`dropAt`), the drag overlay |
+| internal/ui/keys.go | board keys (arrows, Ctrl+arrows, enter, /, esc); only registered while no editor is focused (`typing` lists every editor outside a dialog: add new ones there), since focus-less filters beat a focused editor in Gio |
+| internal/ui/config.go | the settings (the sidebar's Settings): a large modal, pages in a left nav (search folders, then each organization with a dot: accounts, unreadable, none); an org's desk.toml as tables (`orgs.LoadRaw`/`SaveRaw`, unknown keys kept), a card per account from `cfgKinds`, one open at a time, token sources; pages visited share a `cfgSet` so edits survive switching until Save (Ctrl+S, every edited page) or Discard; esc with unsaved changes warns first. config_folders.go: the search folders page (depth stepper, `only_toml`/`root` switches, a live `orgs.Scan` preview) |
+| internal/ui/unlock.go | the vault password dialog (a link hit a `LockedError`), the toolbar's Unlock: Show, the one-time code as six boxes over an invisible editor (`codeBoxes`), the error under the field; `iconTile` and `dialogFoot` are shared by the dialogs |
+| internal/ui/agents.go | the agent a card's session runs as (`Card.Agent`): the organization's agent files (`agents` in desk.toml, else `.claude/agents`, read by `claude.Agents`), the dialog's Agent row (default `agent`), `agentArgs` (`claude.AgentArgs`: `--agents` with all of them, `--agent` name) for the `-p` process and the terminal |
+| internal/ui/team.go | the team view: an agent card's full window (`teamMode`; the header's Team \| Conversation, `u.convo`) as the helm (`helm`: the lead in the middle, its agents on a ring by kind, `members`, each in its own pastel, spokes dashed while they work, running shells beside them, captions on the far side; `onRing` drops the ones done for `settled`, 20 minutes, until the "earlier" chip, `u.earlier`, asks for them) and the handoffs (briefs: a subagent's prompt; results: its summary). Nodes are `widget.Clickable`s on circles; clicks run through `act` like the pane's buttons; a working node breathes (frames at 20/s only then) |
+| internal/ui/shell.go | `!` messages: `bang` tells them, `shell` runs them with `bash -c` in the card's folder (`runShell`, a var tests replace; 30 min cap, `u.shellStop` its Stop) into a `shell` chat entry updated twice a second (kept once it ends; its in-memory `Path` says next/sent), `u.shellOut` holds the `<bash-input>`/`<bash-stdout>` lines for Claude, sent when the command ends with a "My command ended: exit N after T" note (`deliver` quiet: no "you" line); while it runs the card is In progress/working and `chatIn` is read-only, `send` refusing; the composer turns orange with a WARNING row while the text starts with `!` |
+| internal/ui/paste.go | images pasted into the dialog's notes and the panel's message box: Ctrl+V (its press, not the release) taken before the editor (`pasteImage`; the card terminal does its own in `termEvents`, pasting the saved path), the clipboard's image read by `internal/clip` (`clipImage`, a var tests replace: Gio reads only text), saved beside the board (`imagesDir`) and referenced as `![image](path)`; text falls back to the editor's paste; `keepImages` keeps them through Optimize; sessions get `--add-dir` for them |
+| internal/ui/optimize.go | Improve with Claude (Ctrl+J, optional) in the new-card dialog: `claude.Optimize` (Haiku, `--effort high`, `--json-schema`, read-only tools, in the org's folder and account; stream-json, so its `Progress` — the step and the StructuredOutput's title and prompt so far, `partialString` — shows in `liveRow` while the dialog's fields are disabled) → `applyDraft` fills the fields; what the user wrote is kept (`mineTitle`/`mineNotes`) for Use mine and Discard suggestions |
+| internal/ui/sheet.go | the card dialog's state and `commit` (Ctrl+Enter; a new card's request fills its fields through `smartApply`), `remove` (with undo), the draft a closed new card keeps (`u.draft`), `sheetLayout`/`pinned` (scrolling body over a fixed footer), `choice`, the organization and folder picker, the detail rows (`sheetRows`) |
+| internal/ui/smart.go | a new card's request read as it is typed: `smartParse` finds @Org, #label, !priority, due days (today, tomorrow, weekdays, next week, dates), ticket keys and URLs; `smartTitle` is the first line without the field-only words |
+| internal/ui/cardnew.go | the new-card dialog (a modal): one field for what to do, its tokens and fields as pills (a token's click makes it plain text, a field's shows the other fields), the organization asked inline when none; after Improve, Claude's suggestions (`reviewRows`: suggested marks, Use mine, Accept all) |
+| internal/ui/drawer.go | an existing card's editor as a panel on the right: properties as name and value, links with their state, notes read as Markdown until clicked; it saves as it closes (esc, ×, a click beside it) and keeps open when a field doesn't check out |
+| internal/infra | (flat; the servers file's tests in `servers_test.go`, the rest mostly `infra_test.go`): the infra workspace where the user and an infra Claude share SSH terminals of the orgs' servers. Servers: servers.go reads an org's one OpenSSH config (`<Org>/ssh_config` or desk.toml `[servers] file`; `#@ key value` comment lines: file defaults, `#@ group a/b` sections, host blocks; Includes followed only inside the org folder; `#@ hosts-cmd` cached in `<Org>/.desk/`), every tab and pane of such an org has dir = `<Org>/Infra-Claude` (`sshConfigFor`, `hostFile`, `orgFor`/`infraOf`, `groupKey` for the group view); orgs without it keep the older `Infra-Claude/<group>/` reader (sshcfg.go, `loadTree`: an `ssh_config` with `#desk password`/`#desk wol` lines, a `hosts` file or `hosts.sh`). A Bubble Tea model (model.go) runs headless in gui.go's driver; the gui_*.go files draw it. desk's API is desk.go (`New`, `Tree`, `OpenHost`/`OpenOrg`, `Layout`, `ActiveOrg`, `Shortcut`, `SetFocused`, `Close`; `MCPMain`/`PeerMain`/`AskpassMain`, which cmd/desk dispatches: desk runs itself as the tab Claude's MCP server, ssh's askpass and `desk peer`). Config is the org's desk.toml (`record`, `[approvals]`, `[schedule]`, `[[metrics]]`, `alerts` on `[[nagios]]`, hashicorp `[[vault]]`); vaults through internal/vault. State in `~/.local/state/desk/infra/`, sockets in `$XDG_RUNTIME_DIR/desk/` |
+| plugin/ | Claude Code plugin (skill for `desk peer`); `.claude-plugin/marketplace.json` lists it. Bump `version` in `plugin/.claude-plugin/plugin.json` after changing it |
+| internal/ui/kit | the look desk and internal/infra share: tokens (`CPanel`…, `CColumn`, `Accents`, `RCtl/RCard/RSheet`), Manrope and Geist Mono fonts (embedded; system fonts fill missing glyphs), `Boxed`, `Button`, `Label`, `Field`, icons; dialog.go is the dialogs' look: `KeyCap` (every action shows its key), `Hint`, `KBtn` (Primary, Secondary, Ghost, Danger), `Modal` (scrim `CDim`: Gio blends in linear light, so a dark window needs more alpha than CSS), `Title`, `Caption` |
+
+New concerns get their own file (or package under `internal/`), not a bigger one. Keep the root to
+go.mod, flake.nix, LICENSE, docs and `cmd/` / `internal/` / `third_party/` / `plugin/` /
+`packaging/` / `.github/`.
+
+## Conventions
+
+- Short comments that start with the identifier and say *why*.
+- Mark deliberate shortcuts with `ponytail:` comments naming the limit and the upgrade path.
+- UI text in English.
+- Everything here is generic: no real company, organization, client, ticket key, host, email,
+  workspace or skill name in code, comments, tests, hints or docs (they are private to whoever
+  owns them). Examples use made-up ones: orgs Acme, Globex, Initech (Umbrella, Soylent, Vandelay
+  when a test needs more); `globex-org`, `globex.atlassian.net`, `me@globex.com`; ticket keys
+  `ABC-123`; hosts in 192.0.2.0/24 or `*.example.com`; a skill `team-tools:work-ticket`. No
+  personal paths or usernames either: `$DESK_ROOT`, `~/`, `/home/me`. Live checks against real
+  accounts are throwaway tests, and what they show stays out of the repo. The repo is public.
+- Tests write only under `t.TempDir()` (a test that unsets `HOME` also `t.Chdir`s into one).
+- The window owns the board on Gio's event goroutine; change it there, then `u.save()`. Goroutines
+  (Claude events, link checks) hand work over with `u.later(func(){…})`, never touch `u.b` directly.
+- Providers are spoken to in Go (stdlib `net/http`, or a Go SDK), never through an installed CLI.
+- **Check the ready-made widgets before inventing one.** Before hand-drawing a widget, look in
+  this order and use the first that fits: `internal/ui/kit` (ours already); Gio core
+  `gioui.org/widget` (`Selectable`, `Editor`, `Clickable`, `List`, `Draggable`, `Enum`, `Bool`,
+  `Float`…); `gioui.org/x` (already a dependency): `component` (`ContextArea`/`MenuState`, `Grid`,
+  `Discloser`, `Resize`, `Tooltip`, `TruncatingLabel`, `ModalLayer`, `Sheet`, `TextField`),
+  `outlay` (Flow, Grid), `richtext`/`styledtext`, `markdown`, `explorer` (file dialogs), `notify`
+  (desktop notifications). Read its source in `~/go/pkg/mod/gioui.org{,/x}@v0.10.3` for the API.
+  Wrap what you adopt in `kit` with our tokens and fonts (`x/component` is Material-styled), and
+  say in a comment when one doesn't fit and why (the card menu: per-card handlers would break the
+  board's single pointer handler). Only then write one.
+- Tests never start real Claude or call real APIs: `startClaude`, `optimize`, `assigned`, `nagiosAlerts`, `infraTasks`, `planLimits`, `desktopNotify`, `explainCmd`, `pushTicket` and `createTicket` (ui) are vars tests replace, and
+  `githubAPI`/`bitbucketAPI` (links) point at an `httptest` server;
+  set `DESK_ROOT` to a temp dir. A live check of the runner is a throwaway test, deleted after.
+- Style is kit's tokens and type: flat chrome (40dp toolbar, 1dp line under it); the board is rounded
+  `CColumn` columns with an accent stripe on `CPane`; corners only from `RCtl`/`RCard`/`RSheet`.
+  Full-window shapes go through `FillRRect`.
+- **Redraws (Gio draws only when an event comes):** a change made while laying out (a click, an
+  editor's enter, anything handled after part of the window was drawn) leaves that part stale until
+  the mouse moves. `frame()` compares `u.sig()` before and after and asks for one more frame:
+  **any new UI state field goes into `sig()`**, and board changes go through `u.save()` (bumps
+  `gen`). `kit.Button` also asks on click. Goroutines use `u.later`. Never `w.Invalidate()` during a
+  frame (Gio drops it); inside one use `gtx.Execute(op.InvalidateCmd{})`. `TestStateChangeRedraws`
+  guards this.
+- **Frames cost the whole window**: every redraw lays out the board, sidebar and open panes. Ask
+  for one only when what's on screen changed (a hidden terminal's output doesn't: `termNotify`;
+  infra's while not shown doesn't), keep animations at ~10–20 fps, and keep per-frame work off
+  O(cards²), the disk and the network. What layout reads every frame and costs is cached on what it
+  depends on (`visible`, `count`, `cardHs`, `diffRowsOf`/`cellsOf`, `richSel.key`, `tableNat`,
+  `tokens`, `palRowsKept`, `orgs.Account`, `term.Grid`).
+- **Don't change state that later layout reads, mid-layout.** A button laid out before the content
+  it affects (the dialog's footer is laid out first, to stay visible) records its action and the owner
+  runs it after drawing (`sheet.act`); closing the dialog mid-layout once crashed the app (nil
+  `u.edit`). Capture what a widget draws from at its start; never re-read `u.edit`/`u.panel` after
+  laying out a button that can clear them.
+- **Hover state is read after the frame's pointer events**: inside `kit.Button`/`RimButton` (or
+  its content), never `k.Click(id).Hovered()` before laying the button out. Read before, it is a
+  frame late and, since Gio draws only on events, stays wrong until the pointer moves again (hover
+  "works only when the mouse moves slowly").
+- Pointer positions are board coordinates; hit-test against `u.lay` (last frame), don't add per-card handlers.
+- `layout.W/E` keep `Min.Y`: reset it inside, or row children stretch to the row's height.
+- Tests: plain `testing`, one small `TestXxx` per behavior, next to the package they test.
+- **Every new or changed test is proven by a mutation run.** Coverage only says a line ran; a
+  test counts once it fails when the code it covers is wrong. After writing tests, run
+  `go run ./cmd/qa mutate -file <file> ./internal/<pkg>` on each source file they exercise, then
+  kill every survivor on those files with a test that fails on it, or say why the mutant behaves
+  the same as the original. Report the file's score and any survivors left with the change.

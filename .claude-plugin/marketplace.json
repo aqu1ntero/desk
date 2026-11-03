@@ -1,0 +1,8 @@
+{
+  "name": "desk",
+  "description": "Work with desk's infra workspace, where the user and an infrastructure Claude share SSH terminals",
+  "owner": { "name": "Luis Felipe Domínguez Vega", "url": "https://github.com/lfdominguez" },
+  "plugins": [
+    { "name": "desk", "source": "./plugin", "description": "Hand deploys and server work to the infrastructure Claude in a running desk, and answer its questions about your code" }
+  ]
+}

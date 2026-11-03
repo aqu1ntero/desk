@@ -1,0 +1,37 @@
+package infra
+
+// Chat themes ported from prismantis (github.com/NahumLitvin/prismantis,
+// hooks/presets.ts, MIT; each palette keeps its own upstream license, see
+// prismantis docs/THIRD_PARTY_NOTICES.md). Generated, then edited by hand:
+// "desk" is desk's own look and the default.
+
+// Palette is one theme's color per role in Claude's replies.
+type Palette struct {
+	Accent, Heading, Strong, Emphasis, InlineCode, CodeText, Link, Path, Number, Quote string
+	Rule, TableHeader, TableRule, Bullet, Diagram, DiagramText, DiffAdded, DiffRemoved string
+	Chroma                                                                             string // code highlighting style
+	Light                                                                              bool
+}
+
+var themes = map[string]Palette{
+	"desk": {Accent: "#d97757", Heading: "#e5c07b", Strong: "#ffffff", Emphasis: "#c678dd", InlineCode: "#5fb3c9",
+		CodeText: "#c9d1d9", Link: "#5fb3c9", Path: "#5fb3c9", Number: "#79c08b", Quote: "#8b93a1", Rule: "#2b313c",
+		TableHeader: "#e5c07b", TableRule: "#2b313c", Bullet: "#d97757", Diagram: "#d97757", DiagramText: "#c9d1d9",
+		DiffAdded: "#79c08b", DiffRemoved: "#e06c75", Chroma: "onedark"},
+	"mono":             {Chroma: "bw"},
+	"catppuccin-mocha": {Accent: "#cba6f7", Heading: "#f9e2af", Strong: "#ffffff", Emphasis: "#f5c2e7", InlineCode: "#89dceb", CodeText: "#cdd6f4", Link: "#89b4fa", Path: "#89dceb", Number: "#a6e3a1", Quote: "#9399b2", Rule: "#45475a", TableHeader: "#f9e2af", TableRule: "#585b70", Bullet: "#cba6f7", Diagram: "#89b4fa", DiagramText: "#cdd6f4", DiffAdded: "#a6e3a1", DiffRemoved: "#f38ba8", Chroma: "catppuccin-mocha"},
+	"catppuccin-latte": {Accent: "#8839ef", Heading: "#df8e1d", Strong: "#11111b", Emphasis: "#ea76cb", InlineCode: "#04a5e5", CodeText: "#4c4f69", Link: "#1e66f5", Path: "#209fb5", Number: "#40a02b", Quote: "#6c6f85", Rule: "#bcc0cc", TableHeader: "#df8e1d", TableRule: "#acb0be", Bullet: "#8839ef", Diagram: "#1e66f5", DiagramText: "#4c4f69", DiffAdded: "#40a02b", DiffRemoved: "#d20f39", Chroma: "catppuccin-latte", Light: true},
+	"dracula":          {Accent: "#bd93f9", Heading: "#bd93f9", Strong: "#f8f8f2", Emphasis: "#ff79c6", InlineCode: "#8be9fd", CodeText: "#f8f8f2", Link: "#8be9fd", Path: "#ffb86c", Number: "#bd93f9", Quote: "#6272a4", Rule: "#44475a", TableHeader: "#f1fa8c", TableRule: "#6272a4", Bullet: "#ff79c6", Diagram: "#bd93f9", DiagramText: "#f8f8f2", DiffAdded: "#50fa7b", DiffRemoved: "#ff5555", Chroma: "dracula"},
+	"nord":             {Accent: "#88c0d0", Heading: "#88c0d0", Strong: "#eceff4", Emphasis: "#b48ead", InlineCode: "#8fbcbb", CodeText: "#d8dee9", Link: "#88c0d0", Path: "#8fbcbb", Number: "#b48ead", Quote: "#81a1c1", Rule: "#3b4252", TableHeader: "#ebcb8b", TableRule: "#4c566a", Bullet: "#88c0d0", Diagram: "#81a1c1", DiagramText: "#d8dee9", DiffAdded: "#a3be8c", DiffRemoved: "#bf616a", Chroma: "nord"},
+	"tokyo-night":      {Accent: "#bb9af7", Heading: "#7dcfff", Strong: "#c0caf5", Emphasis: "#f7768e", InlineCode: "#7dcfff", CodeText: "#a9b1d6", Link: "#73daca", Path: "#2ac3de", Number: "#ff9e64", Quote: "#9aa5ce", Rule: "#414868", TableHeader: "#e0af68", TableRule: "#565f89", Bullet: "#bb9af7", Diagram: "#7aa2f7", DiagramText: "#c0caf5", DiffAdded: "#9ece6a", DiffRemoved: "#f7768e", Chroma: "tokyonight-night"},
+	"gruvbox-dark":     {Accent: "#d3869b", Heading: "#fabd2f", Strong: "#fbf1c7", Emphasis: "#d3869b", InlineCode: "#8ec07c", CodeText: "#ebdbb2", Link: "#83a598", Path: "#8ec07c", Number: "#d3869b", Quote: "#a89984", Rule: "#3c3836", TableHeader: "#fabd2f", TableRule: "#504945", Bullet: "#fe8019", Diagram: "#83a598", DiagramText: "#ebdbb2", DiffAdded: "#b8bb26", DiffRemoved: "#fb4934", Chroma: "gruvbox"},
+	"gruvbox-light":    {Accent: "#8f3f71", Heading: "#b57614", Strong: "#282828", Emphasis: "#8f3f71", InlineCode: "#427b58", CodeText: "#3c3836", Link: "#076678", Path: "#427b58", Number: "#8f3f71", Quote: "#7c6f64", Rule: "#ebdbb2", TableHeader: "#b57614", TableRule: "#a89984", Bullet: "#af3a03", Diagram: "#076678", DiagramText: "#3c3836", DiffAdded: "#79740e", DiffRemoved: "#9d0006", Chroma: "gruvbox-light", Light: true},
+	"rose-pine":        {Accent: "#c4a7e7", Heading: "#c4a7e7", Strong: "#e0def4", Emphasis: "#ebbcba", InlineCode: "#9ccfd8", CodeText: "#e0def4", Link: "#c4a7e7", Path: "#9ccfd8", Number: "#ebbcba", Quote: "#908caa", Rule: "#26233a", TableHeader: "#f6c177", TableRule: "#6e6a86", Bullet: "#eb6f92", Diagram: "#c4a7e7", DiagramText: "#e0def4", DiffAdded: "#9ccfd8", DiffRemoved: "#eb6f92", Chroma: "rose-pine"},
+	"rose-pine-dawn":   {Accent: "#907aa9", Heading: "#907aa9", Strong: "#464261", Emphasis: "#d7827e", InlineCode: "#56949f", CodeText: "#464261", Link: "#907aa9", Path: "#286983", Number: "#d7827e", Quote: "#797593", Rule: "#f2e9e1", TableHeader: "#ea9d34", TableRule: "#9893a5", Bullet: "#b4637a", Diagram: "#907aa9", DiagramText: "#464261", DiffAdded: "#56949f", DiffRemoved: "#b4637a", Chroma: "rose-pine-dawn", Light: true},
+	"everforest":       {Accent: "#a7c080", Heading: "#e69875", Strong: "#d3c6aa", Emphasis: "#d699b6", InlineCode: "#83c092", CodeText: "#d3c6aa", Link: "#7fbbb3", Path: "#83c092", Number: "#d699b6", Quote: "#9da9a0", Rule: "#475258", TableHeader: "#dbbc7f", TableRule: "#7a8478", Bullet: "#e69875", Diagram: "#7fbbb3", DiagramText: "#d3c6aa", DiffAdded: "#a7c080", DiffRemoved: "#e67e80", Chroma: "gruvbox"},
+	"github-dark":      {Accent: "#d2a8ff", Heading: "#79c0ff", Strong: "#e6edf3", Emphasis: "#d2a8ff", InlineCode: "#79c0ff", CodeText: "#e6edf3", Link: "#58a6ff", Path: "#7ee787", Number: "#79c0ff", Quote: "#7d8590", Rule: "#30363d", TableHeader: "#ffa657", TableRule: "#8b949e", Bullet: "#ff7b72", Diagram: "#58a6ff", DiagramText: "#e6edf3", DiffAdded: "#3fb950", DiffRemoved: "#f85149", Chroma: "github-dark"},
+	"github-light":     {Accent: "#8250df", Heading: "#0550ae", Strong: "#1f2328", Emphasis: "#8250df", InlineCode: "#0550ae", CodeText: "#1f2328", Link: "#0969da", Path: "#116329", Number: "#0550ae", Quote: "#656d76", Rule: "#d0d7de", TableHeader: "#953800", TableRule: "#6e7781", Bullet: "#cf222e", Diagram: "#0969da", DiagramText: "#1f2328", DiffAdded: "#1a7f37", DiffRemoved: "#cf222e", Chroma: "github", Light: true},
+	"one-dark":         {Accent: "#c678dd", Heading: "#e06c75", Strong: "#d19a66", Emphasis: "#c678dd", InlineCode: "#56b6c2", CodeText: "#abb2bf", Link: "#61afef", Path: "#56b6c2", Number: "#d19a66", Quote: "#828997", Rule: "#3a3f4b", TableHeader: "#e5c07b", TableRule: "#5c6370", Bullet: "#c678dd", Diagram: "#61afef", DiagramText: "#abb2bf", DiffAdded: "#98c379", DiffRemoved: "#e06c75", Chroma: "onedark"},
+	"solarized-dark":   {Accent: "#6c71c4", Heading: "#b58900", Strong: "#eee8d5", Emphasis: "#d33682", InlineCode: "#2aa198", CodeText: "#93a1a1", Link: "#268bd2", Path: "#2aa198", Number: "#859900", Quote: "#657b83", Rule: "#073642", TableHeader: "#b58900", TableRule: "#586e75", Bullet: "#6c71c4", Diagram: "#268bd2", DiagramText: "#93a1a1", DiffAdded: "#859900", DiffRemoved: "#dc322f", Chroma: "solarized-dark"},
+	"solarized-light":  {Accent: "#6c71c4", Heading: "#b58900", Strong: "#073642", Emphasis: "#d33682", InlineCode: "#2aa198", CodeText: "#586e75", Link: "#268bd2", Path: "#2aa198", Number: "#859900", Quote: "#839496", Rule: "#eee8d5", TableHeader: "#b58900", TableRule: "#93a1a1", Bullet: "#6c71c4", Diagram: "#268bd2", DiagramText: "#586e75", DiffAdded: "#859900", DiffRemoved: "#dc322f", Chroma: "solarized-light", Light: true},
+}

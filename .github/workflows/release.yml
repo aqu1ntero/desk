@@ -1,0 +1,103 @@
+name: Build
+
+# Every push and PR builds the .deb and the AppImage as workflow artifacts;
+# a release tag also publishes them as a GitHub release. Releases are dated:
+# 2026.11.03, and a later one the same day 2026.11.03.1, .2…
+on:
+  push:
+    branches: [main]
+    tags: ["[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    env:
+      CGO_CFLAGS_ALLOW: -fno-strict-overflow
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libwayland-dev libxkbcommon-dev \
+            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libfuse2t64
+
+      - name: Version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            v="$GITHUB_REF_NAME"
+            # YYYY.MM.DD, a real date, then .N (1, 2…) for another release that day
+            if ! [[ "$v" =~ ^([0-9]{4})\.([0-9]{2})\.([0-9]{2})(\.[1-9][0-9]*)?$ ]] ||
+               [[ "$(date -ud "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]}" +%Y.%m.%d 2>/dev/null)" != "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}" ]]; then
+              echo "::error::tag $v is not a release version: YYYY.MM.DD or YYYY.MM.DD.N"
+              exit 1
+            fi
+          else
+            # between releases: today's date and the commit; ~ sorts before the release itself in dpkg
+            v="$(date -u +%Y.%m.%d)~git$(git rev-parse --short HEAD)"
+          fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: go build -tags nox11 -trimpath -ldflags "-s -w -X main.version=$VERSION" -o dist/desk ./cmd/desk
+
+      - name: Check the version
+        run: '[[ "$(dist/desk --version)" == "desk $VERSION" ]]'
+
+      - name: .deb
+        run: |
+          root=dist/deb
+          install -Dm755 dist/desk $root/usr/bin/desk
+          install -Dm644 packaging/desk.desktop $root/usr/share/applications/desk.desktop
+          install -Dm644 packaging/desk.svg $root/usr/share/icons/hicolor/scalable/apps/desk.svg
+          install -Dm644 LICENSE $root/usr/share/doc/desk/copyright
+          mkdir -p $root/DEBIAN
+          cat > $root/DEBIAN/control <<EOF
+          Package: desk
+          Version: $VERSION
+          Architecture: amd64
+          Maintainer: Luis Felipe Domínguez Vega <ldominguezvega@gmail.com>
+          Homepage: https://github.com/lfdominguez/desk
+          Depends: libc6, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libxkbcommon0, libpipewire-0.3-0t64 | libpipewire-0.3-0
+          Recommends: bubblewrap, openssh-client
+          Section: devel
+          Priority: optional
+          Description: A Kanban board where every card is a Claude Code session
+           desk runs a Claude Code session per card, in its organization's folder and account,
+           and tracks the pull requests, tickets, CI and alerts the work depends on.
+          EOF
+          dpkg-deb --root-owner-group --build $root "dist/desk_${VERSION}_amd64.deb"
+
+      - name: AppImage
+        run: |
+          app=dist/desk.AppDir
+          install -Dm755 dist/desk $app/usr/bin/desk
+          install -Dm644 packaging/desk.desktop $app/desk.desktop
+          install -Dm644 packaging/desk.svg $app/desk.svg
+          ln -s desk.svg $app/.DirIcon
+          ln -s usr/bin/desk $app/AppRun
+          curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool $app "dist/desk-${VERSION}-x86_64.AppImage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desk-${{ env.VERSION }}
+          path: |
+            dist/*.deb
+            dist/*.AppImage
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "desk $GITHUB_REF_NAME" --generate-notes dist/*.deb dist/*.AppImage

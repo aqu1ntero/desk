@@ -1,0 +1,61 @@
+<HTML>
+<HEAD><TITLE>Current Network Status</TITLE></HEAD>
+<BODY CLASS='status'>
+<table border=0 width=100% cellspacing=0 cellpadding=0>
+<tr><td align=left valign=top width=33%>
+<TABLE CLASS='infoBox' BORDER=1 CELLSPACING=0 CELLPADDING=0><TR><TD CLASS='infoBox'>
+<DIV CLASS='infoBoxTitle'>Current Network Status</DIV>
+Last Updated: 10-29-2026 21:40:03<BR>
+</TD></TR></TABLE>
+</td>
+<td align=center valign=top width=33%>
+<DIV CLASS='hostTotals'>Host Status Totals</DIV>
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR><TD>
+<TABLE BORDER=1 CLASS='hostTotals'>
+<TR><TH CLASS='hostTotals'><A CLASS='hostTotals' HREF='status.cgi?hostgroup=all&style=hostdetail&hoststatustypes=2'>Up</A></TH><TH CLASS='hostTotals'>Down</TH></TR>
+<TR><TD CLASS='hostTotals'>12</TD><TD CLASS='hostTotalsPROBLEMS'>1</TD></TR>
+</TABLE></TD></TR></TABLE>
+</td></tr></table>
+
+<DIV ALIGN=CENTER CLASS='statusTitle'>Service Status Details For All Hosts</DIV>
+<TABLE BORDER=0 width=100% CLASS='status'>
+<TR>
+<TH CLASS='status'>Host&nbsp;</TH><TH CLASS='status'>Service&nbsp;</TH><TH CLASS='status'>Status&nbsp;</TH><TH CLASS='status'>Last Check&nbsp;</TH><TH CLASS='status'>Duration&nbsp;</TH><TH CLASS='status'>Attempt&nbsp;</TH><TH CLASS='status'>Status Information</TH>
+</TR>
+<TR>
+<TD CLASS='statusBGDOWN'><TABLE BORDER=0 WIDTH='100%' cellpadding=0 cellspacing=0>
+<TR><TD ALIGN=LEFT><TABLE BORDER=0 cellpadding=0 cellspacing=0><TR><TD ALIGN=LEFT valign=center CLASS='statusBGDOWN'><A HREF='extinfo.cgi?type=1&host=db1' title='10.0.0.5'>db1</A></TD></TR></TABLE></TD>
+<TD ALIGN=RIGHT CLASS='statusBGDOWN'><TABLE BORDER=0 cellpadding=0 cellspacing=0><TR><TD><A HREF='status.cgi?host=db1'><IMG SRC='/nagios3/images/status2.gif' BORDER=0 ALT='View Service Details For This Host' TITLE='View Service Details For This Host'></A></TD></TR></TABLE></TD></TR>
+</TABLE></TD>
+<TD CLASS='statusOdd'><TABLE BORDER=0 WIDTH='100%' CELLSPACING=0 CELLPADDING=0><TR><TD ALIGN=LEFT><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR><TD ALIGN=LEFT valign=center CLASS='statusOdd'><A HREF='extinfo.cgi?type=2&host=db1&service=MySQL+Replication'>MySQL Replication</A></TD></TR></TABLE></TD>
+<TD ALIGN=RIGHT CLASS='statusOdd'><TABLE BORDER=0 cellspacing=0 cellpadding=0><TR><TD ALIGN=center valign=center><A HREF='extinfo.cgi?type=2&host=db1&service=MySQL+Replication#comments'><IMG SRC='/nagios3/images/ack.gif' BORDER=0 WIDTH=20 HEIGHT=20 ALT='This service problem has been acknowledged' TITLE='This service problem has been acknowledged'></A></TD></TR></TABLE></TD></TR></TABLE></TD>
+<TD CLASS='statusBGCRITICAL'>CRITICAL</TD>
+<TD CLASS='statusCRITICAL' nowrap>10-29-2026 21:38:12</TD>
+<TD CLASS='statusCRITICAL' nowrap>0d&nbsp;2h&nbsp;15m&nbsp;4s</TD>
+<TD CLASS='statusCRITICAL'>3/3</TD>
+<TD CLASS='statusCRITICAL' valign='center'>CRITICAL - Slave_IO_Running: No&nbsp;</TD>
+</TR>
+<TR>
+<TD></TD>
+<TD CLASS='statusEven'><TABLE BORDER=0 WIDTH='100%' CELLSPACING=0 CELLPADDING=0><TR><TD ALIGN=LEFT><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR><TD ALIGN=LEFT valign=center CLASS='statusEven'><A HREF='extinfo.cgi?type=2&host=db1&service=Disk+%2Fvar'>Disk /var</A></TD></TR></TABLE></TD></TR></TABLE></TD>
+<TD CLASS='statusBGWARNING'>WARNING</TD>
+<TD CLASS='statusWARNING' nowrap>10-29-2026 21:39:00</TD>
+<TD CLASS='statusWARNING' nowrap>1d&nbsp;0h&nbsp;0m&nbsp;0s</TD>
+<TD CLASS='statusWARNING'>1/4</TD>
+<TD CLASS='statusWARNING' valign='center'>DISK WARNING - free space: /var 812 MB (9%)&nbsp;</TD>
+</TR>
+<TR>
+<TD CLASS='statusOdd'><TABLE BORDER=0 WIDTH='100%' cellpadding=0 cellspacing=0>
+<TR><TD ALIGN=LEFT><TABLE BORDER=0 cellpadding=0 cellspacing=0><TR><TD ALIGN=LEFT valign=center CLASS='statusOdd'><A HREF='extinfo.cgi?type=1&host=web1' title='10.0.0.7'>web1</A></TD></TR></TABLE></TD></TR>
+</TABLE></TD>
+<TD CLASS='statusOdd'><TABLE BORDER=0 WIDTH='100%' CELLSPACING=0 CELLPADDING=0><TR><TD ALIGN=LEFT><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR><TD ALIGN=LEFT valign=center CLASS='statusOdd'><A HREF='extinfo.cgi?type=2&host=web1&service=HTTP'>HTTP</A></TD></TR></TABLE></TD>
+<TD ALIGN=RIGHT CLASS='statusOdd'><TABLE BORDER=0 cellspacing=0 cellpadding=0><TR><TD ALIGN=center valign=center><IMG SRC='/nagios3/images/downtime.gif' BORDER=0 WIDTH=20 HEIGHT=20 ALT='This service is currently in a period of scheduled downtime' TITLE='This service is currently in a period of scheduled downtime'></TD></TR></TABLE></TD></TR></TABLE></TD>
+<TD CLASS='statusOK'>OK</TD>
+<TD CLASS='statusOdd' nowrap>10-29-2026 21:39:30</TD>
+<TD CLASS='statusOdd' nowrap>12d&nbsp;3h&nbsp;1m&nbsp;9s</TD>
+<TD CLASS='statusOdd'>1/3</TD>
+<TD CLASS='statusOdd' valign='center'>HTTP OK: HTTP/1.1 200 OK - 512 bytes in 0.004 second response time&nbsp;</TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>

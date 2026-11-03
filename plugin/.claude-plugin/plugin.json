@@ -1,0 +1,8 @@
+{
+  "name": "desk",
+  "description": "Hand deploys and server work to the infrastructure Claude in a running desk, and answer its questions about your code",
+  "version": "0.2.0",
+  "author": { "name": "Luis Felipe Domínguez Vega", "url": "https://github.com/lfdominguez" },
+  "homepage": "https://github.com/lfdominguez/desk",
+  "license": "MIT"
+}
