@@ -56,7 +56,8 @@ Taken from `desk demo`: the organizations, tickets and servers are made up.
 
 ## Install
 
-desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…). It needs
+desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…); X11 and macOS are on the
+[roadmap](#roadmap). It needs
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`. Optional:
 `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for per-organization Claude
 profiles, and `ssh` for the infra workspace.
@@ -468,6 +469,16 @@ licenses are kept.
 
 Each copy goes away once upstream releases its fix. [`third_party/README.md`](third_party/README.md)
 has the versions copied.
+
+## Roadmap
+
+Planned, not there yet:
+
+- **X11.** Gio, the UI toolkit, can draw on X11, but desk builds with `-tags nox11`, and pasting
+  images reads the Wayland clipboard itself (`internal/clip`).
+- **macOS.** Gio runs there too. What's Linux-only today: bubblewrap (per-organization Claude
+  profiles), PipeWire (the infra workspace's virtual camera), the Wayland clipboard, and the
+  packaging (no `.app` or Homebrew yet).
 
 ## Acknowledgements
 
