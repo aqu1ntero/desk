@@ -1,0 +1,55 @@
+---
+title: desk
+description: A Kanban board where every card is a Claude Code session, with the PRs, tickets, CI, alerts and servers that work depends on.
+template: splash
+hero:
+  tagline: A Kanban board where every card is a Claude Code session. Write what to do, and Claude works on it in the right organization's folder and account, next to the pull requests, tickets, CI, alerts and servers it depends on.
+  actions:
+    - text: Install
+      link: /desk/start/install/
+      icon: right-arrow
+    - text: Try the demo
+      link: /desk/start/demo/
+      icon: rocket
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/lfdominguez/desk
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<div class="home-shot">
+
+![desk's board: cards in Backlog, To do, In progress and Blocked, each one a Claude Code session](../../assets/shots/board.png)
+
+</div>
+
+<CardGrid>
+	<Card title="A card is a session" icon="list-format">
+		Every card runs its own Claude Code session in the organization's folder, under its account. The
+		card shows what it's doing: working, your turn, blocked, done.
+	</Card>
+	<Card title="Requests, worked out" icon="pencil">
+		Say what to do in a sentence. Haiku reads the code and the tickets and turns it into a title, a
+		full first message, labels, links and a due date.
+	</Card>
+	<Card title="Everything the work depends on" icon="seti:git">
+		Pull and merge requests, Jira and GitHub tickets, CI runs and Nagios alerts, live on the cards,
+		through each organization's own accounts.
+	</Card>
+	<Card title="Servers, with a Claude beside you" icon="seti:shell">
+		SSH panes you share with an infra Claude that asks before every change. A card hands it server
+		work, and each card gets a session of its own.
+	</Card>
+</CardGrid>
+
+## Where to start
+
+<CardGrid>
+	<LinkCard title="Install" description="Nix, AppImage, .deb, AUR or from source." href="/desk/start/install/" />
+	<LinkCard title="Quick start" description="Your organizations, then your first card." href="/desk/start/quick-start/" />
+	<LinkCard title="The demo" description="A made-up board with scripted sessions, nothing of yours touched." href="/desk/start/demo/" />
+	<LinkCard title="Keys" description="Every shortcut on one page." href="/desk/reference/keys/" />
+</CardGrid>

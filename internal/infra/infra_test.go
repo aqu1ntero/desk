@@ -1671,6 +1671,11 @@ func TestRecording(t *testing.T) {
 	r.event("o", []byte("héllo \xe2\x82")) // "€" split across two reads
 	r.event("o", []byte("\xac done\r\n"))
 	r.event("r", []byte("100x30"))
+	r2, err := newRecorder(p, 80, 24) // a second pane on web-01 the same second
+	if err != nil || r2.f.Name() != strings.TrimSuffix(p, ".cast")+"-2.cast" {
+		t.Fatalf("second recording: %v", err)
+	}
+	r2.close()
 	r.close()                   // flushes what the writer still buffers
 	r.close()                   // a second close is nothing
 	r.event("r", []byte("1x1")) // after close (a resize of an ended pane): dropped

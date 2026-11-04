@@ -10,7 +10,7 @@
 Say what to do; Claude works on it in the right organization, under its own account, and asks you when it needs you.<br>
 Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `desk demo` shows it all with nothing to set up.
 
-▶ [The 85-second demo, narrated](docs/desk-demo.mp4)
+▶ [The 85-second demo, narrated](docs/desk-demo.mp4) · 📖 [**Documentation**](https://lfdominguez.github.io/desk/)
 
 [![Build](https://github.com/lfdominguez/desk/actions/workflows/release.yml/badge.svg)](https://github.com/lfdominguez/desk/actions/workflows/release.yml)
 [![Release](https://img.shields.io/github/v/release/lfdominguez/desk?sort=date)](https://github.com/lfdominguez/desk/releases)
@@ -18,6 +18,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 ![Go](https://img.shields.io/github/go-mod/go-version/lfdominguez/desk)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%C2%B7%20Wayland-informational)
 [![Nix](https://img.shields.io/badge/nix-run-5277C3?logo=nixos&logoColor=white)](#nix)
+[![Docs](https://img.shields.io/badge/docs-lfdominguez.github.io%2Fdesk-0a84ff)](https://lfdominguez.github.io/desk/)
 
 [Features](#features) · [Install](#install) · [Getting started](#getting-started) ·
 [Guide](#guide) · [Keys](#keys) · [Development](#development)
@@ -165,8 +166,8 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
 
 ### Prompt optimization
 
-The new-card dialog asks only **What to do** (as it comes; Shift+Enter for a new line), the
-organization, and **Optimize** (Enter). The latest Haiku runs as Claude Code in the organization's
+The new-card dialog asks only **What to do** (as it comes, over as many lines as you like), the
+organization, and **Improve with Claude** (Ctrl+J). The latest Haiku runs as Claude Code in the organization's
 folder under its account, reading its CLAUDE.md files and code and changing nothing, and fills the
 dialog as it streams: a title, the request worked out into the session's first message (context
 found, steps, acceptance criteria, open questions), labels (the board's reused), priority, folder,
@@ -175,7 +176,7 @@ have, and has the session start with the ones that fit (a ticket → `/team-tool
 ABC-510`). Tickets and PRs the request names are read first. The brief it follows is
 [`internal/claude/optimizer.md`](internal/claude/optimizer.md).
 
-Look it over, edit anything, then **Create**; **Optimize again** reruns it on what the dialog
+Look it over, edit anything, then **Create**; **Ask again…** reruns it on what the dialog
 holds now. What you wrote is kept: **Use mine** or **Discard suggestions** goes back to it.
 
 - **Screenshots**: Ctrl+V of an image saves it beside the board and puts `![image](path)` in the

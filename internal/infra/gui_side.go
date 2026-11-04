@@ -661,6 +661,9 @@ func (u *ui) tabPill(gtx layout.Context, i, n int, t guiTab) layout.Dimensions {
 	name := t.Name + " · " + t.Group
 	if t.OrgOnly {
 		name = t.Org
+		if t.Card != "" {
+			name += " · " + t.Card // a card's own session: which ticket
+		}
 	}
 	fill, fg := color.NRGBA{}, cText2
 	if i == u.st.Active && u.st.Group == "" {

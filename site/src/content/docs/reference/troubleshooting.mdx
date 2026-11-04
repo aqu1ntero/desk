@@ -1,0 +1,86 @@
+---
+title: Troubleshooting
+description: Known problems with desk, what causes them and how to fix them.
+---
+
+## nix run off NixOS
+
+On Ubuntu, Fedora and other distributions, builds of desk older than 2026.11.04 fail to open a window under `nix run github:lfdominguez/desk`:
+
+```
+desk: vulkan: libvulkan.so.1: cannot open shared object file: No such file or directory
+```
+
+desk tries OpenGL (EGL) first and Vulkan second, and only the last error shows. nixpkgs' graphics libraries look for GPU drivers only in `/run/opengl-driver`, which only NixOS has.
+
+The flake's `desk` wrapper handles this. When `/run/opengl-driver/lib` is missing, it points the EGL, DRI and GBM loaders at nixpkgs' own Mesa:
+
+```sh
+__EGL_VENDOR_LIBRARY_FILENAMES=<mesa>/share/glvnd/egl_vendor.d/50_mesa.json
+LIBGL_DRIVERS_PATH=<mesa>/lib/dri
+GBM_BACKENDS_PATH=<mesa>/lib/gbm
+```
+
+- **Intel, AMD, nouveau**: Mesa drives the GPU, and desk runs normally.
+- **NVIDIA's own driver**: Mesa can't drive it, so desk falls back to llvmpipe, Mesa's software renderer. It works, but uses the CPU to draw. For GPU drawing, install the [AppImage or .deb](/desk/start/install/), which use your system's driver, or point the variables above at your driver yourself: a value you set wins over the wrapper's.
+## Wayland only
+
+desk needs a Wayland session (Hyprland, Sway, KDE, GNOME…). It's built without X11 support, so it doesn't open under an X11 session. X11 support is on the roadmap.
+
+## $SHELL points at a shell that isn't there
+
+Some launchers set `SHELL=/bin/bash`, and on NixOS there's no `/bin/bash`. Everything desk runs inherits `SHELL`: ssh runs a host's `ProxyCommand` and `ProxyJump` with it, and Claude Code runs its Bash tool with it. A missing shell broke them.
+
+desk fixes this at start. If `$SHELL` isn't a file, desk replaces it with the shell of the same name on your `PATH`, else with `bash`. If it finds neither, it leaves `SHELL` as it is. You don't need to do anything.
+
+## An organization's sessions fail to start (bwrap)
+
+An organization with a Claude profile (`~/Secure/Claudes/<Org>/`) runs its sessions inside `bwrap`, so they see that profile as `~/.claude`.
+
+- **bwrap not installed.** desk looks for `bwrap` on your `PATH` (and in the Nix store). Without it, the session doesn't start and desk says `profile <Org> needs bwrap`. Install bubblewrap (`bubblewrap` on Debian, Ubuntu, Fedora and Arch).
+- **bwrap fails.** bwrap needs unprivileged user namespaces. If your system restricts them (some distributions do, through AppArmor or a sysctl), bwrap exits at once: the card turns **failed**, and its line and conversation show bwrap's own error. Allow user namespaces for bwrap, following your distribution's documentation.
+- **To run without a profile**, move the organization's folder out of `~/Secure/Claudes/`. Its sessions then use your own `claude` login, without bwrap.
+
+## Pasting an image does nothing
+
+<kbd>Ctrl</kbd>+<kbd>V</kbd> of an image reads the clipboard straight from the compositor, through the Wayland data-control protocol (`ext-data-control` or wlroots' `wlr-data-control`). Hyprland, Sway, other wlroots compositors and KDE have it.
+
+On a compositor without it, desk can't see the image, and <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes the clipboard's text (if any) without an error. Save the image to a file and put its path in the message instead.
+
+## A link says "no GitHub account"
+
+desk only asks a provider through an account. A link whose organization has no account for its host and owner (or whose account has no token) says **no GitHub account** (or **no GitLab account**, **no Bitbucket account**). desk never fetches it, and its CI stays out of the CI view. It doesn't make anonymous calls: they'd see no private repositories and run out fast (GitHub allows 60 an hour per address).
+
+To fix it, add an account to the card's organization in **Settings**, or in its `desk.toml`:
+
+- `owners` must include the repository's owner (or be left out, for all owners).
+- Its token must resolve. A `token_env` naming an unset variable is an error, not an empty token.
+
+Then **Reload** in the sidebar rechecks every link. See [desk.toml](/desk/reference/desk-toml/#github).
+
+A card's **Ticket** switch needs somewhere to create the ticket. Without one, desk says `no tracker to create it in: give a Jira account projects, or a GitHub account a repo, in desk.toml`.
+
+## desk asks for a vault's master password
+
+When a token comes from a Bitwarden, Vaultwarden or Passbolt vault, desk asks for the master password (or the Passbolt key's passphrase) the first time a link needs it: the **Unlock** dialog, also on the toolbar. The password stays in memory only, never on disk, until desk quits. So desk asks again after each start.
+
+- **Not now** (<kbd>Esc</kbd>) leaves the vault locked. The links that need it wait; unlock later from the toolbar.
+- **A one-time code** is asked for too when the account has two-factor login. "Wrong or expired code, try the next one" means the code timed out: type the next one.
+- **To stop being asked**, give the vault a `password` in `desk.toml` (for example `password = { token_env = "BW_PASSWORD" }`). For Bitwarden, an API key (`client_id` and `client_secret`) skips the two-factor code.
+
+## A server's host key changed
+
+A reinstalled server, or one whose keys were rotated, sends a key ssh doesn't know, and ssh refuses to connect. The pane's box then says **\<server\>'s host key changed** and shows the key the server sent next to the one in your `known_hosts`, by fingerprint.
+
+- If you expected it, **Accept new key** (<kbd>A</kbd>). desk drops that line from `known_hosts` and reconnects, and ssh saves the new key. It does nothing if the line no longer holds that key for that host.
+- If you didn't expect it, don't accept. Someone may be in between. **Close pane** (<kbd>C</kbd>).
+
+More in [Host keys](/desk/servers/host-keys/).
+
+## desk peer says desk is not running
+
+`desk peer` talks to a running desk through its socket in `$XDG_RUNTIME_DIR/desk/peer/`. If it says `desk is not running. Ask the user to start desk, then try again.`, start desk. A session running with a different `XDG_RUNTIME_DIR` (another user, a container) can't reach it.
+
+## desk crashed
+
+desk runs detached, with no terminal to print to. A crash's trace goes to `~/.local/share/desk/crash.log`. Include it when you [report the bug](https://github.com/lfdominguez/desk/issues).

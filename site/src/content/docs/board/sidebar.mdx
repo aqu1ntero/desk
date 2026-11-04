@@ -1,0 +1,154 @@
+---
+title: The sidebar
+description: Every view in the sidebar, what each one shows, and what its count counts.
+---
+
+The sidebar lists the board's views. Click one to show only its cards. The
+toolbar's header then names the view and sums it up. Most rows end with a count.
+A gray count of 0 means the view is empty right now.
+
+![The sidebar beside the board: Board, Agent Sessions, Sessions, Organizations with Tickets, Alerts and CI under them, then Labels](../../../assets/shots/board-sidebar.png)
+
+The sidebar scrolls. The rest of it (labels, links, due dates and the archive) is further down:
+
+![The sidebar scrolled to its end: Organizations, Labels, Links, Due and Archive](../../../assets/shots/board-sidebar-end.png)
+
+:::note
+Counts leave out cards in Done. Those are counted in **Done archive**.
+:::
+
+## Board: All cards
+
+**All cards** is the whole board, every column but Done. Its count is the number
+of cards on the board.
+
+<figure class="cut">
+
+![Board: All cards, 7](../../../assets/shots/board-sidebar-all.png)
+
+<figcaption>All cards, the default view.</figcaption>
+</figure>
+
+## Agent Sessions
+
+Every card with a session is listed here as its key and title, grouped by
+organization when the sessions span more than one. Cards in Done drop off the
+list: the Done archive has them.
+
+<figure class="cut">
+
+![Agent Sessions: under Acme DESK-6, under Globex DESK-5, under Initech DESK-7, each with its status dot](../../../assets/shots/board-sidebar-agents.png)
+
+<figcaption>One row per session, under its organization.</figcaption>
+</figure>
+
+- The dot is the session's status color (blue for your turn, orange for blocked…).
+- A green terminal icon means the card's [Claude Code terminal](/desk/sessions/terminal/) is open.
+- An orange warning icon means Claude is [asking you something](/desk/sessions/questions/).
+
+A click opens the session in the [full window](/desk/sessions/full-window/), or
+its terminal when one is open. These rows have no count.
+
+## Sessions
+
+The cards whose session is in a given state: **Working**, **Your turn**, **Blocked**
+and **Failed**. Each count is the number of cards in that state.
+
+<figure class="cut">
+
+![Sessions: Working 0, Your turn 2, Blocked 1, Failed 0](../../../assets/shots/board-sidebar-status.png)
+
+<figcaption>The sessions by status.</figcaption>
+</figure>
+
+**Your turn** is the one to check first: those sessions are waiting on you.
+
+![The Your turn view: only the two cards waiting on you, the header reading "Your turn" over "2 your turn"](../../../assets/shots/board-view.png)
+
+## Organizations
+
+Each organization the board uses, by name, with a count of its cards. Click one
+to show only its cards. A new card made from that view starts in that organization.
+
+<figure class="cut">
+
+![Organizations: Acme 2 with Tickets 3 and CI 1, Globex 3 with Tickets 0, Alerts 2 and CI 0, Initech 2 with Tickets 0](../../../assets/shots/board-sidebar-orgs.png)
+
+<figcaption>Each organization, and its own views under it.</figcaption>
+</figure>
+
+An organization can have views of its own, under its name:
+
+- **Tickets**: the open issues assigned to you in its Jira, GitHub or GitLab. The count is how many. See [My tickets](/desk/orgs/tickets/).
+- **Alerts**: its Nagios alerts. The count is the ones nobody acknowledged, in the worst one's color. See [Alerts](/desk/orgs/alerts/).
+- **CI**: the pipelines of its cards' pull requests, merge requests and commits. The count is the failures, in red. See [CI](/desk/orgs/ci/).
+- **Servers**: its servers, when it has a servers file. See [Servers](/desk/servers/overview/).
+
+While desk is fetching an organization's links, tickets or alerts, a spinner takes the place of its dot.
+
+The section's title has two buttons:
+
+<figure class="cut">
+
+![The Organizations title with Reload and Settings](../../../assets/shots/board-sidebar-reload.png)
+
+<figcaption>Reload and Settings.</figcaption>
+</figure>
+
+- **Reload** looks for organizations again (a folder you just made shows up), then rechecks every link, ticket, alert and CI run. A toast says how many organizations it found.
+- **Settings** opens [the settings](/desk/orgs/settings/) on the organization you're looking at, or the selected card's.
+
+## Labels
+
+Every label in use on the board, each in its own color (the same color as on the
+cards), with the number of cards that carry it. The header names a label view
+with a `#`, like "#api". A new card made from a label view starts with that label.
+
+<figure class="cut">
+
+![Labels: api, auth, billing, db, deps, infra, tests and web, each with a colored dot and a count](../../../assets/shots/board-sidebar-end-labels.png)
+
+<figcaption>Labels in use, A to Z.</figcaption>
+</figure>
+
+## Links
+
+Cards by the state of their links. See [Links](/desk/cards/links/) for what the states mean.
+
+<figure class="cut">
+
+![Links: Waiting on review 0, Ready to merge 1, Changes requested · CI failed 1, Open tickets 1](../../../assets/shots/board-sidebar-end-links.png)
+
+<figcaption>Four link views.</figcaption>
+</figure>
+
+| View | Its cards have |
+|---|---|
+| **Waiting on review** | a pull or merge request still open, waiting (gray) |
+| **Ready to merge** | a pull or merge request approved (green) |
+| **Changes requested · CI failed** | a pull or merge request with changes requested, or whose CI failed (red) |
+| **Open tickets** | a Jira issue that isn't done |
+
+## Due
+
+<figure class="cut">
+
+![Due: Overdue 0, This week 2](../../../assets/shots/board-sidebar-end-due.png)
+
+<figcaption>Cards by due date.</figcaption>
+</figure>
+
+- **Overdue**: cards whose due date has passed.
+- **This week**: cards due today or in the next six days.
+
+## Archive: Done archive
+
+**Done archive** shows the Done column's cards, then the archived ones. Its count
+is both together. See [Done archive](/desk/board/archive/).
+
+<figure class="cut">
+
+![Archive: Done archive, 1](../../../assets/shots/board-sidebar-end-archive.png)
+
+<figcaption>Done archive.</figcaption>
+</figure>

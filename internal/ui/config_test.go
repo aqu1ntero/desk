@@ -109,6 +109,17 @@ func TestConfigSaveAll(t *testing.T) {
 	if h.u.cfg != nil || h.u.toast != "" {
 		t.Fatalf("Save without changes: kept %v, toast %q", h.u.cfg != nil, h.u.toast)
 	}
+	h.u.openConfig("Acme")
+	hv := newEntry("vault", map[string]any{"name": "infra", "kind": "hashicorp", "url": "https://vault.example.com", "mount": "kv"})
+	h.u.cfg.entries = append(h.u.cfg.entries, hv)
+	if !h.u.saveOrg(h.u.cfg) {
+		t.Fatal(h.u.cfg.err)
+	}
+	raw, _ := orgs.LoadRaw(h.u.root, "Acme")
+	if vs, _ := raw["vault"].([]map[string]any); len(vs) != 2 || vs[1]["kind"] != "hashicorp" || vs[1]["mount"] != "kv" {
+		t.Fatalf("a hashicorp vault the dialog doesn't edit is kept as it is: %v", raw["vault"])
+	}
+	h.u.dropConfig()
 	d := &cfgDialog{entries: []*cfgEntry{newEntry("github", map[string]any{"name": "g"}), newEntry("vault", map[string]any{"name": "v"}), newEntry("vault", map[string]any{})}}
 	if n := d.vaultNames(); !slices.Equal(n, []string{"v"}) {
 		t.Fatalf("vault names %v", n)

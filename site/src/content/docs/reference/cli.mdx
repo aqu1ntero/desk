@@ -1,0 +1,108 @@
+---
+title: Command line
+description: Every desk subcommand and flag, including the ones desk only runs itself.
+---
+
+`desk` with no arguments opens the board. The subcommands below do something else first, or instead.
+
+| Command | What it does |
+|---|---|
+| `desk` | Opens the board. |
+| `desk --version`, `desk version` | Prints `desk <version>` and exits. |
+| `desk demo` | Opens a made-up board with nothing of yours read or written. See [The demo](/desk/start/demo/). |
+| `desk peer …` | Talks to the infra Claude of a running desk. |
+| `desk servers import-asbru …` | Turns Ásbrú's SSH connections into a servers file. |
+| `desk mcp …` | Internal: the MCP server desk gives its Claude sessions. |
+| `desk demo-infra <socket>` | Internal: the demo's scripted infra Claude. |
+| askpass | Internal: ssh's password prompt, when desk runs ssh. |
+
+Anything else after `desk` is ignored, and the board opens.
+
+## desk --version
+
+```sh
+desk --version
+# desk 2026.11.03
+```
+
+A release says its date. A build between releases says `dev-<commit>` (with `-dirty` if it had local changes), or `dev` when it can't tell. The nightly packages say the date and commit, like `2026.11.04~git1a2b3c4`.
+
+## desk demo
+
+```sh
+desk demo
+```
+
+Makes a new temporary folder, points the board, settings, state, sockets, organizations and `HOME` at it, and opens the board there in a window titled **desk demo**. It prints the folder on stderr: `desk demo: in /tmp/desk-demo-…`.
+
+## desk peer
+
+How a Claude session hands server work to desk's infra Claude. desk's card sessions use it on their own; any Claude Code session (or you) can run it while desk is open. desk's bundled Claude Code plugin teaches Claude Code to use it.
+
+Its help text, as `desk peer` prints it:
+
+```text
+desk peer: talk to the infrastructure Claude of a running desk. The user watches
+everything in desk; every server change still waits for the user's approval.
+
+  desk peer                                list orgs and sessions (this text too)
+  desk peer tell ORG [--from NAME]         give context (markdown on stdin or --text):
+                                          what the service is, its DB schema, configs
+  desk peer suggest ORG --cmd CMD --why WHY  propose a command for it to consider
+  desk peer do ORG [--from NAME]           hand over a task (stdin or --text), e.g. a deploy:
+                                          steps, versions, healthchecks, how to roll back
+  desk peer wait [--from NAME] [--timeout S]  block until a question or task result arrives
+                                          (run it in the background and run it again after each event)
+  desk peer answer ID [--from NAME]        answer question ID (stdin or --text)
+
+NAME defaults to the current directory's name. ORG is an org from the list (case-insensitive);
+its Claude tab opens if needed. Context is information for it, not orders.
+```
+
+| Subcommand | Arguments | What it does |
+|---|---|---|
+| (none), `list` | | Lists the running desk's organizations and their infra tabs (idle or working, their panes), then the help. |
+| `help` | | Prints the help. |
+| `tell ORG` | text on stdin or `--text` | Gives the infra Claude context. It gets it with its next question or task. |
+| `suggest ORG` | `--cmd CMD --why WHY` | Proposes a command for it to consider. |
+| `do ORG` | text on stdin or `--text` | Hands over a task. It starts right away, or queues if that Claude is busy. |
+| `wait` | `--timeout S` | Blocks until a question or a task's result arrives, and prints it. Without one in time: `nothing in Ns`. |
+| `answer ID` | text on stdin or `--text` | Answers the infra Claude's question `ID`. |
+
+| Flag | Meaning |
+|---|---|
+| `--from NAME` | Who's talking. Default: the current folder's name. A card's sessions use the card's key, so its work goes to that card's own infra tab. |
+| `--text TEXT` | The text, in place of stdin. |
+| `--cmd CMD`, `--why WHY` | `suggest`'s command and reason. |
+| `--timeout S` | `wait`'s limit, in seconds. |
+
+Flags may come before or after `ORG` or `ID`. A missing `ORG`, `ID` or text exits with code 2. When no desk is running, it says `desk is not running. Ask the user to start desk, then try again.`
+
+## desk servers import-asbru
+
+```text
+desk servers import-asbru [-org DIR] [-group PATH] [FILE]
+```
+
+Reads [Ásbrú Connection Manager](https://www.asbru-cm.net/)'s connections and writes them as a servers file.
+
+| Argument | Meaning |
+|---|---|
+| `-org DIR` | Add them to this organization folder's servers file (made if it has none). Without it, the file is printed on stdout. |
+| `-group PATH` | Only the hosts in this Ásbrú group, as a path: `Prod/Web`. Groups below it become `#@ group` paths relative to it. |
+| `FILE` | The Ásbrú file to read. Default: `$ASBRU_CFG/asbru.yml`, else `~/.config/asbru/asbru.yml`. An export works too. |
+
+```sh
+desk servers import-asbru -org ~/Work/Acme -group Prod   # add Prod's hosts to Acme's servers file
+desk servers import-asbru > ssh_config                   # or just print the file
+```
+
+It reports on stderr the hosts it skipped (`skipped …`) and how many it added (`N servers added to …`). Passwords are never imported. Close Ásbrú first: it writes its file when it closes. More in [Import from Ásbrú](/desk/servers/asbru/).
+
+## Internal commands
+
+desk runs itself for these. You don't need them, but you may see them in a process list.
+
+- **`desk mcp <socket> <groups>`**: the MCP server of an infra tab's Claude. `<groups>` are the tool groups the organization's `desk.toml` enables (`secrets`, `nagios`, `metrics`). With `card=<id>` in place of the groups, it serves a card session's read-only desk tools (alerts, tickets, link, ci, ci_log). desk writes these into the sessions' `--mcp-config` itself.
+- **`desk demo-infra <socket>`**: the demo's scripted infra Claude, started by the demo's infra workspace.
+- **askpass**: when desk runs ssh, it sets `SSH_ASKPASS` to itself and `DESK_ASKPASS` to a socket. ssh then runs `desk "<prompt>"`, which asks the running desk for the password and prints it.

@@ -1,0 +1,90 @@
+---
+title: Search
+description: Filter the board's cards from the toolbar, with fzf's syntax, by key, title, notes, organization, #label or link.
+---
+
+The search field in the toolbar filters the cards in the view you're in. Cards
+that don't match drop out of their columns as you type.
+
+![The board filtered by 'acme: only DESK-3 and DESK-6 are left, and the column headers read 0/2, 1/2, 1/2 and 0/1](../../../assets/shots/board-search.png)
+
+## Open and close it
+
+- Press <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>F</kbd> on the board, or click the field.
+- Type. The board filters as you go.
+- <kbd>Enter</kbd> leaves the field and selects the first card that matches, so the
+  arrow keys, <kbd>Enter</kbd> and <kbd>E</kbd> work on the results right away.
+- <kbd>Esc</kbd>, or the **×** at the field's end, clears the search.
+
+<figure class="cut">
+
+![The search field holding 'acme, outlined, with its × to clear it](../../../assets/shots/board-search-box.png)
+
+<figcaption>The search field, with a query in it.</figcaption>
+</figure>
+
+While a search hides some of a column's cards, the column's count shows how many are
+left out of how many it holds:
+
+<figure class="cut">
+
+![The In progress column header: 1/2](../../../assets/shots/board-search-count.png)
+
+<figcaption>One of In progress's two cards matches.</figcaption>
+</figure>
+
+The search works inside the view you picked in the [sidebar](/desk/board/sidebar/):
+in **Acme** it searches Acme's cards only. It also filters the [Done archive](/desk/board/archive/).
+
+## What it looks in
+
+A card matches when the query matches any of:
+
+- its key (`DESK-12`)
+- its title and notes
+- its organization
+- its last message
+- its labels, written with a `#` (`#api`)
+- its links: their reference (`PR #604`, `ABC-131`) and their URL
+
+## The syntax
+
+The search uses [fzf](https://github.com/junegunn/fzf)'s extended syntax:
+
+| Type | Matches |
+|---|---|
+| `bucket region` | cards with both words, letters in order but not necessarily together (fuzzy); words are ANDed |
+| `'acme` | the exact text `acme` |
+| `^DESK-5` | cards whose text starts with `DESK-5`; a card's text starts with its key |
+| `!globex` | cards without `globex` |
+| `#api \| #tests` | either one |
+| `acme` / `Acme` | all lowercase ignores case; with a capital letter, case counts |
+
+`^` and `$` anchor to the start and the end of everything the card holds, so
+`^` is the one that helps: it finds a card by its key.
+
+:::tip
+A plain word is fuzzy: its letters only need to come in that order, so `acme` can
+also match a card that never says Acme. Put a `'` in front for the exact word.
+:::
+
+Some searches that come in handy:
+
+- `#api | #tests`: every card labeled api or tests.
+- `'PR #604`: the card that links that pull request.
+- `ABC-131`: the card linking that Jira issue.
+- `^DESK-5`: one card by its key.
+
+![The board filtered by "#api | #tests": DESK-3 in To do and DESK-6 in In progress](../../../assets/shots/board-search-labels.png)
+
+<figure class="cut">
+
+![The search field holding #api | #tests](../../../assets/shots/board-search-labels-box.png)
+
+<figcaption>Two labels, either one.</figcaption>
+</figure>
+
+:::note
+To go to a card, server or session rather than filter the board, use the
+[palette](/desk/board/palette/) (<kbd>Ctrl</kbd>+<kbd>K</kbd>).
+:::

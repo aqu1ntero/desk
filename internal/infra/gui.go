@@ -205,6 +205,7 @@ type guiTab struct {
 	Name, Org, Group, Dir, Account, State, Suggest string
 	Model                                          string // "" the account's default
 	OrgOnly, Busy, PinScreen, Live, Broadcast      bool
+	Card                                           string // the card whose own session this is ("" the org's)
 	Compacting                                     bool
 	Ctx, CtxWindow                                 int // Claude's context: tokens in it, the model's window (0 unknown)
 	Panes                                          []guiPane
@@ -250,7 +251,7 @@ func (d *driver) snapshot(m *model) *guiState {
 	}
 	for _, t := range m.tabs {
 		gt := guiTab{Key: t, Name: t.name, Org: t.org, Group: t.group, Dir: t.dir, Account: t.account, State: tabState(t),
-			Suggest: t.suggest, OrgOnly: t.orgOnly, Busy: t.busy, PinScreen: t.pinScreen, Broadcast: t.broadcast, Model: t.model, Pinned: map[int]bool{},
+			Suggest: t.suggest, OrgOnly: t.orgOnly, Card: t.card, Busy: t.busy, PinScreen: t.pinScreen, Broadcast: t.broadcast, Model: t.model, Pinned: map[int]bool{},
 			Compacting: t.compacting, Ctx: t.ctxTokens, CtxWindow: t.ctxWindow}
 		t.mu.Lock()
 		panes, cur := slices.Clone(t.panes), t.cur

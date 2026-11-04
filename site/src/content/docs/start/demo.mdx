@@ -1,0 +1,38 @@
+---
+title: The demo
+description: desk demo opens a made-up board with scripted sessions, so you can try every part of desk with nothing set up.
+---
+
+```sh
+desk demo
+```
+
+`desk demo` opens desk on a made-up world: three organizations, a board of cards, Claude sessions that play a script, and fake tickets, CI, alerts and servers. You need no accounts, no tokens and no SSH. It's also what the screenshots in these docs are taken from.
+
+![The demo board: seven cards of Acme, Globex and Initech across Backlog, To do, In progress and Blocked](../../../assets/shots/start-demo.png)
+
+## What's in it
+
+- **Acme** has a GitHub account and a Jira project `ABC`. Its **Tickets** view lists three made-up issues assigned to you (`ABC-123`, `ABC-131`, `ABC-140`), and its cards' pull requests have CI: one passing, one failing on `e2e (checkout)`.
+- **Globex** has a GitHub account, a Nagios called `prod`, and servers. Its **Alerts** view shows `web-02` critical (HTTP 502) and `db-01` in warning (disk `/var`). Its **Servers** view opens the infra workspace with four hosts (`web-01`, `web-02`, `db-01`, `db-02`) and an infra Claude that finds and fixes the full disk behind the 502, asking you before each change.
+- **Initech** has a GitHub account and one blocked card.
+- **The board** has seven cards across the columns, with labels, due dates, links and conversations already in them. Two are waiting on you ("your turn"), one is blocked.
+- **The sessions** are scripted. Message a card and its Claude answers, makes a fix, then asks permission to push it.
+- **Improve with Claude** in the new-card dialog writes a scripted brief, step by step, as the real one does.
+- **Plan limits** in a session's full window show made-up numbers.
+
+The rest works as in a real desk: open cards, drag them, edit them, make new ones, search, archive.
+
+:::caution
+A card's terminal (<kbd>T</kbd>) is the one thing the demo doesn't script: it starts the real Claude Code TUI, with the demo's empty `HOME`, so it has none of your logins.
+:::
+
+## Nothing of yours is touched
+
+The demo makes a fresh temporary folder (`/tmp/desk-demo-…`; desk prints where on start) and points desk at it: the board, the settings, the state, the sockets, the organizations and even `HOME` are inside it. Every provider is faked, so no ticket, CI, alert or vault is asked over the network, and the card sessions, Improve with Claude and the infra Claude are scripts. Your own board, settings and Claude logins are never read or written.
+
+The window is titled **desk demo**, so you can tell it from your real desk, and both can run at once.
+
+:::note
+desk leaves the temporary folder behind when you close it. Remove it when you're done, or let your system clear `/tmp`.
+:::

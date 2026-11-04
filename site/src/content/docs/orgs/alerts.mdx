@@ -1,0 +1,99 @@
+---
+title: Alerts
+description: An organization's Nagios alerts next to its work - errors first, investigate one as a card, or snooze it for a while.
+---
+
+Under each organization with one or more `[[nagios]]` accounts, the sidebar has **Alerts**: the
+hosts that are down or unreachable and the services in warning or critical, errors first.
+
+![Globex's alerts: web-02 HTTP critical under Errors, db-01 Disk /var warning under Warnings, each with Snooze and Investigate](../../../assets/shots/orgs-alerts.png)
+
+## Connecting Nagios
+
+Add a Nagios account to the organization, in [Settings](/desk/orgs/settings/) or in its
+`desk.toml` (see [Accounts](/desk/orgs/accounts/)):
+
+```toml
+[[nagios]]                      # as many as the organization has
+name = "prod"                   # what its alerts say they come from (default: its host)
+url = "https://mon.globex.example.com/nagios"   # its web root, where cgi-bin/ is
+user = "me"                     # the CGIs' login; the password is the token
+vault = "globex"
+item = "Nagios prod"
+```
+
+desk reads Nagios Core's JSON CGI (`statusjson.cgi`, which Nagios XI serves too) with basic or
+digest auth, and falls back to a Nagios 3's `status.cgi` pages. The alerts refresh with the
+links, every 3 minutes, and when you **Reload**.
+
+## Reading the list
+
+<figure class="cut">
+
+![The alert web-02 · HTTP: CRITICAL, 7 min. ago, from prod, its output "HTTP CRITICAL: HTTP/1.1 502 Bad Gateway", and the buttons Snooze and Investigate](../../../assets/shots/orgs-alerts-row.png)
+
+<figcaption>One alert: its state, host and service, since when, which Nagios, and what the check said.</figcaption>
+</figure>
+
+- **Errors** (critical, down, unreachable) come first, then **Warnings**, then **Snoozed**.
+- An acknowledged alert is dimmed and says *acknowledged*.
+- Clicking an alert opens it in Nagios.
+- The search box filters by monitor, host, service and output.
+
+The header counts them: *1 error · 1 warning*, plus how many are acknowledged and snoozed. The
+sidebar's **Alerts** row counts the ones nobody acknowledged or snoozed, in the color of the
+worst of them (red for an error, orange for a warning).
+
+## Investigate
+
+<figure class="cut">
+
+![The buttons Snooze and Investigate; Investigate in blue](../../../assets/shots/orgs-alerts-actions.png)
+
+<figcaption>Investigate is blue on an error nobody acknowledged or snoozed.</figcaption>
+</figure>
+
+When the organization has servers (an [infra workspace](/desk/servers/overview/)), each alert has
+**Investigate**. It makes the alert a card, titled *Investigate CRITICAL web-02 / HTTP*, in
+**In progress**, with the alert's output and link in its notes. It opens the card's session and
+asks its Claude to look into it: the monitoring and metrics, and the servers through the
+organization's infra Claude, with read-only commands. Claude finds the likely cause and proposes a
+fix; nothing changes on the servers without your approval.
+
+![The session of the new card DESK-9, Investigate CRITICAL web-02 / HTTP, with the message asking Claude to investigate](../../../assets/shots/orgs-investigate.png)
+
+An alert that already has an open card (not in Done) opens that card instead of making another.
+
+When the investigation ends with the alert left as it is on purpose (a container stopped by hand,
+an expected state), Claude says so, and the card offers to snooze the alert above its message
+box, with the same choices as below.
+
+## Snooze
+
+**Snooze** hides an alert, and takes it out of the count, until a time you pick. Use it for an
+alert you've looked into and are leaving as it is. desk keeps snoozes next to the board
+(`snoozed.json`); Nagios isn't told.
+
+<figure class="cut">
+
+![The Snooze until… popover for web-02 / HTTP: 1 hour, 4 hours, 1 day and 1 week with when each ends and the keys 1 to 4, a field "Or type a time", Cancel and Snooze 1 hour](../../../assets/shots/orgs-alerts-snooze-picker.png)
+
+<figcaption>Each duration says when it ends.</figcaption>
+</figure>
+
+- Click **1 hour**, **4 hours**, **1 day** or **1 week**, or press <kbd>1</kbd> to <kbd>4</kbd>.
+- Or type your own time under *Or type a time*: `2h30m`, `3d`, `1w`. desk reads it as you type and
+  says until when; <kbd>Enter</kbd> or **Snooze** takes it.
+- **Cancel** closes it.
+
+A snoozed alert moves to **Snoozed**, says until when, and gets **Unsnooze** to bring it back
+before then.
+
+<figure class="cut">
+
+![db-01 Disk /var under Warnings; web-02 HTTP under Snoozed, dimmed, saying until when it is snoozed, with Unsnooze](../../../assets/shots/orgs-alerts-snoozed-list.png)
+
+<figcaption>web-02 snoozed for 4 hours: out of the count, at the bottom.</figcaption>
+</figure>
+
+A card's Claude can read the same alerts with the [card tools](/desk/orgs/card-tools/).

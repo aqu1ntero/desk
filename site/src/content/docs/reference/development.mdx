@@ -1,0 +1,118 @@
+---
+title: Development
+description: Building desk, running its tests, making the docs and their screenshots, and how releases work.
+---
+
+desk is Go with [Gio](https://gioui.org) for the window. The repository's [CLAUDE.md](https://github.com/lfdominguez/desk/blob/main/CLAUDE.md) has the package map and the conventions. It's written for Claude Code, which builds most of desk, but reads fine for people.
+
+## Build
+
+Gio needs cgo and the Wayland, xkbcommon, EGL and PipeWire headers. The flake's dev shell has all of them, and sets `-tags nox11`, `CGO_CFLAGS_ALLOW=-fno-strict-overflow` and `GOTOOLCHAIN=local`:
+
+```sh
+nix develop                         # the dev shell
+go build -o desk ./cmd/desk
+nix build                           # the Nix package
+```
+
+Without Nix, install the headers yourself and pass the same flags:
+
+```sh
+CGO_CFLAGS_ALLOW=-fno-strict-overflow go build -tags nox11 -o desk ./cmd/desk
+```
+
+When `go.sum` changes, update `vendorHash` in `flake.nix`, or `nix build` fails.
+
+## Tests
+
+```sh
+go test ./...                       # in the dev shell, which sets -tags nox11
+go run ./cmd/qa cover               # every package's coverage against its floor
+go run ./cmd/qa mutate -file internal/ui/smart.go ./internal/ui   # mutation testing
+```
+
+- **`qa cover`** fails when a package's coverage is under its floor (`floors` in `cmd/qa`), or a package has no floor. Raise a floor when tests grow; don't lower one to land a change.
+- **`qa mutate`** makes one small change at a time to the code (`==` to `!=`, `<` to `>=`, a `!` dropped…), runs the package's tests on it, and lists every change no test noticed (`file:line: from → to`). Each one is behavior no test pins down. Narrow the big packages (`internal/ui`, `internal/infra`) with `-file`, and keep `-j` low: each mutant starts shells and terminals.
+
+:::caution
+Point `XDG_DATA_HOME` and `DESK_ROOT` at scratch folders when you run desk to check something, never at your real board. Or use `desk demo`, which makes a fresh temporary world with every provider faked.
+:::
+
+Tests never start a real Claude or call a real API: the functions that do (`startClaude`, `optimize`, `assigned`, `nagiosAlerts`…) are variables the tests replace, and provider clients point at an `httptest` server.
+
+## The docs site
+
+These docs are a [Starlight](https://starlight.astro.build) site in `site/`. Pages are MDX in `site/src/content/docs/<section>/`, and the sidebar is in `site/astro.config.mjs`.
+
+```sh
+cd site
+npm install
+npm run shots                       # make the screenshots (needs the Go toolchain and a GPU or Mesa)
+npm run dev                         # the site at http://localhost:4321/desk/
+```
+
+GitHub Actions (`.github/workflows/docs.yml`) makes the screenshots and builds the site on every push to `main`, and publishes it to GitHub Pages. Pull requests build it without publishing.
+
+### How screenshots are made
+
+The screenshots aren't taken by hand. `internal/ui/docshots_test.go` draws desk's real window (1600×950 dp, at 1.5×) on a headless GPU, over the `desk demo` world, and saves PNGs in `site/src/assets/shots/`. Mesa's software renderer is enough. They aren't committed: every build makes them from the current code, so they always show the current UI.
+
+`npm run shots` runs:
+
+```sh
+DESK_DOCSHOTS=site/src/assets/shots go test -tags nox11 ./internal/ui -run TestDocShots -count=1
+```
+
+Without `DESK_DOCSHOTS` the test is skipped. To make one section's scenes only, narrow `-run`, for example `-run 'TestDocShots/start'`.
+
+### Adding a scene
+
+Scenes live in `internal/ui/docshots_<section>_test.go`, one file per docs section. Each file adds its scenes in `init()`, and each scene starts from a fresh demo world:
+
+```go
+func init() {
+	scenes = append(scenes,
+		scene{"start-newcard", func(s *shooter) {
+			s.key("N", key.ModShortcut)                // Ctrl+N
+			s.typ("Add rate limiting to the public API")
+			s.shot("start-newcard",
+				cut{"create", around(s.at("shSave"), 8), true}, // a zoomed cut, ringed on the full shot
+			)
+		}},
+	)
+}
+```
+
+- `s.shot(name, cuts...)` saves `<name>.png` and one `<name>-<cut>.png` per cut.
+- A `cut` is a name, a rectangle in px, and whether to ring it on the full shot. `dp(x0, y0, x1, y1)` converts dp to px; `around(r, pad)` grows a rectangle; `union(...)` joins several.
+- `s.at(id)` is where a button is on screen, by its click id (`"tbNew"`, `"shSave"`…).
+- To act: `s.click(id)`, `s.rightClick(id)`, `s.hover(id)`, `s.key(name, mods)`, `s.typ(text)`. `s.settle()` lets desk finish drawing; `s.wait(what, timeout, cond)` waits for something to happen.
+- A scene runs inside package `ui`, so it can also set desk's state directly.
+
+Prefix a scene's shots with its section, and use them in a page as `![alt](../../../assets/shots/<name>.png)`. When a UI change shows in a page, update the page and its scene.
+
+## Releases
+
+Releases are dated, not semver (desk is an app, not a library): `2026.11.03`, and another the same day `2026.11.03.1`, `.2`… Pushing such a tag builds the `.deb` and the AppImage, publishes them as a GitHub release, and updates the AUR package `desk-kanban`. The workflow refuses a tag that isn't a real date in that form.
+
+```sh
+git tag 2026.11.03 && git push origin 2026.11.03
+```
+
+The version reaches the binary as `-X main.version=…`. `desk --version` and the Settings say which one runs; a build between releases says `dev-<commit>`.
+
+Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly) with that commit's `.deb` and AppImage, versioned like `2026.11.04~git1a2b3c4`.
+
+## Vendored dependencies
+
+desk's terminals (card sessions and SSH panes) run on charmbracelet's [`x/vt`](https://github.com/charmbracelet/x/tree/main/vt) emulator and [`ultraviolet`](https://github.com/charmbracelet/ultraviolet) cell buffer. Their released versions copy every cell of the screen on each scrolled line, and drop the bottom of the screen when a pane shrinks: a busy pane (a build log, `journalctl -f`) costs seconds of CPU, and resizing a split hides the prompt.
+
+Until upstream releases fixes, `third_party/` holds both modules as published, with only these changes, wired in by the `replace` block in `go.mod`:
+
+| Module | Function | The change | Upstream |
+|---|---|---|---|
+| ultraviolet | `Buffer.InsertLineArea` / `DeleteLineArea` | Full-width areas rotate the row slices instead of copying every cell: one line on a 200×1000 buffer from 2.0 ms to 3 µs. | [issue #214](https://github.com/charmbracelet/ultraviolet/issues/214), [PR #215](https://github.com/charmbracelet/ultraviolet/pull/215) |
+| x/vt | `Scrollback.Push` | A full scrollback drops its oldest line by reslicing, not by shifting all 10,000 lines. | [PR #888](https://github.com/charmbracelet/x/pull/888) |
+| x/vt | `Emulator.Resize` | A shorter screen scrolls its top rows into the scrollback, as xterm does, instead of cutting the bottom rows where the prompt is. | [issue #1013](https://github.com/charmbracelet/x/issues/1013), [PR #1019](https://github.com/charmbracelet/x/pull/1019) |
+
+Each copy goes away once upstream releases its fix. `third_party/README.md` has the versions copied. Don't edit them casually.

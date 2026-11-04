@@ -1,0 +1,83 @@
+---
+title: Done archive
+description: Where Done and archived cards go, how to archive a card, undo it, and restore it to the board.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+The board doesn't show the Done column. Cards Claude finishes, or that you move to
+Done, wait in the **Done archive**, along with the cards you archived.
+
+Open it from the bottom of the sidebar: **Archive** → **Done archive**. Its count
+is the Done cards plus the archived ones. The header reads "1 done · 1 archived".
+
+![The Done archive: DESK-8 "Done · not archived yet" above DESK-6 "Archived from In progress"](../../../assets/shots/board-archive.png)
+
+<figure class="cut">
+
+![Two cards in the archive: "Done … · not archived yet" over DESK-8, "Archived … from In progress" over DESK-6](../../../assets/shots/board-archive-list.png)
+
+<figcaption>Done cards come first, then the archived ones, newest first. The line above each card says which it is.</figcaption>
+</figure>
+
+The toolbar's search filters the archive too. See [Search](/desk/board/search/).
+
+## Archive a card
+
+Archiving takes a card off the board and into the archive, from any column. If
+its session is running, desk stops it.
+
+- Right-click the card and choose **Archive** (or press <kbd>Backspace</kbd> while its menu is open). See [the card menu](/desk/board/cards/#the-card-menu).
+- Or click the archive icon in the card's [session panel](/desk/sessions/panel/).
+
+A toast at the window's foot says what happened: "Archived DESK-6", or
+"Archived DESK-6; its session stopped".
+
+### Undo
+
+<figure class="cut">
+
+![The toast "Archived DESK-6" with an Undo button, its Ctrl+Z key and a bar for the time left](../../../assets/shots/board-archive-undo-toast.png)
+
+<figcaption>The bar on the right runs down. Once it's gone, the undo is gone too.</figcaption>
+</figure>
+
+Click **Undo**, or press <kbd>Ctrl</kbd>+<kbd>Z</kbd> on the board, within six seconds.
+The card goes back to its column.
+
+## Archive every Done card
+
+The archive box in the toolbar archives every card in Done at once. A toast says
+how many ("Archived 3 done cards"). This one has no undo, but you can still restore each card.
+
+<figure class="cut">
+
+![The toolbar's archive box, outlined, with its tooltip "Archive every card in Done"](../../../assets/shots/board-archive-all.png)
+
+<figcaption>Archive every card in Done.</figcaption>
+</figure>
+
+## Restore a card
+
+<Steps>
+
+1. Open **Done archive** and click the card. Its session panel opens: you can read the conversation.
+2. Click the archive icon in the panel's header, **Restore to the board**.
+
+</Steps>
+
+The card goes back to the end of the column it was archived from, and desk switches
+back to All cards. A toast says "Restored DESK-6".
+
+![An archived card's panel open beside the archive, its Restore to the board button outlined](../../../assets/shots/board-archive-restore.png)
+
+<figure class="cut">
+
+![The Restore to the board button in the panel's header](../../../assets/shots/board-archive-restore-restore.png)
+
+<figcaption>Restore to the board.</figcaption>
+</figure>
+
+:::note
+An archived card is read-only. You can't edit it or message its session until it's back on the board.
+:::

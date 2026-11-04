@@ -1,0 +1,116 @@
+---
+title: Improve with Claude
+description: Have Haiku turn a one-line request into a full brief for the card's session, then keep it, edit it, or go back to your own words.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+A short request is enough to make a card, but the session does better with a
+real brief. **Improve with Claude** turns what you wrote into one: Haiku reads the
+organization's code and tickets and writes the card for you to look over. It's optional.
+
+![The new card dialog after Improve: Claude's suggested title and notes (Goal, Context, Steps, Done when) and the fields it filled](../../../assets/shots/cards-optimize.png)
+
+## Run it
+
+<Steps>
+
+1. In the [new card dialog](/desk/cards/new-card/), type what to do and pick the organization.
+2. Click **Improve with Claude**, or press <kbd>Ctrl</kbd>+<kbd>J</kbd>.
+3. Watch it work, then look over what it wrote.
+4. **Create card**.
+
+</Steps>
+
+<figure class="cut">
+
+![The Improve with Claude button, with its Ctrl+J key](../../../assets/shots/cards-optimize-before-button.png)
+
+<figcaption>Improve with Claude, in the dialog's footer.</figcaption>
+</figure>
+
+It needs an organization (it works in that organization's folder) and some text
+in What to do. Without them, a toast says what's missing.
+
+## What it does
+
+The latest Haiku runs as Claude Code in the organization's folder, under the
+organization's Claude account. It reads the folder's `CLAUDE.md` files and its code,
+and changes nothing. It sees the skills, plugins, subagents and MCP tools the
+organization's sessions have, and has the session start with the ones that fit.
+
+Tickets and pull requests your request names are read first, through the
+organization's own accounts.
+
+While it runs, the dialog shows what it's doing:
+
+![Improve while it runs: "Writing…" with 0:03 elapsed, the stages Tickets, Reads the org and Writes the card, and the title and brief appearing as Haiku writes them](../../../assets/shots/cards-optimize-live.png)
+
+<figure class="cut">
+
+![The live box: Writing…, 0:03, ✓ Tickets › ✓ Reads the org › ● Writes the card, then "Fix login retry reusing an expired token" and the brief so far](../../../assets/shots/cards-optimize-live-dialog.png)
+
+<figcaption>The step it's on, the time so far, the stages, and the title and brief as they stream in.</figcaption>
+</figure>
+
+- The stages: **Tickets** (only when your text names some), **Reads the org**, **Writes the card**.
+- The title and brief show up as Haiku writes them, so there's something to read before it ends.
+- The fields are locked while it works ("What to do · locked while Claude works"),
+  and so are **Cancel** and **Create card**. The button turns into **Stop** (<kbd>Ctrl</kbd>+<kbd>J</kbd>
+  again). You can't close the dialog until it ends or you stop it.
+
+If it fails, the dialog says why, and your text is as you left it.
+
+## What it fills
+
+| Field | What Haiku does |
+|---|---|
+| **Title** | writes a new one |
+| **Notes** | your request, worked out into the session's first message: the goal, the context it found, the steps, when it's done, and open questions |
+| **Labels** | adds its own, reusing the board's labels where they fit |
+| **Links** | adds the tickets and pull requests it found |
+| **Priority**, **Folder**, **Due** | sets them only where you left them empty |
+
+A screenshot you pasted stays in the notes.
+
+## Look it over
+
+<figure class="cut">
+
+![The banner "Claude's suggestions: look them over, then Create" with Accept all](../../../assets/shots/cards-optimize-banner.png)
+
+<figcaption>The banner, with Accept all.</figcaption>
+</figure>
+
+The title and notes are marked **suggested**. Your own title shows under the new
+one, struck through, so you can compare. Edit anything before you create the card.
+
+<figure class="cut">
+
+![The suggested Title with Use mine, your own struck through under it, and Notes with Edit and Use mine](../../../assets/shots/cards-optimize-mine.png)
+
+<figcaption>Use mine, for the title and for the notes.</figcaption>
+</figure>
+
+- **Accept all** removes the suggested marks.
+- **Use mine**, beside Title, puts back the title from your own words. Beside Notes, it puts back your request.
+- The notes show as they read (Markdown). **Edit** switches to their text, and **Preview** back.
+
+The fields it filled show as pills under the notes, under **Filled in**. Click one to see every field.
+
+## Ask again, or discard
+
+<figure class="cut">
+
+![The footer after Improve: Discard suggestions, Ask again… Ctrl+J, Cancel and Create card](../../../assets/shots/cards-optimize-foot.png)
+
+<figcaption>The footer after Improve.</figcaption>
+</figure>
+
+- **Ask again…** (<kbd>Ctrl</kbd>+<kbd>J</kbd>) runs it again on what the dialog holds now,
+  your edits included.
+- **Discard suggestions** goes back to your request as you wrote it, ready to create as it is or to improve again.
+
+:::tip
+The brief Haiku follows is in desk's source, [`internal/claude/optimizer.md`](https://github.com/lfdominguez/desk/blob/main/internal/claude/optimizer.md).
+:::

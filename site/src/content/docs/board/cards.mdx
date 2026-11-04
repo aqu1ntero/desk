@@ -1,0 +1,109 @@
+---
+title: Cards
+description: What a card on the board shows, line by line, and what its right-click menu does.
+---
+
+Each card is one piece of work and its Claude Code session. A card shows
+everything you need to decide whether to look at it now.
+
+![The board with its cards](../../../assets/shots/cards-anatomy.png)
+
+## Anatomy of a card
+
+<figure class="cut">
+
+![Card DESK-5: key, blue status dot, Globex, now; title; "Your turn: Which bucket region should the exports use?"; a green PR #88 chip; the last message; the billing label; 6 turns, 182k tokens, $1.84](../../../assets/shots/cards-anatomy-working.png)
+
+<figcaption>DESK-5, a card whose session is waiting on you.</figcaption>
+</figure>
+
+From top to bottom:
+
+1. **The top line.** Starts with the card's key (`DESK-5`), then its status dot, its
+   organization (`Globex`) and its age on the far right.
+   - The **key** is the card's number on this board: `DESK-1`, `DESK-2`… It's what you
+     search for, copy, and what the session's tools call the card.
+   - The **status dot** shows the session's state: purple while working,
+     blue for your turn, orange for blocked, red for failed, green for done. Cards
+     with no session yet have no dot.
+   - The **age** is the time since the card last changed: "now", "5 min. ago",
+     "3 hr. ago", "yesterday", then a date ("Oct 20").
+   - A card whose Claude handed server work to its organization's infra Claude also shows an orange
+     **⇄ _org_ infra** pill. See [Cards and servers](/desk/servers/cards/).
+2. **The title**, up to three lines.
+3. **The status line**: the state in words and, after a colon, its reason:
+   - "Working", in purple, while Claude takes its turn.
+   - "Your turn: …", in blue, when Claude is waiting on you: a question, an answer to look over, a permission to grant.
+   - "Blocked by agent: …", in orange, when Claude reports it can't go on (for example, "Waiting on the IdP metadata from IT").
+   - "Failed: …", in red, when the session ended with an error.
+   - "Done", in green.
+4. **Link chips**, one per link: its reference and its live state, colored by tone
+   ("PR #88 · open · CI passing" in green). A card shows up to three. After that
+   it says "+2 more links", and the session panel lists them all. See [Links](/desk/cards/links/).
+5. **The last message** from the session, on up to two lines. A card with no messages yet shows the start of its notes.
+6. **The foot**: up to three labels (more fold into "+n"), the due date, and on
+   the right, after a star, the session's turns, tokens and cost ("6   182k tokens · $1.84":
+   six turns so far).
+
+<figure class="cut">
+
+![Card DESK-3: an orange stripe on its left edge, a Jira chip "ABC-131 · To Do", the api label and an orange Tomorrow pill](../../../assets/shots/cards-anatomy-todo.png)
+
+<figcaption>DESK-3, a card that hasn't started: no status dot yet, Medium priority (the orange stripe), due tomorrow.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![Card DESK-7: orange status dot, "Blocked by agent: Waiting on the IdP metadata from IT", the auth label, 4 turns, $0.93](../../../assets/shots/cards-anatomy-blocked.png)
+
+<figcaption>DESK-7, blocked, with the reason Claude gave.</figcaption>
+</figure>
+
+### Priority and due date
+
+- A colored **stripe** down the card's left edge shows its priority: blue for Low,
+  orange for Medium, red for High. Cards with no priority have no stripe.
+- The **due pill** reads "Today" or "Tomorrow" in orange, the weekday within the
+  week ("Mon"), and a date further out ("Nov 12"). Once the date has passed it turns
+  red: "Overdue · Nov 2". Cards in Done are never shown as late.
+
+### Selected and hovered
+
+The card you select with the arrow keys (or the last one you clicked) has a blue
+outline. A click opens its [session panel](/desk/sessions/panel/).
+
+## The card menu
+
+Right-click a card for its menu.
+
+<figure class="cut">
+
+![The right-click menu of DESK-5: Open session, Open full window, Claude Code terminal, Edit card, Copy key DESK-5, Move to, Archive](../../../assets/shots/cards-menu-menu.png)
+
+<figcaption>Each item shows its key on the right.</figcaption>
+</figure>
+
+| Item | Key | What it does |
+|---|---|---|
+| **Open session** | <kbd>Enter</kbd> | Opens the card's [session panel](/desk/sessions/panel/) beside the board. |
+| **Open full window** | | Opens the session in the whole window, as in Agent Sessions. See [Full window](/desk/sessions/full-window/). |
+| **Claude Code terminal** | <kbd>T</kbd> | Opens the session in the real Claude Code TUI, inside desk. See [Terminal](/desk/sessions/terminal/). |
+| **Edit card** | <kbd>E</kbd> | Opens the card's [editor](/desk/cards/editing/). |
+| **Copy key DESK-5** | <kbd>Ctrl</kbd>+<kbd>C</kbd> | Copies the key to the clipboard. |
+| **Move to** | <kbd>1</kbd>…<kbd>5</kbd> | Moves the card to another column. |
+| **Archive** | <kbd>Backspace</kbd> | Archives the card. The toast's **Undo** (or <kbd>Ctrl</kbd>+<kbd>Z</kbd>) brings it back. |
+
+The keys only work while the menu is open. Esc or a click outside closes it.
+
+Hover **Move to** to open the list of columns. The card's own column says "· here".
+Each column's number moves the card there.
+
+<figure class="cut">
+
+![Move to opened beside the menu: Backlog 1, To do 2, In progress · here 3, Blocked 4, Done 5](../../../assets/shots/cards-menu-move-menu.png)
+
+<figcaption>Move to, with the columns and their number keys.</figcaption>
+</figure>
+
+When the card's session is running, **Archive** reads **Archive and stop the session**:
+archiving ends the session too. See [Done archive](/desk/board/archive/).

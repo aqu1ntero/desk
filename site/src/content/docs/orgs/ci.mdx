@@ -1,0 +1,67 @@
+---
+title: CI
+description: The GitHub Actions runs and GitLab pipelines of the pull requests, merge requests and commits on an organization's cards.
+---
+
+Under each organization whose cards link pull requests, merge requests or commits, the sidebar
+has **CI**: the CI of those links, card by card. Failed and running ones show their jobs.
+
+![Acme's CI: DESK-6's PR #604, its CI run failed, and the job e2e (checkout) failed under it](../../../assets/shots/orgs-ci.png)
+
+## What's in it
+
+The links of every card that isn't in Done:
+
+- **GitHub** pull requests and commits: the GitHub Actions workflow runs of the PR's head commit,
+  or of the commit, with their jobs.
+- **GitLab** merge requests and commits: the latest pipeline of the MR, or of the commit, with its
+  jobs (named *stage · job*).
+
+<figure class="cut">
+
+![DESK-6 Fix the flaky checkout e2e test with PR #604; the run "CI" failed; under it the job "e2e (checkout)" failed](../../../assets/shots/orgs-ci-runs.png)
+
+<figcaption>The card, its link, the run, and the job that failed.</figcaption>
+</figure>
+
+- The card's line (its key, title and link) opens its session.
+- A run's row opens the run in the browser; a job's row opens the job.
+- A run that passed shows alone. A run that didn't shows its jobs that didn't pass or weren't
+  skipped, indented under it.
+- A link with no runs says *No CI runs.*; one whose check failed says why, in red.
+
+Each status has its color: **success** green, **failed** red, **running** purple, **pending**
+orange, **canceled** and **skipped** grey.
+
+The header sums it up: *1 failed · 0 running · 0 passed*. The sidebar's **CI** row counts the
+links whose CI failed, and its icon takes the worst color (red failed, purple running, green
+passed).
+
+The search box filters by card key, title, link and run names and statuses.
+
+## When an organization has no CI view
+
+The view only lists links desk can ask about. A link with no matching account (with a token) for
+its host and owner is left out: its chip says **no GitHub account** instead (see
+[Accounts](/desk/orgs/accounts/#no-github-account)). An organization with no such link has no CI
+row.
+
+CI refreshes with the links, every 3 minutes, and when you **Reload**.
+
+## CI on the cards
+
+A pull or merge request's chip on its card says its CI too: *· CI failed* turns the chip red,
+*· CI running* waits, *· CI passed* is fine.
+
+![The board, with the cards DESK-5 and DESK-6 in In progress](../../../assets/shots/orgs-ci-chip.png)
+
+<figure class="cut">
+
+![Two cards: DESK-5's chip "PR #88 · open · CI passing" in green, DESK-6's chip "PR #604 · open · CI failed" in red](../../../assets/shots/orgs-ci-chip-cards.png)
+
+<figcaption>The CI in each PR's chip.</figcaption>
+</figure>
+
+The **Changes requested · CI failed** view in the sidebar's Links section gathers the cards with a
+red pull or merge request chip, across organizations. A card's Claude can read the same CI, and a failed job's log, with the
+[card tools](/desk/orgs/card-tools/).

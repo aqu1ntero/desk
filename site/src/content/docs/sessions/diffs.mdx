@@ -1,0 +1,85 @@
+---
+title: File changes
+description: How every change Claude makes to a file shows as a highlighted diff, in unified, split or word view, and how a new file shows its size.
+---
+
+Every Edit Claude makes shows in the conversation as a diff, over the code's own highlighting.
+A file Claude writes whole shows its size instead.
+
+![DESK-3's full window with two edits as diffs and a written file](../../../assets/shots/sess-diffs.png)
+
+## A diff
+
+A diff sits under its Edit tool line. Its header has the file's path, how many lines it adds and
+removes (**+4 −3**), and the view switch: **Auto**, **Unified**, **Split** and **Words**.
+
+The rows are drawn in the code's colors, picked by the file's extension. Removed lines have a red
+tint, added lines a green one. Inside a changed line, the words that changed are marked more
+strongly.
+
+<figure class="cut">
+
+![A one-line edit in config.go: the line marked with ~, "0: unlimited" struck in red and "default 100 per key" in green](../../../assets/shots/sess-diffs-words.png)
+
+<figcaption>A small edit, as one merged line: the old words in red, the new ones in green.</figcaption>
+</figure>
+
+## The views
+
+| View | What it shows |
+|---|---|
+| **Unified** | The removed lines, then the added ones, one under the other. |
+| **Split** | The old lines on the left, the new ones beside them on the right. |
+| **Words** | Each edited line once, its old and new words marked in place (`~`). Lines only added or removed show as such. |
+| **Auto** | The best view for each block of changes, picked by itself. |
+
+**Auto** is where every diff starts. It picks per block of changed lines:
+
+- Lines only added or only removed: **Unified**.
+- Lines edited a little: **Words**, each old line merged with its new one.
+- Lines rewritten: **Split** when the session has room for it (the full window), else **Unified**.
+
+<figure class="cut">
+
+![A rewritten block in router.go shown split: the three old lines on the left, the four new ones on the right](../../../assets/shots/sess-diffs-split.png)
+
+<figcaption>A rewritten block: Auto shows it split, old beside new.</figcaption>
+</figure>
+
+To see a diff another way, click a view in its header. The choice holds for that diff only.
+
+<figure class="cut">
+
+![The view switch: Auto, Unified, Split, Words](../../../assets/shots/sess-diffs-modes.png)
+
+<figcaption>The view switch of one diff.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![The same router.go change in Unified view: three red lines, then four green ones](../../../assets/shots/sess-diffs-unified-block.png)
+
+<figcaption>The same change in <strong>Unified</strong>.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![The same router.go change in Words view: three merged lines marked ~ and one added line](../../../assets/shots/sess-diffs-wordsview-block.png)
+
+<figcaption>The same change in <strong>Words</strong>.</figcaption>
+</figure>
+
+A long diff shows its first 24 rows. **Show all N rows** opens the rest, and **Show less** folds it
+again. An Edit with several changes shows them in one diff, with **⋯** between them.
+
+## A written file
+
+When Claude writes a file whole (Write), the conversation doesn't show its text. It shows its name,
+its lines and its size: "Wrote limiter.go with 84 lines · 2.3 KB".
+
+<figure class="cut">
+
+![The tool line "Write internal/ratelimit/limiter.go" and "Wrote limiter.go with 84 lines · 2.3 KB"](../../../assets/shots/sess-diffs-write.png)
+
+<figcaption>A new file: its size, not its text.</figcaption>
+</figure>

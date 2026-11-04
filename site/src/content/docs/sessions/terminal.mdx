@@ -1,0 +1,65 @@
+---
+title: The terminal
+description: Open a card's session in the full Claude Code terminal inside desk, where it keeps running and takes every key.
+---
+
+Sometimes you want Claude Code itself: its slash commands, its own prompts, its permission
+dialogs. desk can open a card's session in the full Claude Code terminal (its TUI), inside desk's
+window. It's the same session as the conversation: it resumes where the conversation is.
+
+## Opening it
+
+- On the board, select the card and press <kbd>T</kbd>.
+- Right-click the card and pick **Claude Code terminal**.
+- In the card's panel or full window, click the terminal icon in the header.
+
+<figure class="cut">
+
+![A card's right-click menu: Open session, Open full window, Claude Code terminal (T), Edit card, Copy key DESK-5, Move to, Archive](../../../assets/shots/sess-menu-menu.png)
+
+<figcaption>The card's menu, with <strong>Claude Code terminal</strong> and its key.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![The panel header's terminal icon, with its tip "Open in the Claude Code terminal (T)"](../../../assets/shots/sess-term-btn-btn.png)
+
+<figcaption>The terminal icon in a session's header.</figcaption>
+</figure>
+
+The terminal opens over the board. Its header shows the card's key and title, its folder, the
+account it runs under, and two buttons: **Chat** and **Close**.
+
+## What happens
+
+- desk lets go of the conversation's own Claude process first, so the session never runs twice.
+  The terminal runs `claude` in the card's folder, under the organization's account, and resumes
+  the card's session (or starts it under the card's session id, if it never ran).
+- The card turns to your turn, with "In its terminal" as its status line. Under
+  [Agent Sessions](/desk/sessions/full-window/#agent-sessions), its row has a green terminal icon.
+- While the terminal is open, the panel's message box won't send: desk says the card "is open in
+  its terminal: write there, or close it first", and shows you the terminal.
+
+## Keys
+
+A terminal takes every key, <kbd>Esc</kbd> included, for Claude Code. desk's own keys don't work
+while you type there.
+
+- <kbd>Ctrl</kbd>+<kbd>V</kbd> with an image on the clipboard saves it and pastes its path, which
+  Claude Code attaches. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> pastes the clipboard's text.
+- The mouse wheel scrolls back through what the terminal showed, unless Claude Code takes the
+  wheel itself.
+
+## It keeps running
+
+The terminal keeps running while you look at something else: the board, another card, the
+servers. To go back to it, press <kbd>T</kbd> on the card again, or click its row under Agent
+Sessions.
+
+- **Chat** shows the card's session in the [full window](/desk/sessions/full-window/). The
+  terminal keeps running.
+- **Close** hangs the terminal up. Typing `/exit` in Claude Code does the same. The card's status
+  line then says "Terminal closed" (or "Claude exited in its terminal" if Claude Code failed).
+
+After that, the next message from the panel starts the conversation's process again, on the same
+session.

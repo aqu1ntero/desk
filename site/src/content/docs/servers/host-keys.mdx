@@ -1,0 +1,70 @@
+---
+title: A changed host key
+description: When a server's host key changed, the pane shows both keys and can drop the old one from known_hosts for you.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+When a server sends ssh a different host key than the one in your `known_hosts` (it was
+reinstalled, its keys were rotated, or someone is in between), ssh refuses to connect. desk
+reads ssh's warning and puts what matters in the pane's connection box.
+
+![db-02's pane: ssh's REMOTE HOST IDENTIFICATION HAS CHANGED warning, and over it the box "db-02's host key changed"](../../../assets/shots/srv-hostkey.png)
+
+## The box
+
+<figure class="cut">
+
+![db-02's host key changed. sent now ED25519 SHA256:…; known ED25519 SHA256:… in ~/.ssh/known_hosts:3. Close pane C, Accept new key A, Reconnect R](../../../assets/shots/srv-hostkey-box.png)
+
+<figcaption>The key the server sent now, and the one you have, side by side.</figcaption>
+</figure>
+
+- **sent now**: the type and SHA256 fingerprint of the key the server sent.
+- **known**: the key you have for it, read from your `known_hosts`, and **in** which file and
+  line. One pair for each line ssh named. A line desk couldn't read shows `?` and
+  `(unreadable)`.
+- Under them: "It sent another key than the one you have for it. If it was reinstalled or its
+  keys rotated, accept the new one: desk drops the old line from known_hosts and connects,
+  saving the key it sends. Not expecting a change? Don't: someone may be in between."
+
+Compare the fingerprint with the one the server's owner gives you (on the server,
+`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`) before you accept.
+
+| Button | Key | What it does |
+|---|---|---|
+| **Close pane** | <kbd>C</kbd> or <kbd>Esc</kbd> | Closes the pane. Nothing changes. |
+| **Accept new key** | <kbd>A</kbd> | Drops the old line and connects, saving the new key. |
+| **Reconnect** | <kbd>R</kbd> | Tries again as it is, for example after you fixed `known_hosts` yourself. |
+
+**Accept new key** only shows when ssh said which `known_hosts` line holds the old key.
+
+## What Accept new key does
+
+<Steps>
+
+1. desk checks each `known_hosts` line ssh named: it must still hold the key ssh expected, for
+   that host. Hosts written as names, `[host]:port` or hashed (`|1|…`) all count.
+
+2. It deletes those lines, and only those. Every other line stays, and the file keeps its
+   permissions.
+
+3. It reconnects with `-o StrictHostKeyChecking=accept-new`, that one time. ssh saves the key
+   the server sends to `known_hosts`.
+
+</Steps>
+
+![db-02 connected again, at its prompt](../../../assets/shots/srv-hostkey-accepted.png)
+
+It's what `ssh-keygen -R` and a reconnect would do by hand.
+
+## What it doesn't do
+
+- **It doesn't check that the new key is genuine.** The next connection takes whatever key the
+  server sends, not necessarily the one in the box. Check the fingerprint first.
+- If any line no longer holds that key for that host (you edited the file meanwhile), desk drops
+  nothing at all and says so: "… no longer holds the key ssh named; nothing dropped".
+- It doesn't touch other hosts' lines, or other keys of this host that ssh didn't name.
+- The one-time `accept-new` isn't saved anywhere: it applies to the next connection only.
+
+If it fails, a toast says why, starting with "accepting the new host key:".

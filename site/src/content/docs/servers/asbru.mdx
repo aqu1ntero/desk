@@ -1,0 +1,147 @@
+---
+title: Import from Ásbrú
+description: Bring your SSH connections from Ásbrú Connection Manager into an organization's servers file, from the settings or the shell.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Coming from [Ásbrú Connection Manager](https://www.asbru-cm.net/)? desk can read its
+connections and add them to an organization's [servers file](/desk/servers/servers-file/): its
+groups, users, ports, keys and jump hosts. Passwords stay behind.
+
+:::caution[Close Ásbrú first]
+desk reads `~/.config/asbru/asbru.yml` (or the folder in `$ASBRU_CFG`). Ásbrú writes that file
+when it closes cleanly, so close it before importing, or desk may read an older copy.
+:::
+
+<Tabs>
+<TabItem label="Settings">
+
+<Steps>
+
+1. Open **Settings** (next to Organizations in the sidebar) and pick the organization.
+
+2. Under its accounts, the **Servers** part says where its servers file is, or that there's
+   none yet and where an import will make it.
+
+   <figure class="cut">
+
+   ![Servers: "no servers file yet: an import makes ~/Work/Acme/ssh_config", and an Import from Ásbrú button](../../../assets/shots/srv-asbru-page-servers.png)
+
+   <figcaption>Acme has no servers file yet.</figcaption>
+   </figure>
+
+3. Click **Import from Ásbrú**. desk lists Ásbrú's top-level groups.
+
+   <figure class="cut">
+
+   ![Which of Ásbrú's groups are Acme's? Its hosts are added; those already in the file are kept. All of Ásbrú, Lab, Prod, Cancel](../../../assets/shots/srv-asbru-pick-servers.png)
+
+   <figcaption>Pick the group that is this organization's, or all of them.</figcaption>
+   </figure>
+
+4. Click the group that is this organization's (**Prod** here), or **All of Ásbrú**. **Cancel**
+   closes the list.
+
+</Steps>
+
+A toast says what happened, with the first few skipped hosts:
+
+<figure class="cut">
+
+![Added 3 servers to ~/Work/Acme/ssh_config (1 skipped: Prod/win-01: RDP, not SSH)](../../../assets/shots/srv-asbru-done-toast.png)
+
+<figcaption>Three SSH hosts added; the RDP one skipped.</figcaption>
+</figure>
+
+desk then reads the organization's servers again, so its **Servers** row shows up in the
+sidebar at once:
+
+![The settings after the import: the servers file is ~/Work/Acme/ssh_config, and Acme now has Servers in the sidebar](../../../assets/shots/srv-asbru-done.png)
+
+If nothing was new, the toast says "Nothing to import from Ásbrú (N skipped)". If desk can't
+read Ásbrú's file, it says "No Ásbrú connections: …".
+
+</TabItem>
+<TabItem label="Shell">
+
+```sh
+desk servers import-asbru -org ~/Work/Acme -group Prod   # add Prod's hosts to Acme's servers file
+desk servers import-asbru > ssh_config                   # or just print the file
+```
+
+```
+desk servers import-asbru [-org DIR] [-group PATH] [FILE]
+```
+
+- `-org DIR`: add the hosts to that organization folder's servers file. It prints
+  "N servers added to …" when done. Without `-org`, the file's text goes to standard output.
+- `-group PATH`: only the hosts in that Ásbrú group. A path: `Prod/Web`.
+- `FILE`: another file to read instead of Ásbrú's own, such as an export from its tree. It goes
+  last, after the flags.
+- Skipped hosts are listed on standard error: `skipped Prod/win-01: RDP, not SSH`.
+
+</TabItem>
+</Tabs>
+
+## What it brings
+
+For each SSH connection:
+
+- Its **address**, **user** (for a key login, the key's user), **port** (unless it's 22) and
+  **key** (`IdentityFile`). A key login with no fallback also gets
+  `PreferredAuthentications publickey`.
+- Its **description**, as `#@ desc` (its first line; Ásbrú's default "Connection with '…'" is
+  left out).
+- **Groups** become `#@ group` paths, relative to the group you picked. Hosts right in that
+  group, or in no group, go under `#@ group servers`.
+- **Jump hosts** become hidden `Host` blocks (`#@ hidden`) that the host reaches through
+  `ProxyJump`. A **SOCKS proxy** becomes a `ProxyCommand nc -X 5 -x …`. Ásbrú's global proxy or
+  jump settings apply when the connection has none of its own.
+- Its **ssh options** become their config keywords: `-X`, `-Y`, `-A`, `-C`, `-4`, `-6`, `-g`,
+  `-o Key=Value`, `-L`/`-R`/`-D` forwards, `-p`, `-i`, `-l`, `-J`. Anything else stays as a
+  comment in the host's block (`# Ásbrú ssh option not imported: …`).
+- Names become ssh aliases: spaces turn into `-`, and only letters, digits, `.`, `_` and `-`
+  stay. Two hosts with the same name get the group's name in front, then `-2`, `-3`…
+
+The import starts with a comment line saying when and how many. Ásbrú's Prod group, with a Web
+group inside, a build host and an RDP connection, imported with `-group Prod`:
+
+```ssh-config
+# Imported from Ásbrú Connection Manager on 2026-11-04: 3 servers.
+
+#@ group Web
+Host www-01
+    HostName 192.0.2.31
+    User deploy
+Host www-02
+    HostName 192.0.2.32
+    User deploy
+
+#@ group servers
+Host build
+    HostName 192.0.2.40
+    User ci
+```
+
+## What it leaves behind
+
+- **Passwords.** An ssh_config can't hold them. Point
+  [`#@ password`](/desk/servers/servers-file/#vault-password-and-password-raw) at your vault
+  instead.
+- **Connections that aren't SSH** (RDP, VNC, Telnet…): "RDP, not SSH".
+- **Hosts written with Ásbrú's variables** (`<GV:…>`, `<ENV:…>`) in the address, user or port:
+  "uses Ásbrú variables (…)".
+- **Connections with no address**: "no address".
+- **Hosts the file has already**, by name (Includes inside the organization's folder count):
+  "already in the servers file". Importing again only adds the new ones.
+
+The toast and the shell list which ones were skipped and why.
+
+## Where it writes
+
+- The organization's servers file: `<Org>/ssh_config`, or the `[servers] file` of its
+  `desk.toml`.
+- New hosts go at the end, after a blank line. What's already there isn't touched.
+- desk makes the file if there's none, readable by you only (`600`).
+- With nothing to add, it writes nothing.

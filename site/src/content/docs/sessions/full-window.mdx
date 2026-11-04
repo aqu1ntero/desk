@@ -1,0 +1,68 @@
+---
+title: The full window
+description: A card's session over the whole window, with its context meter, the account's plan limits and Agent Sessions in the sidebar.
+---
+
+The full window shows a card's session in place of the board: the same conversation as the
+[panel](/desk/sessions/panel/), with room to read it. Its foot adds the context meter and the
+account's plan limits.
+
+![DESK-5's session in the full window: the sidebar on the left, the conversation in the middle, the usage strip above the message box](../../../assets/shots/sess-full.png)
+
+## Opening it
+
+There are three ways:
+
+- In the card's panel, click **Open full window** (the first icon in its header).
+- Right-click the card and pick **Open full window**.
+- Click the card under **Agent Sessions** in the sidebar. While the card's
+  [terminal](/desk/sessions/terminal/) is open, this shows the terminal instead.
+
+The toolbar then reads "DESK-5 · agent session". Press <kbd>Esc</kbd> or the **×** to go back to
+the board.
+
+## Agent Sessions
+
+**Agent Sessions** in the sidebar lists every card that has a session, grouped by organization
+when there is more than one. Each row has the card's status dot, its key and its title.
+The row of the session you're looking at is lit.
+
+<figure class="cut">
+
+![The sidebar's Agent Sessions: DESK-6 under Acme, DESK-5 under Globex (lit), DESK-7 under Initech](../../../assets/shots/sess-full-sessions.png)
+
+<figcaption>Agent Sessions, with DESK-5 open.</figcaption>
+</figure>
+
+- A row with a warning sign is waiting on you: Claude asked a question or wants permission.
+- A row with a green terminal icon has its [terminal](/desk/sessions/terminal/) open.
+- Cards in Done leave the list. They're in the [Done archive](/desk/board/archive/).
+
+## Context and plan limits
+
+The strip above the message box shows how full the session's context is, and how much of the
+account's plan you have used.
+
+<figure class="cut">
+
+![The usage strip: Context 71k / 200k (36%), 5h 34% · resets 17:59, 7d 61% · resets Sat 15:49, 7d Opus 83% · resets Sat 15:49](../../../assets/shots/sess-full-usage.png)
+
+<figcaption>Each figure has a small meter: green, orange from 70%, red from 90%.</figcaption>
+</figure>
+
+- **Context** is the tokens in the session's context, out of the model's context window.
+- **5h** is the plan's 5-hour session limit.
+- **7d** is the week's limit, over every model.
+- **7d \<model\>** is a model's own weekly limit, when the plan has one.
+
+Each limit says when it resets: a time for today, or a weekday and time. See
+[Tokens, cost and limits](/desk/sessions/usage/) for where these figures come from.
+
+## What else shows here
+
+- The **team view**, for a card that runs as an agent. See [The team view](/desk/sessions/team/).
+- The **rail** of subagents and background shells, opened by **Show details**. See
+  [Subagents and shells](/desk/sessions/subagents/).
+- The **servers**: when the card's Claude handed work to its organization's infra Claude, the
+  infra session shows beside the chat. **Chat only** in the header hides it, and
+  **Split with \<org\> servers** brings it back. See [Cards and servers](/desk/servers/cards/).

@@ -1,0 +1,175 @@
+---
+title: Cards and servers
+description: A card's Claude hands its server work to the organization's infra Claude with desk peer, and the answers come back into the card.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+A card's Claude works on code. When its work needs a server (a deploy, a migration, a look at
+production), it doesn't ssh anywhere itself: it hands the work to the organization's infra
+Claude, which runs it in panes you watch and approve. Questions and results come back into the
+card's conversation.
+
+![DESK-5's session in full window: the card's chat on the left, its infra session on the right](../../../assets/shots/srv-card-split.png)
+
+## How a card hands work over
+
+Cards of an organization with a [servers file](/desk/servers/servers-file/) get two things in
+their Claude session:
+
+- Instructions to never touch the organization's servers themselves (no ssh, scp, remote psql,
+  kubectl against production), and to use `desk peer` instead.
+- Permission to run `desk peer` without asking you.
+
+<Steps>
+
+1. The card's Claude runs `desk peer do Globex --from DESK-5` with the task: what to do, where,
+   the steps, how to check it worked and how to roll back.
+
+2. desk opens an infra session for that card in the background, with a Claude of its own, and
+   gives it the task.
+
+   <figure class="cut">
+
+   ![The task in the infra session: "DESK-5 · task 1" and the text of the task](../../../assets/shots/srv-card-split-task.png)
+
+   <figcaption>The task, as the infra Claude got it.</figcaption>
+   </figure>
+
+3. The infra Claude works on it in panes, and every change waits for
+   [your approval](/desk/servers/infra-claude/#approvals), as always.
+
+4. Its questions, results and messages come into the card's conversation. The card's Claude
+   answers them itself, with `desk peer answer`.
+
+</Steps>
+
+## On the card
+
+While a card has a task open with the infra Claude, it shows an orange **⇄ _org_ infra** pill:
+
+<figure class="cut">
+
+![Card DESK-5 with an orange "⇄ Globex infra" pill next to Globex](../../../assets/shots/srv-card-board-card.png)
+
+<figcaption>DESK-5 has handed work to Globex's infra Claude.</figcaption>
+</figure>
+
+![The board, with DESK-5 in progress and its ⇄ Globex infra pill](../../../assets/shots/srv-card-board.png)
+
+The card's session header has the same, with the task's number:
+
+<figure class="cut">
+
+![The session header: DESK-5, Working, Claude · Default account, "⇄ Globex infra · task 1" and "Chat only"](../../../assets/shots/srv-card-split-header.png)
+
+<figcaption>Click **⇄ Globex infra · task 1** to go to the card's infra session.</figcaption>
+</figure>
+
+## In the card's conversation
+
+What the infra Claude sends shows in the card's conversation as **Infra Claude**, in green, and
+goes to the card's Claude as a message:
+
+<figure class="cut">
+
+![An Infra Claude entry: "task 1 (Globex) is not reported done yet; Globex's Claude stopped and said:" and its finding](../../../assets/shots/srv-card-split-peer.png)
+
+<figcaption>The infra Claude stopped to ask before changing anything.</figcaption>
+</figure>
+
+- **A question**: the card's Claude answers it with `desk peer answer`. You see the answer in
+  the infra session, as a peer entry.
+- **A result**: "result of task 1 (Globex)", with done, failed or rejected by user, and a
+  summary.
+- **A stop before the end**: when the infra Claude ends its turn without reporting the task done
+  (it's waiting for you, or asking), the card gets what it said.
+- **A message**: the infra Claude can also write to a card on its own (see below).
+
+If the card can't take a message right now (its terminal is open, a `!` command runs, or a
+permission question is up), desk holds it and delivers it with your next message or at the end
+of the turn.
+
+## One infra session per card
+
+Each card that hands work over gets its own infra session, with its own Claude, apart from the
+organization's own session and from other cards'. Two tickets' server work never mixes, and the
+session's panes are the servers that one card needs. Its tab is named after both, **Globex · DESK-5**;
+the organization's own tab is just **Globex**.
+
+In the Servers view, the cards whose work an organization's sessions hold show as buttons above
+the tabs, **← DESK-5 Migrate the billing exports to S3**. A click goes back to the card. Cards in
+Done don't show.
+
+## The split view
+
+Open a card's session in full window and, once the card has handed work to an organization,
+desk splits it: the card's chat on the left, its infra session on the right (the first
+screenshot on this page).
+
+- The header's **Chat only** goes back to the chat alone; **Split with _org_ servers** splits it
+  again.
+- The split stays after the task ends, so you can go back and look.
+- The side panel on the board doesn't split.
+
+## When the infra Claude writes first
+
+The infra Claude has two tools for the board:
+
+- **`message_card`** writes to a card's Claude unasked: a finding, a request for context
+  ("which migrations does this release run?"). It shows in the card as an Infra Claude entry, and
+  the card's Claude can reply with `desk peer tell`.
+- **`create_card`** puts follow-up work on the board: a new card in **To do**, in the
+  organization, with a title and Markdown notes ending in "(From Globex's infra Claude.)". desk
+  says so in a toast, "Globex's infra Claude made DESK-8: …". No session starts until you start
+  it.
+
+## `desk peer`
+
+`desk peer` is how any Claude Code session (or you) talks to the running desk's infra Claude:
+
+```sh
+desk peer                                   # orgs, their sessions, and this help
+desk peer tell ORG [--from NAME]            # context: what the service is, its DB, configs
+desk peer suggest ORG --cmd CMD --why WHY   # propose one command
+desk peer do ORG [--from NAME]              # hand over a task
+desk peer wait [--from NAME] [--timeout S]  # wait for a question or result
+desk peer answer ID [--from NAME]           # answer question ID
+```
+
+- `tell`, `do` and `answer` take their text on stdin or with `--text`.
+- `--from` is who's asking. It defaults to the current folder's name. A card's key
+  (`--from DESK-5`) sends the work to that card's own infra session; any other name goes to the
+  organization's session.
+- `ORG` is an organization from the list, in any case.
+- `tell` and `suggest` are context for the infra Claude, not orders: it gets them with its next
+  question or task.
+- `do` answers "task 1 started in Globex", or "task 2 queued" when that session is busy.
+- `wait` blocks until something comes, then prints it. Cards don't need it (desk brings the
+  events into the card); other sessions run it in the background, again after each event.
+- With no desk running, it says "desk is not running. Ask the user to start desk, then try
+  again."
+
+```sh
+desk peer do Globex --from DESK-5 <<'EOF'
+Deploy billing-api 2.14.0 on web-01 and web-02, one at a time.
+Check: curl -fsS http://localhost:8080/healthz on each.
+Roll back: systemctl start billing-api@2.13.3.
+EOF
+```
+
+## Claude Code outside desk
+
+Claude Code sessions outside desk can do the same with the plugin in the repository's
+`plugin/` folder. Its `infra` skill tells Claude to hand server work to desk with `desk peer`:
+run `desk peer` first, give context with `tell`, hand over tasks with `do`, run `desk peer wait`
+in the background and answer questions with `desk peer answer`, and never send secrets.
+
+The repository is a plugin marketplace named `desk`, with the plugin `desk`:
+
+```sh
+claude plugin marketplace add lfdominguez/desk
+claude plugin install desk@desk
+```
+
+The plugin needs a running desk and the `desk` command on your `PATH`.

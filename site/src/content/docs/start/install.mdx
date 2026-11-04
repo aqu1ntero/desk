@@ -1,0 +1,110 @@
+---
+title: Install
+description: Every way to install desk on Linux, and what it needs to run.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Requirements
+
+- **Linux under Wayland**: Hyprland, Sway, KDE, GNOME and other Wayland compositors. X11 and macOS are on the roadmap, not there yet.
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: the `claude` command on your `PATH`. Every card runs it.
+- **Optional: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login.
+- **Optional: `ssh`** (OpenSSH). The infra workspace opens its server panes with it.
+
+desk talks to GitHub, GitLab, Bitbucket, Jira, Nagios and the password vaults itself. You don't need `gh`, `glab`, `bw` or `wl-paste`.
+
+## Install it
+
+<Tabs>
+<TabItem label="Nix">
+
+Run it without installing:
+
+```sh
+nix run github:lfdominguez/desk
+```
+
+Or add it to your flake:
+
+```nix
+inputs.desk.url = "github:lfdominguez/desk";
+# …
+environment.systemPackages = [ inputs.desk.packages.${pkgs.system}.default ];
+```
+
+The flake builds for `x86_64-linux` and `aarch64-linux`. A flake build reports its version as `dev-<commit>`.
+
+**Off NixOS** (Ubuntu, Fedora…), nixpkgs' graphics libraries can't find your system's GPU driver: they only look in `/run/opengl-driver`. When that folder is missing, the `desk` wrapper points them at nixpkgs' own Mesa instead. That covers Intel, AMD and nouveau; anything else (NVIDIA's own driver, for example) gets llvmpipe, Mesa's software renderer. If you set `__EGL_VENDOR_LIBRARY_FILENAMES`, `LIBGL_DRIVERS_PATH` or `GBM_BACKENDS_PATH` yourself, your value wins. See [Troubleshooting](/desk/reference/troubleshooting/#nix-run-off-nixos).
+
+</TabItem>
+<TabItem label="AppImage">
+
+Download `desk-<version>-x86_64.AppImage` from the [latest release](https://github.com/lfdominguez/desk/releases/latest), then:
+
+```sh
+chmod +x desk-*-x86_64.AppImage
+./desk-*-x86_64.AppImage
+```
+
+</TabItem>
+<TabItem label="Debian / Ubuntu">
+
+Download `desk_<version>_amd64.deb` from the [latest release](https://github.com/lfdominguez/desk/releases/latest), then:
+
+```sh
+sudo apt install ./desk_<version>_amd64.deb
+```
+
+It pulls in the Wayland, EGL, xkbcommon and PipeWire libraries it needs. Claude Code, `bwrap` and `ssh` you install yourself.
+
+</TabItem>
+<TabItem label="Arch Linux (AUR)">
+
+```sh
+yay -S desk-kanban
+```
+
+Or with `paru`, or by hand:
+
+```sh
+git clone https://aur.archlinux.org/desk-kanban.git
+cd desk-kanban
+makepkg -si
+```
+
+It builds the tagged release from source and installs `desk`. The AUR's own `desk` package is another program (a shell workspace manager), so the two conflict. Claude Code is the AUR's `claude-code`; `bubblewrap` and `openssh` are listed as optional dependencies.
+
+</TabItem>
+<TabItem label="From source">
+
+You need Go (the version in `go.mod`), cgo, and the Wayland, xkbcommon, EGL and PipeWire headers:
+
+```sh
+git clone https://github.com/lfdominguez/desk.git
+cd desk
+CGO_CFLAGS_ALLOW=-fno-strict-overflow go build -tags nox11 -o desk ./cmd/desk
+```
+
+With Nix, `nix develop` gives you a shell with all of that. See [Development](/desk/reference/development/).
+
+</TabItem>
+</Tabs>
+
+## Releases and nightly
+
+Releases are dated, not numbered: `2026.11.03`, and a second one the same day `2026.11.03.1`, then `.2`… Each one publishes a `.deb` and an AppImage on the [releases page](https://github.com/lfdominguez/desk/releases), and updates the AUR package.
+
+Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly): a `.deb` and an AppImage of that commit. Its version reads like `2026.11.04~git1a2b3c4`. Use it to try what's coming; use a dated release otherwise.
+
+To see which version you run:
+
+```sh
+desk --version
+```
+
+The Settings show it too, at the bottom of their left column.
+
+## Next
+
+Try it with nothing set up: [`desk demo`](/desk/start/demo/). Or go straight to your own board: [Quick start](/desk/start/quick-start/).

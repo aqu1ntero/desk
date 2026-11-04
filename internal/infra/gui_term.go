@@ -779,6 +779,12 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 		}
 		switch ev := ev.(type) {
 		case key.EditEvent:
+			if p.Conn != "" { // the connection box is up: its keys (R, C, A…), not the dead shell's
+				for _, r := range strings.ToLower(ev.Text) {
+					u.d.press(string(r))
+				}
+				continue
+			}
 			if u.blockKey(p, v, "", ev.Text) {
 				continue
 			}
@@ -790,6 +796,17 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			}
 		case key.Event:
 			if u.shortcut(ev) {
+				continue
+			}
+			if p.Conn != "" {
+				if ev.State == key.Press && ev.Modifiers == 0 {
+					switch ev.Name {
+					case key.NameReturn, key.NameEnter:
+						u.d.press("enter")
+					case key.NameEscape:
+						u.d.press("esc")
+					}
+				}
 				continue
 			}
 			if ev.State == key.Press && ev.Modifiers == 0 && u.blockKey(p, v, ev.Name, "") {

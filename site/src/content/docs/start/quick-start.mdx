@@ -1,0 +1,62 @@
+---
+title: Quick start
+description: From an empty board to your first card, in four steps.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+desk saves everything as you go. You don't need to set anything up before your first card; the steps below say what each one adds.
+
+<Steps>
+
+1. **Lay out your work as organizations.**
+
+   An organization is a folder. By default desk looks in `$DESK_ROOT` (`~/Work` if it isn't set), two levels down: every subfolder is an organization (`~/Work/Acme`, `~/Work/Globex`…), and folders one level deeper count too once they have a `desk.toml`.
+
+   Change the folders and how deep desk looks in **Settings → General** (the sidebar's **Settings**, next to **Organizations**). The same page sets the languages cards are written in and Claude speaks with you in. Both are English until you change them, and each new card can pick its own.
+
+   ![Settings, General page: the languages, and the search folder ~/Work at depth 2, finding Acme, Globex and Initech](../../../assets/shots/start-settings.png)
+
+2. **Optionally give an organization its own Claude account.**
+
+   Put a Claude Code profile in `~/Secure/Claudes/<Org>/` (for example `~/Secure/Claudes/Acme/`). That organization's sessions then run under it, sandboxed with `bwrap`. Organizations without one use your own `claude` login.
+
+3. **Optionally connect its accounts.**
+
+   In **Settings**, pick the organization and add its GitHub, Jira, GitLab, Bitbucket or Nagios accounts, and the vaults their tokens come from. desk then shows the live state of each card's pull requests and tickets, your assigned tickets, CI and alerts. You can also write them by hand in `<Org>/desk.toml`: see the [desk.toml reference](/desk/reference/desk-toml/).
+
+   ![Settings, Acme's page: a GitHub and a Jira account, buttons to add more, and its servers](../../../assets/shots/start-accounts.png)
+
+4. **Make a card.**
+
+   Press <kbd>Ctrl</kbd>+<kbd>N</kbd> (or **New card** in the toolbar). Say what to do in plain words, as it comes.
+
+   ![The new-card dialog with a request typed in, the organization still to pick](../../../assets/shots/start-newcard.png)
+
+   Pick the organization. desk asks for it right in the dialog until you do: type to filter, or click one. The **Folder** field is optional: a folder inside the organization for the session to start in.
+
+   <figure class="cut">
+
+   ![The organization pill, the Organization and Folder fields, and Acme, Globex and Initech to pick from](../../../assets/shots/start-newcard-org.png)
+
+   <figcaption>Until you pick one, the pill says "Pick the organization".</figcaption>
+   </figure>
+
+   Then **Improve with Claude** (<kbd>Ctrl</kbd>+<kbd>J</kbd>), if you like. It's optional: Haiku reads the organization's folder and the tickets you name, and turns your request into a full brief, with a title, labels, links and the steps. Look it over, then **Create card** (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>).
+
+   <figure class="cut">
+
+   ![The dialog's footer: Improve with Claude, Cancel and Create card, each with its key](../../../assets/shots/start-newcard-create.png)
+
+   <figcaption>Every button shows its key.</figcaption>
+   </figure>
+
+</Steps>
+
+The card's Claude session starts right away, in the organization's folder. Its card moves on its own: to In progress while Claude works, to Blocked when it reports blocked, to Done when it's done. When it needs you, the card says "your turn".
+
+## Where to go next
+
+- What each part of the board means: [Concepts](/desk/start/concepts/).
+- More on the new-card dialog: [New card](/desk/cards/new-card/) and [Improve with Claude](/desk/cards/optimize/).
+- Every shortcut: [Keys](/desk/reference/keys/).

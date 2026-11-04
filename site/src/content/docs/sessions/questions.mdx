@@ -1,0 +1,128 @@
+---
+title: Questions and permissions
+description: How Claude's questions and permission requests show at the end of the conversation, and how to answer, allow or deny them.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Sometimes Claude needs you before it can go on. It may ask you questions (Claude Code's
+AskUserQuestion), or ask permission to run a tool. Either way the request shows as a box at the end
+of the conversation, just above the message box, where it can't scroll out of view. The turn waits
+until you answer.
+
+![DESK-3's panel: Claude asks to run git push, in a box above the message box](../../../assets/shots/sess-permission.png)
+
+## Your turn meanwhile
+
+While a request is open, the card is **your turn**. Its status line says what Claude wants, and
+desk sends a desktop notification unless you're looking at the card.
+
+<figure class="cut">
+
+![The DESK-6 card on the board: "Your turn: Claude asks: How should the test…"](../../../assets/shots/sess-question-card-card.png)
+
+<figcaption>A card waiting for your answers.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![The sidebar's Agent Sessions: DESK-6 with a warning sign](../../../assets/shots/sess-question-card-side.png)
+
+<figcaption>Under Agent Sessions, the card's row has a warning sign until you answer.</figcaption>
+</figure>
+
+## Answering Claude's questions
+
+Claude's questions come one at a time. The box's header lists them as steps (**1 · Waiting**,
+**2 · Browsers**) and says which one you're on ("1 of 2"). The conversation keeps the questions
+and their options too.
+
+<figure class="cut">
+
+![The "Claude asks" box: "How should the test wait for the payment form?" with two options and "Something else: type your answer"](../../../assets/shots/sess-question-box.png)
+
+<figcaption>A question with one answer: its options have circles.</figcaption>
+</figure>
+
+<Steps>
+
+1. Pick an option: click it, or press its number. The last row, **Something else**, takes your
+   own answer: click it or press its number, then type.
+
+2. Press <kbd>Enter</kbd> or **Next question** to go to the next one. **Back** returns to the one
+   before, and a click on a step in the header goes straight to it.
+
+3. On the last question, press <kbd>Enter</kbd> or **Send answers**.
+
+</Steps>
+
+<figure class="cut">
+
+![The first question with "Wait for the iframe" picked](../../../assets/shots/sess-question-picked-box.png)
+
+<figcaption>The picked option is lit, and its circle filled.</figcaption>
+</figure>
+
+When a question takes several answers, it says **Pick any** and its options have squares. Pick as
+many as you like; a second click on one unpicks it.
+
+<figure class="cut">
+
+![The second question, "Which browsers should run the checkout test?", with Chromium and Firefox ticked](../../../assets/shots/sess-question-2-box.png)
+
+<figcaption>A question with several answers: its options have squares.</figcaption>
+</figure>
+
+Every question needs an answer before the answers go. desk says so if one has none, and shows it.
+Once sent, your answers show in the conversation as "question → answer" lines, and Claude goes on.
+
+## Allowing or denying a tool
+
+Claude runs with `--permission-mode auto`, so it only asks when Claude Code's auto mode would ask:
+pushing to a remote, for example. The box says what Claude wants to run and names the tool.
+
+<figure class="cut">
+
+![The permission box: "Claude wants to run a command", Bash, "$ git push -u origin fix/login-retry", then Deny N, Edit E, Allow once Y and a chevron](../../../assets/shots/sess-permission-box.png)
+
+<figcaption>A permission request for a shell command.</figcaption>
+</figure>
+
+| Do | Click | Key |
+|---|---|---|
+| Let it run this once | **Allow once** | <kbd>Y</kbd> or <kbd>Enter</kbd> |
+| Refuse it | **Deny** | <kbd>N</kbd> |
+| Change the command first (shell commands only) | **Edit**, then **Allow as edited** | <kbd>E</kbd>, then <kbd>Enter</kbd> |
+| Let every use of this tool through on this card | the chevron, then **Allow every \<tool\> on this card until desk quits** | <kbd>S</kbd> |
+
+<figure class="cut">
+
+![The chevron's list: Allow once (Y) and "Allow every Bash on this card until desk quits" (S)](../../../assets/shots/sess-permission-more-box.png)
+
+<figcaption>The chevron beside Allow once lists the other ways to allow.</figcaption>
+</figure>
+
+- **Edit** turns the command into a field. Change it, then press <kbd>Enter</kbd> or
+  **Allow as edited**: Claude runs your version.
+- **Allow every** lets that tool through on this card without asking, until you quit desk.
+  The conversation notes each use desk allowed for you.
+- **Deny** tells Claude you refused. It carries on without it.
+
+The conversation keeps what you decided, as "Allowed: …", "Allowed, edited: …" or "Denied: …".
+
+:::tip
+The keys work while no field has the keyboard. Click the conversation, or press <kbd>Esc</kbd> in
+the message box first.
+:::
+
+## Answering in your own words
+
+Under every request is "or reply below". Type in the message box and send instead of picking: Claude
+reads your message as the answer, and the request closes.
+
+## When nothing waits any more
+
+A request belongs to its turn. If the turn ends, or Claude's process stops, the box goes away.
+
+If Claude was refused a tool it needs, the card goes to **Blocked** with "Needs permission for
+\<tool\>: open in terminal". Open its [terminal](/desk/sessions/terminal/) to allow it there.

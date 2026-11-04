@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"golang.org/x/crypto/ssh"
@@ -227,6 +228,13 @@ func TestGMHostKeyBox(t *testing.T) {
 	h.draw(w)
 	if len(h.acts()) != 1 {
 		t.Error("Accept presses a key")
+	}
+	v := u.view(st.Tabs[0].Panes[0].Term) // typed on the pane: the box's keys, not the dead shell's
+	h.draw(func(gtx layout.Context) { gtx.Execute(key.FocusCmd{Tag: v}); u.terminals(gtx) })
+	h.r.Queue(key.EditEvent{Text: "R"}, key.Event{Name: key.NameEscape, State: key.Press}, key.Event{Name: key.NameUpArrow, State: key.Press})
+	h.draw(w)
+	if n := len(h.acts()); n != 2 {
+		t.Errorf("R and Esc on the box: %d presses", n)
 	}
 	st.Tabs[0].Panes[0].KeyChange = &hostKeyChange{Type: "ED25519", Remote: "SHA256:x"} // no line to drop: nothing to accept
 	u.clicks = map[string]*widget.Clickable{}

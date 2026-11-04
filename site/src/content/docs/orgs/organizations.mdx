@@ -1,0 +1,120 @@
+---
+title: Organizations
+description: How desk finds your organizations, which Claude account each one runs under, and what its folder gives every session.
+---
+
+An organization is a folder of your work: a client, a company, a side project. Every card belongs
+to one. Its sessions run in its folder, under its Claude account, and its links, tickets, CI and
+alerts go through the accounts in its `desk.toml`.
+
+![The board's sidebar with the organizations Acme, Globex and Initech, each with its Tickets, CI and Alerts views](../../../assets/shots/orgs-sidebar.png)
+
+<figure class="cut">
+
+![The Organizations section of the sidebar: Acme with Tickets and CI, Globex with Tickets, Alerts and CI, Initech with Tickets](../../../assets/shots/orgs-sidebar-orgs.png)
+
+<figcaption>Each organization in the sidebar, with the views its accounts give it. Reload looks for organizations again; Settings opens their settings.</figcaption>
+</figure>
+
+## Where desk finds them
+
+By default desk looks in `$DESK_ROOT`, or `~/Work` when it isn't set, two levels down. Every
+subfolder there is an organization, named after its folder:
+
+```
+~/Work/
+├── Acme/          ← organization "Acme"
+│   ├── api/       ← a folder cards of Acme can run in
+│   └── web/
+├── Globex/        ← organization "Globex"
+└── Initech/       ← organization "Initech"
+```
+
+Folders whose name starts with `.` or `_` are left out. You can change all of this in
+**Settings → General**: search other folders, go deeper or shallower, and decide which folders
+count. See [Settings](/desk/orgs/settings/#search-folders).
+
+- **Search folders**: any number, searched top to bottom. When two folders give the same name,
+  the higher one wins.
+- **Depth**: how many levels down desk looks, from 0 to 6. Level 1 is the organizations
+  themselves; deeper levels only count folders with their own `desk.toml` (below).
+- **Only with desk.toml** (`only_toml`): a subfolder is an organization only when it has a
+  `desk.toml`. The others are listed as skipped.
+- **Folder is an org** (`root`): the search folder itself is an organization too, when it has a
+  `desk.toml`.
+
+These are kept in desk's own settings, `~/.config/desk/settings.toml`.
+
+## Nested organizations
+
+A folder inside an organization can be one of its own: give it a `desk.toml`. It is found as long
+as it is within the search folder's depth.
+
+```toml
+# ~/Work/Acme/billing/desk.toml
+org = "Billing"   # optional: without it, the organization is named after its folder
+```
+
+A nested organization has its own accounts, tickets, CI and alerts. Its sessions run under the
+outer organization's Claude account (Acme's, here). The settings list it right under its outer
+one.
+
+<figure class="cut">
+
+![The settings' nav: Acme with Billing indented under it, then Globex, Initech and scratch](../../../assets/shots/orgs-settings-general-nav.png)
+
+<figcaption>Billing, nested in Acme, listed under it.</figcaption>
+</figure>
+
+## A Claude account per organization
+
+Without anything set up, every session runs under your own Claude Code login. To give an
+organization its own account, make a profile folder for it:
+
+```
+~/Secure/Claudes/<Org>/              # a Claude Code config folder (what ~/.claude holds)
+~/Secure/Claudes/claude-<org>.json   # its .claude.json, lowercase name; made from the folder's on first use
+```
+
+When `~/Secure/Claudes/<Org>/` exists, desk starts that organization's sessions inside a
+[bubblewrap](https://github.com/containers/bubblewrap) (`bwrap`) sandbox that binds the profile
+folder over `~/.claude` and `claude-<org>.json` over `~/.claude.json`. The rest of your files are
+where they always are. Its sessions, Improve with Claude and the card terminal all use that
+account, and so do the plan limits desk shows for them.
+
+:::note
+Per-organization profiles need `bwrap`. desk finds it on `PATH` (or in the Nix store on NixOS);
+without it, a session of an organization with a profile fails to start and says that it needs
+bwrap.
+:::
+
+Every session names the account it runs under in its header:
+
+<figure class="cut">
+
+![A session header: DESK-5, Your turn, and the chip "Claude · Globex account · me@globex.example.com"](../../../assets/shots/orgs-account-header.png)
+
+<figcaption>A Globex card runs under the Globex profile. Without one, the chip says Default account.</figcaption>
+</figure>
+
+## What the organization's folder gives a session
+
+A card runs in `<Org>/<folder>` (the folder you pick on the card), or in the organization's own
+folder. When it runs in a subfolder, desk also adds the organization's folder to the session with
+`--add-dir`, so the organization's `.claude/skills` load in every one of its sessions.
+
+The organization's `desk.toml` also holds:
+
+- its accounts (GitHub, Jira, Bitbucket, GitLab, Nagios) and vaults: see
+  [Accounts](/desk/orgs/accounts/) and [Vaults](/desk/orgs/vaults/);
+- `agent` and `agents`: the Claude Code agent new cards run as;
+- `[servers]`: its servers file, for the [infra workspace](/desk/servers/overview/).
+
+The [desk.toml reference](/desk/reference/desk-toml/) lists every key.
+
+## Reload
+
+**Reload**, in the sidebar's Organizations header, looks for organizations again and rechecks
+every link, ticket, alert and CI run with the `desk.toml` files as they are now. Use it after
+adding a folder or editing a `desk.toml` by hand. Saving the search folders in Settings reloads
+too; saving an organization's accounts rechecks its links and tickets.

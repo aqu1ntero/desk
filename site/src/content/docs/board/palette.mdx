@@ -1,0 +1,69 @@
+---
+title: The palette
+description: Ctrl+K goes to any card, server, running session or action from one search box.
+---
+
+The palette goes anywhere in desk from the keyboard: a card's panel, a server, a
+running session, or an action like New card. Press <kbd>Ctrl</kbd>+<kbd>K</kbd>.
+
+![The palette over the board: a search box, the scopes All, Cards, Servers, Sessions and Actions, the list of cards, and DESK-1's preview on the right](../../../assets/shots/board-palette.png)
+
+<kbd>Ctrl</kbd>+<kbd>K</kbd> works on the board and from a session's message box. It doesn't
+work while a dialog or the settings are open.
+
+## Find something
+
+Type to search. The palette matches with the same syntax as the board's
+[search](/desk/board/search/#the-syntax), on each item's key, title and what follows it
+(the organization, a server's group). The best match comes first, as **Top result**,
+then the rest, grouped by kind. The words you typed are highlighted.
+
+<figure class="cut">
+
+![The palette searching "acme": Top result DESK-3, then the Acme cards DESK-6 and DESK-8, then the actions New card in Acme and Open Acme settings](../../../assets/shots/board-palette-search-box.png)
+
+<figcaption>"acme" finds Acme's cards and Acme's actions.</figcaption>
+</figure>
+
+With the search empty, the palette lists the eight items you opened last under
+**Recent**, then everything else by kind.
+
+## Keys
+
+| Key | Does |
+|---|---|
+| <kbd>↑</kbd> <kbd>↓</kbd> | move the selection |
+| <kbd>Enter</kbd> | open the selected item |
+| <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> | next / previous scope |
+| <kbd>Esc</kbd> | close |
+
+A click on an item opens it too. A click outside the palette closes it.
+
+## Scopes
+
+The tabs under the search box narrow the list to one kind. Click one, or cycle
+through them with <kbd>Tab</kbd>.
+
+| Scope | Lists | Opening one |
+|---|---|---|
+| **All** | everything below | |
+| **Cards** | every card on the board, Done included, with its key and organization | opens its [session panel](/desk/sessions/panel/) |
+| **Servers** | each organization's infra Claude, and every server with its state (connected, with Claude, waiting, alert) | opens it in the [servers workspace](/desk/servers/palette/) |
+| **Sessions** | the cards whose session or terminal is running now | opens its [full window](/desk/sessions/full-window/) |
+| **Actions** | **New card**, **New card in** _each organization_, **Settings**, **Open** _organization_ **settings**, **Search folders** | runs it |
+
+<figure class="cut">
+
+![The Actions scope: New card with Ctrl+N, New card in Acme, Globex, Initech, Settings, Open Acme, Globex and Initech settings, Search folders](../../../assets/shots/board-palette-actions-box.png)
+
+<figcaption>The Actions scope.</figcaption>
+</figure>
+
+## The preview
+
+The right side of the palette describes the selected item.
+
+- For a card: its column, organization, status (with its reason) and how many links it has.
+- For a server: its address, its group and its status.
+
+Archived cards aren't in the palette. Find them in the [Done archive](/desk/board/archive/).

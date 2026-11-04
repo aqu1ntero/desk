@@ -1,0 +1,115 @@
+---
+title: Subagents and shells
+description: The bar that says what a session's subagents and background shells are doing, the rail with their details and history, and why a subagent is held.
+---
+
+Claude can hand part of its work to a subagent, or leave a command running in a background shell.
+desk follows both: a bar under the header says what runs, and a rail lists each one with its details.
+
+## The bar under the header
+
+While a session has subagents or background shells, a bar shows under its header. It says what runs
+now, in words: "You're running 1 subagent", then each one's name, model and, when it's held, why.
+
+<figure class="cut">
+
+![The bar: three dots, "You're running 1 subagent", "Find how tokens are refre…" and Show details](../../../assets/shots/sess-bar-bar.png)
+
+<figcaption>The bar in a card's panel, while its subagent works.</figcaption>
+</figure>
+
+Click **Show details** to see them. From the panel, this opens the session's
+[full window](/desk/sessions/full-window/) with the rail. In the full window it opens and closes
+the rail (**Hide details**).
+
+When nothing runs any more, the bar says "N finished: history", and a click opens the history.
+
+## The rail
+
+The rail is a column on the right of the full window. **Running now** lists the subagents and
+shells that run, and those that ended under a minute ago. Then they move to the history.
+
+![The full window of DESK-3 with the rail open: one subagent, "Find how tokens are refreshed", reading internal/auth/refresh.go](../../../assets/shots/sess-rail.png)
+
+Each subagent is a card:
+
+<figure class="cut">
+
+![A subagent's card: "Find how tokens are refreshed", "Reading internal/auth/refresh.go", "Explore · 2 tools · 9.2k · 8s"](../../../assets/shots/sess-rail-card.png)
+
+<figcaption>A running subagent: its task, what it's on now, and its facts.</figcaption>
+</figure>
+
+- **The dot or mark**: a purple dot while it runs, a green check once it completed, a red × if it
+  failed or was stopped.
+- **The name**: the task Claude gave it.
+- **The model** it runs on, as a chip (Haiku 4.5, Sonnet 4.5…), once desk has seen it.
+- **What it's on now**, or once it's done, the first line of its result.
+- **The facts**: its kind of agent, how many tools it used, its tokens, and how long it has run.
+
+A background shell's card has its command, the last line of its output, who started it ("by the
+session", or by a subagent) and its time.
+
+**History** at the rail's foot says how many finished, and opens them all: finished subagents on
+the left, shells on the right, newest first.
+
+![The history: SUBAGENTS · 1 with "Find the export's callers", SHELLS · 0](../../../assets/shots/sess-history.png)
+
+The rail's **×** or <kbd>Esc</kbd> closes it.
+
+## A subagent or shell in full
+
+Click a card in the rail or the history to open it in place of the conversation.
+
+- A subagent shows the prompt Claude gave it, its messages and tool lines, and its result.
+- A shell shows its command, what it does (Haiku is asked by itself, see
+  [Shell commands explained](/desk/sessions/shell/#shell-commands-explained)) and its output.
+
+![A subagent in full: "‹ Session", "Find how tokens are refreshed", running; its prompt and a Grep tool line](../../../assets/shots/sess-subagent.png)
+
+<figure class="cut">
+
+![The ‹ Session button](../../../assets/shots/sess-subagent-back.png)
+
+<figcaption><strong>‹ Session</strong> (or <kbd>Esc</kbd>) goes back to the conversation.</figcaption>
+</figure>
+
+## Held subagents
+
+A subagent that seems quiet says why, as a badge on its card. The bar says it too.
+
+![The rail with three held subagents: No activity, Waiting on Integration tests, Running Bash aws s3api…; and one shell, Integration tests](../../../assets/shots/sess-held.png)
+
+<figure class="cut">
+
+![Card: "Run the export integration tests", "Waiting on Integration tests · 42s"](../../../assets/shots/sess-held-waiting.png)
+
+<figcaption><strong>Waiting on &lt;its shell&gt;</strong> (orange): it polls its own background shell, or sits idle while that shell runs.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![Card: "Check the S3 multipart limits", "Running Bash aws s3api list-multipart-uploads…"](../../../assets/shots/sess-held-running.png)
+
+<figcaption><strong>Running &lt;tool&gt;</strong> (blue): one of its tool uses has been out for more than 30 seconds.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![Card: "Draft the migration notes", "No activity · 3m 02s"](../../../assets/shots/sess-held-idle.png)
+
+<figcaption><strong>No activity</strong> (red): nothing from it for more than 2 minutes.</figcaption>
+</figure>
+
+Each badge says how long it has held.
+
+## When the turn ends first
+
+Claude's turn can end while its subagents or shells still run. The card then stays **working**,
+with a status line like "Waiting on its subagent: …" or "Waiting on 4 background tasks: …". When they
+finish, Claude takes a turn of its own with their results.
+
+:::note
+desk keeps subagents and shells in memory only. After you restart desk, the conversation is all
+there, but the rail starts empty.
+:::

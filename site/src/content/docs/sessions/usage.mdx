@@ -1,0 +1,62 @@
+---
+title: Tokens, cost and limits
+description: What a session has used (turns, tokens, cost, context) and how much of the account's plan is left.
+---
+
+desk keeps count of what every session uses, and shows how much of your Claude plan is left.
+
+## On the card
+
+A card with a session shows its figures at its foot: the number of turns (beside the star), the
+tokens and the cost so far.
+
+<figure class="cut">
+
+![The DESK-5 card: "6 · 182k tokens · $1.84" at its foot](../../../assets/shots/sess-board-card-card.png)
+
+<figcaption>Six turns, 182k tokens, $1.84.</figcaption>
+</figure>
+
+The session's header says the same in words, under its links: "6 turns · 182k tokens · $1.84".
+
+<figure class="cut">
+
+![The panel's header, ending with "6 turns · 182k tokens · $1.84"](../../../assets/shots/sess-panel-header.png)
+
+<figcaption>The figures in the session's header.</figcaption>
+</figure>
+
+- **Turns** count every time Claude finished answering.
+- **Tokens** add up each turn's input, cache and output tokens.
+- **Cost** is what Claude Code reports for the session, in dollars, added up over every time its
+  process started.
+
+## Context and plan limits
+
+The [full window](/desk/sessions/full-window/) has a strip above the message box with the session's
+context and the account's plan limits, each with a meter.
+
+<figure class="cut">
+
+![The usage strip: Context 71k / 200k (36%), 5h 34%, 7d 61%, 7d Opus 83%, each with its reset time](../../../assets/shots/sess-full-usage.png)
+
+<figcaption>The meters are green, orange from 70% and red from 90%.</figcaption>
+</figure>
+
+| Figure | What it is |
+|---|---|
+| **Context** | The tokens in the session's context now, out of the model's window, and how full that is. Until a turn has ended desk may not know the window yet: then it shows the tokens alone. |
+| **5h** | The plan's 5-hour session limit: how much of it you've used, and when it resets. |
+| **7d** | The plan's weekly limit, over every model. |
+| **7d \<model\>** | A model's own weekly limit, when the plan has one (for example **7d Opus**). |
+
+A reset time shows as a time when it's within the day, or as a weekday and time.
+
+The limits are the account's, not the card's: every session under the same account shows the same.
+desk asks Claude for them with the account's login, at most every 3 minutes. If it can't, the strip
+shows **Limits** and the reason.
+
+:::tip
+Which account a session uses shows in its header, as **Claude · \<account\>**. See
+[Accounts](/desk/orgs/accounts/) to give an organization its own.
+:::

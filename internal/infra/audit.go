@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -168,9 +171,13 @@ func newRecorder(p string, w, h int) (*recorder, error) {
 		return nil, err
 	}
 	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	for n := 2; errors.Is(err, fs.ErrExist) && n < 100; n++ { // a second pane on that server within the same second
+		f, err = os.OpenFile(fmt.Sprintf("%s-%d.cast", strings.TrimSuffix(p, ".cast"), n), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	}
 	if err != nil {
 		return nil, err
 	}
+	p = f.Name()
 	now := time.Now()
 	hdr, _ := json.Marshal(map[string]any{"version": 2, "width": w, "height": h, "timestamp": now.Unix(), "env": map[string]string{"TERM": "xterm-256color"}})
 	f.Write(append(hdr, '\n'))

@@ -1,0 +1,250 @@
+---
+title: Keys
+description: Every keyboard shortcut in desk and its infra workspace, grouped by where it works.
+---
+
+Most buttons in desk show their key on them, so you can also learn these as you go.
+
+:::note
+Board keys work on the board only: not while you type in a field, not in a dialog, and not in the full-window session view. A card's terminal takes every key, <kbd>Esc</kbd> included, for Claude Code. The infra workspace has its own keys, on <kbd>Ctrl</kbd>+<kbd>Shift</kbd>.
+:::
+
+## Anywhere
+
+| Keys | What they do |
+|---|---|
+| <kbd>Esc</kbd> | Backs out of the innermost thing, one per press: the palette, the unlock dialog, the server picker, the settings, the card editor (it saves), the new-card dialog, the card menu, the snooze picker; then clears the search, leaves an answer field, goes back from a subagent or shell to the conversation, closes the rail, the session panel, the full-window session, and last the selection. |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> | Opens the command palette. Works over the message box too, but not over a dialog. |
+
+## Board
+
+| Keys | What they do |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>N</kbd> | New card, in the selected card's column (else the first). |
+| <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>F</kbd> | Search the cards. |
+| <kbd>Enter</kbd> (in the search box) | Leaves the box and selects the first match. |
+| Arrows | Select a card. With none selected, the first one shown. |
+| <kbd>Ctrl</kbd>+arrows | Move the selected card: up and down in its column, left and right to the next column. |
+| <kbd>Enter</kbd> | Open the selected card's session. |
+| <kbd>E</kbd> | Edit the selected card's fields. |
+| <kbd>T</kbd> | Open the selected card's Claude Code terminal. |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Undo an archive or a delete, while its toast shows. |
+
+## Card menu
+
+Right-click a card to open it.
+
+| Keys | What they do |
+|---|---|
+| <kbd>Enter</kbd> | Open its session. |
+| <kbd>T</kbd> | Its Claude Code terminal. |
+| <kbd>E</kbd> | Edit it. |
+| <kbd>Ctrl</kbd>+<kbd>C</kbd> | Copy its key (`DESK-12`). |
+| <kbd>1</kbd>…<kbd>9</kbd> | Move it to that column. |
+| <kbd>Backspace</kbd> | Archive it (stopping its session if one runs). |
+| <kbd>Esc</kbd> | Close the menu. |
+
+## New-card dialog
+
+| Keys | What they do |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>S</kbd> | Create the card. |
+| <kbd>Enter</kbd> (in a one-line field) | Create the card. In the organization field, an unfinished name first takes its best match. |
+| <kbd>Shift</kbd>+<kbd>Enter</kbd> (in What to do) | A new line. |
+| <kbd>Ctrl</kbd>+<kbd>J</kbd> | Improve with Claude; again to ask again, or to stop it while it runs. |
+| <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste. An image on the clipboard is saved and put in as `![image](path)`. |
+| <kbd>Esc</kbd> | Close. What you wrote is kept for the next new card, unless Improve with Claude already rewrote it. Not while Improve runs: stop it first. |
+
+The create keys do nothing while Improve with Claude is writing the fields.
+
+## Card editor
+
+The panel <kbd>E</kbd> opens on an existing card.
+
+| Keys | What they do |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save and close. |
+| <kbd>Enter</kbd> (in a one-line field) | Save and close. |
+| <kbd>Ctrl</kbd>+<kbd>Backspace</kbd> | Delete the card (<kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes it). |
+| <kbd>Esc</kbd> | Close, saving. |
+
+## Session
+
+The message box, in the side panel and the full window.
+
+| Keys | What they do |
+|---|---|
+| <kbd>Enter</kbd> | Send the message. |
+| <kbd>Shift</kbd>+<kbd>Enter</kbd> | A new line. |
+| <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste. An image on the clipboard is saved and put in as `![image](path)`. |
+| <kbd>Esc</kbd> | Back from a subagent or a shell to the conversation, then close the rail, the panel, the full window. |
+
+Selecting text in Claude's replies copies it when you let go of the mouse.
+
+## Permission and question box
+
+Claude's open request, above the message box. Its letter and digit keys work while no other field has the keyboard.
+
+**A permission:**
+
+| Keys | What they do |
+|---|---|
+| <kbd>Y</kbd> or <kbd>Enter</kbd> | Allow once. |
+| <kbd>N</kbd> | Deny. |
+| <kbd>S</kbd> | Allow every use of this tool on this card, until desk quits. |
+| <kbd>E</kbd> | Edit the command first (shell commands only). |
+| <kbd>Enter</kbd> (editing) | Allow the command as edited. <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. |
+
+**A question:**
+
+| Keys | What they do |
+|---|---|
+| <kbd>1</kbd>…<kbd>N</kbd> | Pick (or unpick) that answer. |
+| The next digit | Write your own answer. |
+| <kbd>Enter</kbd> | Next question, or send after the last. |
+| <kbd>Esc</kbd> | Leave the answer field. |
+
+## Command palette
+
+| Keys | What they do |
+|---|---|
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move. |
+| <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> | Next / previous scope. |
+| <kbd>Enter</kbd> | Run the item. |
+| <kbd>Esc</kbd> | Close. |
+
+## Dialogs
+
+| Where | Keys | What they do |
+|---|---|---|
+| Settings | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Save every edited page. |
+| Settings | <kbd>Esc</kbd> | Close (it warns first about unsaved changes). |
+| Vault unlock | <kbd>Enter</kbd> | In the password: to the one-time code if one is needed, else unlock. In the code: unlock. |
+| Vault unlock | <kbd>Esc</kbd> | Not now. |
+| Server picker | <kbd>Enter</kbd> | Open the first match. |
+| Snooze an alert | <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> | 1 hour, 4 hours, 1 day, 1 week. |
+| Snooze an alert | <kbd>Enter</kbd> (in the field) | Snooze for the time you typed (`2h30m`). |
+| Claude login | <kbd>Enter</kbd> (in the code) | Sign in. |
+
+## Card terminal
+
+The full Claude Code TUI (<kbd>T</kbd>). Every key goes to Claude Code, including <kbd>Esc</kbd>, <kbd>Tab</kbd> and <kbd>Ctrl</kbd> keys. Board keys don't work here.
+
+| Keys | What they do |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>V</kbd> | An image on the clipboard is saved and its path pasted. Otherwise <kbd>Ctrl</kbd>+<kbd>V</kbd> goes to Claude Code. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> | The same for an image; otherwise pastes the clipboard's text. |
+
+## Infra workspace
+
+In an organization's **Servers** view. These work everywhere in the workspace, terminal panes included.
+
+| Keys | What they do |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> | The workspace palette: runbooks, files, forwards, notes, reports, health check, audit log, recordings, sharing, broadcast. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | New pane (split). |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> | Close the pane, or the tab with its last pane. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd>…<kbd>9</kbd> | Go to that tab of the organization. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> | Show or hide the Claude panel. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | Move the keyboard to the Claude message box, and back to the terminal. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd> | Type Claude's suggested command at the prompt. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Type the server's password. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Pin the screen for Claude (share it), or stop. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> | The group view of the tab's server group. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> | Show or hide the files split. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> | Find in the pane's scrollback. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> | Pick the previous / next command block in the pane. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> | Copy the selection (the chat's, else the terminal's). |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> | Paste into the terminal. |
+
+<kbd>Shift</kbd>+click a block's number in the gutter to copy that block's output.
+
+### A picked command block
+
+After <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd> or <kbd>↓</kbd>:
+
+| Keys | What they do |
+|---|---|
+| <kbd>Space</kbd> | Pin the block for Claude. |
+| <kbd>Y</kbd> | Copy its output. |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move between blocks. |
+| <kbd>Esc</kbd> or <kbd>Enter</kbd> | Leave block mode. |
+
+Any other key leaves block mode and goes to the shell.
+
+### Find bar
+
+| Keys | What they do |
+|---|---|
+| Typing | Jumps to the newest match. |
+| <kbd>Enter</kbd> | The next older match, wrapping around. |
+| <kbd>Esc</kbd> | Close. |
+
+### Workspace palette
+
+| Keys | What they do |
+|---|---|
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move. |
+| <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> | Next / previous scope. |
+| <kbd>Enter</kbd> | Run the item. |
+| <kbd>Esc</kbd> | Close. |
+
+### Approving a change
+
+The infra Claude's approval box takes the keyboard when it opens.
+
+| Keys | What they do |
+|---|---|
+| <kbd>Y</kbd> or <kbd>Enter</kbd> | Approve. |
+| <kbd>A</kbd> | Always allow this in this organization (not for commands that use a secret). |
+| <kbd>E</kbd> | Edit the command first (not for commands that use a secret). |
+| <kbd>N</kbd> or <kbd>Esc</kbd> | Deny. |
+| <kbd>Enter</kbd> (editing) | Approve the command as edited. <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line; <kbd>Esc</kbd> stops editing. |
+
+### Claude's message box and questions
+
+| Where | Keys | What they do |
+|---|---|---|
+| Message box | <kbd>Enter</kbd> | Ask the infra Claude (queued if it's busy). <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line. |
+| A question or passphrase | <kbd>Enter</kbd> | Answer. |
+| A question or passphrase | <kbd>Esc</kbd> | Not now. |
+| Group view | <kbd>Enter</kbd> | Ask every session in the group. |
+| Group view | <kbd>Esc</kbd> | Leave the group view. |
+
+### Connection box
+
+The box over a pane that isn't connected. While it's up, the pane's keys go to the box, not the shell. Its buttons show their keys:
+
+| Button | Key | When |
+|---|---|---|
+| Close pane | <kbd>C</kbd> or <kbd>Esc</kbd> | Always. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> closes it too. |
+| Keep waiting | <kbd>W</kbd> or <kbd>Enter</kbd> | The server isn't answering yet. |
+| Reconnect / Retry now | <kbd>R</kbd> | It failed, or is reconnecting. |
+| Accept new key | <kbd>A</kbd> | The server's host key changed. See [Host keys](/desk/servers/host-keys/). |
+| Fix algorithms | <kbd>F</kbd> | The server offers only algorithms your ssh turned off. |
+
+### Files split
+
+A two-pane file manager (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>).
+
+| Keys | What they do |
+|---|---|
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Move. With <kbd>Shift</kbd>, also mark what you pass. |
+| <kbd>Tab</kbd> | The other side. |
+| <kbd>Space</kbd> | Mark or unmark, and move down. |
+| <kbd>Ctrl</kbd>+<kbd>A</kbd> | Mark all, or unmark all. |
+| <kbd>Ctrl</kbd>+<kbd>H</kbd> or <kbd>Ctrl</kbd>+<kbd>.</kbd> | Show or hide hidden files. |
+| <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reload. |
+| <kbd>Enter</kbd> or <kbd>F3</kbd> | Open. |
+| <kbd>Backspace</kbd> | Up a folder (or delete a typed letter while jumping). |
+| <kbd>F4</kbd> | Edit. |
+| <kbd>F5</kbd> | Copy to the other side. |
+| <kbd>F6</kbd> | Move to the other side. |
+| <kbd>F2</kbd> or <kbd>Shift</kbd>+<kbd>F6</kbd> | Rename. |
+| <kbd>F7</kbd> | New folder. |
+| <kbd>F8</kbd> or <kbd>Delete</kbd> | Delete what's marked (it asks first). |
+| <kbd>F9</kbd> | Change permissions. |
+| Letters | Jump to the first name that starts so. |
+| <kbd>Esc</kbd> | Clear the jump, else cancel a transfer, else close the split. |
+
+<kbd>Ctrl</kbd>+click marks a file, <kbd>Shift</kbd>+click a range. In its prompts: <kbd>Y</kbd> or <kbd>Enter</kbd> confirms a delete; <kbd>O</kbd> overwrites; <kbd>S</kbd> skips a conflict; <kbd>N</kbd> or <kbd>Esc</kbd> cancels. A name or permissions field takes <kbd>Enter</kbd> to apply and <kbd>Esc</kbd> to cancel.

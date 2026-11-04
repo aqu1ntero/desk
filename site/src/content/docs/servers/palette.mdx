@@ -1,0 +1,176 @@
+---
+title: The palette
+description: Ctrl+Shift+K finds any session, server, runbook or action of the infra workspace.
+---
+
+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on macOS), or
+**Commands** at the right of the toolbar, opens the infra workspace's palette: one search box
+for its sessions, servers, groups, organizations, runbooks, alerts and actions.
+
+![The palette open over web-01's pane](../../../assets/shots/srv-palette.png)
+
+<figure class="cut">
+
+![The palette: "Sessions, hosts, actions…", scopes All, Sessions, Hosts, Groups, Orgs, Runbooks; Globex › web › web-01 (tab 1), the runbook Rotate the billing logs, Globex (Claude for the org), the two groups and the four hosts; a preview of web-01 on the right](../../../assets/shots/srv-palette-box.png)
+
+<figcaption>With nothing typed: what you can go to. Actions show once you type.</figcaption>
+</figure>
+
+## Using it
+
+- Type to search. It uses the [fzf syntax](/desk/board/search/): fuzzy words, `'exact`,
+  `^prefix`, `!not`. Matched letters are highlighted, best matches first.
+- **↑ ↓** move, **↵** opens, **esc** closes.
+- **Tab** and **⇧Tab** switch scope: **All**, **Sessions**, **Hosts**, **Groups**, **Orgs**,
+  **Runbooks**, **Alerts**, **Actions**, **Themes**. Only scopes with something in them show.
+- On a wide window, a preview on the right shows the selected item: a server's address, group,
+  alert, notes and open tabs; a session's organization, group, panes and state.
+
+## What it lists
+
+These show with an empty query:
+
+| Group | An item reads | Opening it |
+|---|---|---|
+| Alerts | investigate CRITICAL web-02 | Makes the alert a card on the board, to look into. See [Alerts](/desk/orgs/alerts/). |
+| Sessions | Globex › web › web-01, Globex › Claude | Goes to that tab. "▲ needs approval" marks one waiting on you. |
+| Runbooks | Rotate the billing logs | Runs it with this tab's Claude. See [Runbooks](#runbooks). |
+| Orgs | Globex, "Claude for the org" | The organization's own Claude session. |
+| Groups | Globex › web, "group view" | The [group view](/desk/servers/overview/#group-view). |
+| Hosts | Globex › db › db-02, "open ssh tab" | Opens a tab on the server, or goes to its session. |
+
+A session or tab of another organization takes desk there: the Servers view follows.
+
+## Actions
+
+Actions show once you type a few letters of them.
+
+<figure class="cut">
+
+![The palette with "open": Open server notes, Open recordings, Open audit log](../../../assets/shots/srv-palette-open-box.png)
+
+<figcaption>Typing "open" finds the folders desk keeps for you.</figcaption>
+</figure>
+
+| Action | What it does |
+|---|---|
+| **reload config** | Reads the organizations' `desk.toml` files and servers files again. |
+| **copy server password** | Copies the focused server's password (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> types it into a waiting sudo prompt instead). |
+| **copy ssh command** | The `ssh` command for the focused server, on desk's shared connection, for another terminal. |
+| **broadcast typing to all panes** | Turns [broadcast](/desk/servers/panes/#broadcast) on or off for the tab. |
+| **New directory split (files)** | The [directory split](#files) for the focused server. |
+| **forward …**, **rforward …**, **socks …** | [Port forwards](#port-forwards). |
+| **export session report** | The tab's session as Markdown. See [Reports](/desk/servers/infra-claude/#reports). |
+| **draft a postmortem with Claude** | Asks the tab's Claude for a postmortem of the session. |
+| **compact Claude's context**, **clear Claude's context** | Shorten or empty the conversation. |
+| **model: opus**, **sonnet**, **haiku**, **default** | The tab's Claude model, from the next question. |
+| **Open server notes** | The folder of Claude's [notes](/desk/servers/infra-claude/#notes) on each server. |
+| **Open recordings** | The folder of [recordings](/desk/servers/panes/#recordings). |
+| **Open audit log** | The folder of the [audit log](/desk/servers/infra-claude/#the-audit-log). |
+| **share the terminal as a camera**, **as a screen** | [Show a pane in a call](#sharing-a-pane). |
+| **theme: …** | The workspace's color theme. |
+
+The **Open …** actions open the folder in your file manager.
+
+<figure class="cut">
+
+![The palette with "report": export session report, "markdown: conversation, commands, approvals"](../../../assets/shots/srv-palette-report-box.png)
+
+<figcaption>The session report.</figcaption>
+</figure>
+
+:::note
+The daily health check has no palette item: it runs on its own, at the time in
+[`[schedule]`](/desk/servers/infra-claude/#the-daily-health-check).
+:::
+
+## Runbooks
+
+The palette lists the runbooks in `<Org>/Infra-Claude/runbooks/` of the tab's organization,
+with "run with Claude" and the file.
+
+<figure class="cut">
+
+![The palette with "rotate": the runbook Rotate the billing logs, "run with Claude · rotate-billing-logs.md"](../../../assets/shots/srv-palette-rotate-box.png)
+
+<figcaption>A runbook, found by its title.</figcaption>
+</figure>
+
+Pick one and the tab's Claude follows it step by step ("▶ runbook: …" in the conversation). If
+Claude is busy, desk says so: start it when Claude is done, or stop it. How to write one:
+[Runbooks](/desk/servers/infra-claude/#runbooks).
+
+## Port forwards
+
+Type a forward and pick it. It's added to the focused server's shared SSH connection, so no new
+login, and it comes back after a reconnect or a restart.
+
+<figure class="cut">
+
+![The palette with "forward 5432": localhost:5432 → localhost:5432 via web-01](../../../assets/shots/srv-palette-forward-box.png)
+
+<figcaption>The palette says what the forward will do before you pick it.</figcaption>
+</figure>
+
+| You type | What you get |
+|---|---|
+| `forward 5432` | `localhost:5432` here reaches port 5432 on the server. |
+| `forward 9000:5432` | `localhost:9000` here reaches port 5432 on the server. |
+| `forward 9000:db.internal:5432` | `localhost:9000` here reaches `db.internal:5432`, through the server. |
+| `rforward 3000` | Port 3000 on the server reaches port 3000 on this machine. |
+| `socks 1080` | A SOCKS proxy on `localhost:1080`, through the server. |
+
+`fwd` works for `forward`. Typing just `forward`, `rforward` or `socks` shows these forms as
+hints. Each active forward is listed as **stop forward …**, to remove it.
+
+## Files
+
+**New directory split (files)**, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> or the toolbar's
+folder button opens a two-panel file manager under the panes: the focused pane's server on the
+left (in the shell's current directory), this machine on the right. It works over the server's
+shared SSH connection, with `sh`, `ls`/`find`, `cat` and `tar`, so the server needs nothing
+installed. One split per tab.
+
+| Key | What it does |
+|---|---|
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Move |
+| <kbd>Tab</kbd> | The other side |
+| <kbd>Enter</kbd> or <kbd>F3</kbd> | Open a folder, or download a file and open it |
+| <kbd>Backspace</kbd> | Up a folder |
+| <kbd>Space</kbd>, <kbd>⇧</kbd>+arrows, <kbd>Ctrl</kbd>+click | Mark |
+| <kbd>A</kbd> | Mark or unmark all |
+| <kbd>H</kbd> or <kbd>.</kbd> | Show dotfiles |
+| <kbd>R</kbd> | Reload |
+| <kbd>F4</kbd> | Edit in your editor: each save is uploaded back, for an hour |
+| <kbd>F5</kbd> / <kbd>F6</kbd> | Copy / move to the other side |
+| <kbd>F2</kbd> or <kbd>⇧</kbd>+<kbd>F6</kbd> | Rename |
+| <kbd>F7</kbd> | New folder |
+| <kbd>F9</kbd> | Chmod |
+| <kbd>F8</kbd> or <kbd>Delete</kbd> | Delete (asks first) |
+| <kbd>Esc</kbd> | Cancel a copy, or close the split |
+
+- Drag rows to the other side to copy them. Typing a name jumps to it.
+- When a copy meets a file that's there already: <kbd>O</kbd> replaces, <kbd>S</kbd> skips,
+  <kbd>N</kbd> cancels.
+- With **F4**, if the server's copy changed since you opened it, desk asks before uploading.
+
+## Sharing a pane
+
+To show a terminal in a video call without sharing your whole screen:
+
+- **share the terminal as a camera** makes a webcam called "desk terminal" that shows the
+  focused pane (1280×720). Pick it as your camera in the call. It uses v4l2loopback when it's
+  loaded, or else PipeWire. Linux only.
+- **share the terminal as a screen** opens a window, "desk terminal share", that shows the
+  focused pane. Share that window from the call. On Hyprland desk also makes a headless monitor,
+  `DESK-SHARE`, so the call's screen picker lists it as a screen.
+
+Both are view-only: nobody in the call can type. **stop the terminal camera** and
+**stop sharing the terminal as a screen** end them.
+
+<figure class="cut">
+
+![The palette with "share": share the terminal as a camera, share the terminal as a screen](../../../assets/shots/srv-palette-share-box.png)
+
+<figcaption>Two ways to show a pane in a call.</figcaption>
+</figure>

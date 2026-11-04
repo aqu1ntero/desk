@@ -511,7 +511,7 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		if err != nil {
 			return toolResult{err.Error(), true}
 		}
-		return toolResult{Text: "saved " + p + "; the user starts it from the palette (ctrl+k)"}
+		return toolResult{Text: "saved " + p + "; the user starts it from the palette (ctrl+shift+k)"}
 	case "connect":
 		n, err := t.findHost(a.Host)
 		if err != nil {

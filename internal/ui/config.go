@@ -422,6 +422,11 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 	}
 	for _, e := range d.entries {
 		t := e.raw
+		if k, _ := t["kind"].(string); e.kind == "vault" && k != "" && k != "vaultwarden" && !slices.Contains(vaultKinds, k) {
+			l, _ := out[e.kind].([]map[string]any) // a kind the dialog doesn't edit (hashicorp, the infra Claude's): kept as it is
+			out[e.kind] = append(l, t)
+			continue
+		}
 		vk := vaultKinds[e.vkind]
 		for _, f := range fields(e.kind) {
 			if f.only != "" && f.only != vk {

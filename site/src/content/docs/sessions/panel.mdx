@@ -1,0 +1,163 @@
+---
+title: The session panel
+description: A card's side panel, where you read its Claude session, see its links and message Claude.
+---
+
+Every card is a Claude Code session. To open it, click the card, or select it and press <kbd>Enter</kbd>.
+Its panel opens on the right, beside the board. The panel holds the conversation so far,
+the card's links, and a box for messages to Claude.
+
+![The board with the panel of DESK-5, "Migrate the billing exports to S3", open on the right](../../../assets/shots/sess-panel.png)
+
+Press <kbd>Esc</kbd> or the **×** to close the panel. The session keeps running.
+
+## The header
+
+The header names the card. It shows the card's key, its status, the account the session runs
+under, its title and folder, the status line, the links, and the session's figures so far.
+
+<figure class="cut">
+
+![The panel's header: DESK-5, Your turn, Claude · Default account, the title, ~/Work/Globex/billing, the status line, the PR #88 chip and "6 turns · 182k tokens · $1.84"](../../../assets/shots/sess-panel-header.png)
+
+<figcaption>The header of a card waiting for your answer, with one pull request linked.</figcaption>
+</figure>
+
+- **Claude · \<account\>** is the Claude account the session runs under. It is the
+  organization's account (see [Accounts](/desk/orgs/accounts/)). Every view of a session names it:
+  the panel, the full window and the terminal.
+- **The folder** is where Claude works: `<Org>/<folder>`, shown from your home as `~/…`.
+  Claude runs there with `--permission-mode auto`. The organization's own folder is added
+  too, so its `.claude/skills` load.
+- **The status line** says why the card is where it is, for example "Your turn: Which bucket region
+  should the exports use?".
+- **Link chips** show each link with its live state. Click one to open it in your browser.
+  Artifacts the session publishes are listed under the links, as "Artifact … · open in the browser".
+- **Turns, tokens and cost** of the session so far. See [Tokens, cost and limits](/desk/sessions/usage/).
+
+The icons at the right end act on the card:
+
+<figure class="cut">
+
+![The header's icons: full window, edit, terminal, archive and close](../../../assets/shots/sess-panel-icons.png)
+
+<figcaption>From left to right: Open full window, Edit the card (<kbd>E</kbd>), Open in the Claude Code terminal (<kbd>T</kbd>), Archive the card, and Close the panel (<kbd>Esc</kbd>).</figcaption>
+</figure>
+
+The [full window](/desk/sessions/full-window/) shows the same session over the whole window.
+The [terminal](/desk/sessions/terminal/) opens it in the full Claude Code TUI.
+
+## Starting a session
+
+A card that never had a session shows **Start working**. Click it and Claude starts on the
+card: its title, notes and links go with the first message. You can also type what to do in the box
+below instead.
+
+<figure class="cut">
+
+![A new card's panel: the Start working button and its hint](../../../assets/shots/sess-start-empty.png)
+
+<figcaption>A card without a session yet.</figcaption>
+</figure>
+
+## The conversation
+
+The conversation reads top to bottom, newest last. It holds your messages, Claude's replies and
+a line for every tool Claude uses.
+
+<figure class="cut">
+
+![Two tool lines: Read billing/export/writer.go, then Bash go test ./export/... with "Run the exporter's tests before changing it" and Explain](../../../assets/shots/sess-panel-tools.png)
+
+<figcaption>Tool lines start with <code>&gt;</code>. A shell command also says, in Claude's words, what it does.</figcaption>
+</figure>
+
+A tool line names the tool and its most telling input: the file read, the pattern searched, the
+command run. A shell command adds Claude's plain description of it, and **Explain** has Haiku take
+it apart (see [Shell commands](/desk/sessions/shell/#shell-commands-explained)). A file change shows
+as a [diff](/desk/sessions/diffs/), and a subagent's work shows in the
+[subagents bar](/desk/sessions/subagents/).
+
+Claude's replies are drawn from their Markdown: headings, lists, tables, quotes, links and code
+with its highlighting.
+
+<figure class="cut">
+
+![A reply of Claude's with Copy at the end of its name line](../../../assets/shots/sess-panel-reply.png)
+
+<figcaption>Every reply of Claude's has Copy at the end of its name line.</figcaption>
+</figure>
+
+### Selecting and copying text
+
+- **Drag** over text to select it. Double-click selects a word, triple-click the whole block.
+  Claude's replies keep their formatting while you select. What you select in a reply is copied
+  when you let go of the mouse.
+- **Copy** at the end of a reply's name line copies the whole reply as Markdown.
+- A click on a link in a reply opens it, as long as you didn't select anything.
+
+<figure class="cut">
+
+![Part of a reply selected, highlighted in blue](../../../assets/shots/sess-select-reply.png)
+
+<figcaption>A selection in one of Claude's replies. A selection stays inside one block.</figcaption>
+</figure>
+
+### Status lines
+
+Claude tells desk how things stand with a line at the end of a reply. desk acts on these lines
+and hides them, so they never show in the conversation:
+
+| Line | What desk does |
+|---|---|
+| `DESK-STATUS: blocked — <reason>` | The card goes to **Blocked**, with the reason as its status line. |
+| `DESK-STATUS: done` | The card goes to **Done**. |
+| `DESK-LINK: <url>` | The link is attached to the card and its state checked. |
+
+You don't write these lines yourself: Claude is told to use them. For example, after Claude opens
+a pull request, the reply ends with `DESK-LINK: https://github.com/acme-corp/api/pull/612`. The
+line doesn't show, and the card gets the pull request's chip:
+
+<figure class="cut">
+
+![The card's links: ABC-131 and a new PR #612 · open · CI running chip](../../../assets/shots/sess-link-link.png)
+
+<figcaption>The pull request Claude linked, with its CI running.</figcaption>
+</figure>
+
+<figure class="cut">
+
+![The end of the conversation: Claude's reply "Pushed and opened pull request #612, linked to ABC-123. CI is running." with no DESK-LINK line](../../../assets/shots/sess-link-end.png)
+
+<figcaption>The same reply in the conversation: the <code>DESK-LINK</code> line is gone.</figcaption>
+</figure>
+
+When a turn ends without any of these, the card is your turn.
+
+## The message box
+
+Type in the box at the foot of the panel and press <kbd>Enter</kbd> or **Send**.
+<kbd>Shift</kbd>+<kbd>Enter</kbd> adds a new line. <kbd>Esc</kbd> leaves the box.
+
+<figure class="cut">
+
+![The message box: "Message Claude… (! runs a shell command)", the keys and Send](../../../assets/shots/sess-panel-composer.png)
+
+<figcaption>The message box of a card whose turn it is.</figcaption>
+</figure>
+
+- While Claude works, the box says **Claude is working; your message goes next**. A **Stop**
+  button beside Send interrupts the turn.
+- A message that starts with `!` is a shell command you run yourself. See
+  [Shell commands](/desk/sessions/shell/).
+- <kbd>Ctrl</kbd>+<kbd>V</kbd> with an image on the clipboard saves it beside the board and puts
+  `![image](path)` in your message. Claude reads the image.
+- If Claude asked you something, what you type answers it in your own words. See
+  [Questions and permissions](/desk/sessions/questions/).
+
+Sending a message moves a card in Backlog, To do or Blocked to **In progress**.
+
+:::note
+An archived card's panel has no message box. Its header has **Restore** instead, which puts the
+card back on the board.
+:::

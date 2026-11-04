@@ -1,0 +1,181 @@
+---
+title: The infra workspace
+description: Servers under an organization opens its infra workspace, where you and an infra Claude share live SSH terminals.
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+An organization with a [servers file](/desk/servers/servers-file/) gets a **Servers** row under
+it in the sidebar. Click it to open the organization's infra workspace: session tabs, live SSH
+panes and the organization's infra Claude beside them. The Claude runs commands in the same
+terminals you type in, and every change waits for your approval.
+
+![Globex's workspace: a web-02 tab, its SSH pane at a prompt, and the Claude panel on the right](../../../assets/shots/srv-workspace.png)
+
+The header reads like the board's: the organization, then a sentence about its servers
+("4 servers · 1 connected", "1 waiting", "1 with Claude", "1 with an alert").
+
+## In the sidebar
+
+<figure class="cut">
+
+![Globex in the sidebar, with Servers under it and web-02 under Servers](../../../assets/shots/srv-workspace-sidebar.png)
+
+<figcaption>Globex's Servers row, and under it the one server with a session open.</figcaption>
+</figure>
+
+- **Servers** opens the workspace. Its dot is the worst state among the organization's servers.
+- Under it, the rows that have a session: the organization's own Claude (**Globex Claude**) and
+  each connected server. A click goes back to that session.
+- Each dot tells you the server's state:
+  - Green: a pane is connected.
+  - Purple: its Claude is on a turn.
+  - Orange: still connecting, or a command waits for your approval.
+  - Red: Nagios has an alert on it.
+  - Grey: no session.
+
+### Every server: the picker
+
+**Double-click Servers** to see all the organization's servers, grouped as in its servers file,
+with the organization's own Claude first.
+
+<figure class="cut">
+
+![The picker: "Globex · servers", a search field "Find a server: name, group, address", Globex Claude, then web-01 and web-02 under web, db-01 and db-02 under db, each with its address](../../../assets/shots/srv-picker-box.png)
+
+<figcaption>Type to filter by name, group or address. Enter opens the first match.</figcaption>
+</figure>
+
+The search uses the same [fzf syntax](/desk/board/search/) as the board. A click opens the
+server's session, or goes to it if it's already open. A click outside closes the picker.
+
+Pick **Globex Claude** for the organization-wide session: a Claude with no terminal yet, which
+connects to the servers you ask it about.
+
+:::tip
+The palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>) lists every organization's
+servers too, plus each group. See [The palette](/desk/servers/palette/).
+:::
+
+## Session tabs
+
+<figure class="cut">
+
+![The tab strip: "web-02 · web" with its ⌃⇧1 key cap and a close ×](../../../assets/shots/srv-workspace-tabs.png)
+
+<figcaption>One tab per session. Its key cap is the shortcut that brings it back.</figcaption>
+</figure>
+
+- Opening a server makes a tab named after the server and its group (**web-02 · web**), with
+  one pane on that server and a Claude of its own.
+- The organization's own session is a tab named after the organization.
+- Only the tabs of the organization on screen show. Switching organizations brings back the
+  tab you last used there.
+- <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd> to <kbd>9</kbd> go to the first nine tabs.
+- The dot before the name shows the tab's state:
+  - Orange: an approval waits.
+  - Purple: Claude is working.
+  - Blue: your turn.
+  - Grey: idle.
+- The **×** closes the tab. That hangs up its panes, stops its Claude and denies any approval
+  still waiting.
+- A server tab whose last pane ends (you typed `exit`) closes by itself.
+
+Your sessions survive a restart: tabs, panes, their text and command blocks, the working
+directory, the conversation and Claude's session all come back.
+
+## The toolbar
+
+<figure class="cut">
+
+![Five icon buttons and "Commands ⌃⇧K"](../../../assets/shots/srv-workspace-toolbar.png)
+
+<figcaption>The toolbar, on the right of the tab strip.</figcaption>
+</figure>
+
+From left to right:
+
+| Button | What it does | Key |
+|---|---|---|
+| New pane | Another pane on the focused pane's server. See [Panes](/desk/servers/panes/). | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> |
+| Broadcast | Type into every pane of the tab at once. | |
+| Directory | The directory split: this server's files beside this machine's. | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> |
+| Group view | Every session of the group on one page. | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> |
+| Claude panel | Shows or hides the Claude panel. | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> |
+| Commands | The palette. | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> |
+
+## Panes and command blocks
+
+Each pane is a live SSH terminal. Every command you or Claude run becomes a numbered **block**:
+the command, its output, its exit code and how long it took.
+
+<figure class="cut">
+
+![Four blocks, #1 to #4, each with "Claude", a green ✓ 0 or a red ✗ 3, and a duration](../../../assets/shots/srv-turn1-blocks.png)
+
+<figcaption>The commands Claude ran on web-02, as blocks #1 to #4. #2 exited with 3.</figcaption>
+</figure>
+
+You point Claude at blocks by number. [Panes](/desk/servers/panes/) explains blocks, splits and
+the connection box.
+
+## The Claude panel
+
+The panel on the right is the tab's infra Claude.
+
+<figure class="cut">
+
+![The Claude panel: the question, Claude's four read commands, and its finding: /var on web-02 is 100% full](../../../assets/shots/srv-turn1-claude.png)
+
+<figcaption>A question, the commands Claude ran for it, and what it found.</figcaption>
+</figure>
+
+- The header says which session it is ("web · web-02 · Default account"), then the
+  **Context** meter with **Compact** and **Clear**.
+- Drag its left edge to make it wider or narrower (300 to 800 dp). desk remembers the width.
+- The composer is at the bottom: **↵** sends, **⇧↵** starts a new line.
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> jumps to it, and again back to the terminal.
+
+[The infra Claude](/desk/servers/infra-claude/) covers what it can do and how approvals work.
+
+## Group view
+
+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> (or the grid button) shows every open session of
+the current tab's group as a card. Each card shows what you last asked, Claude's answer and its
+last four commands.
+
+![Group view: cards for web-01 and web-02, both idle, and an "Ask all 2 sessions…" field at the bottom](../../../assets/shots/srv-group.png)
+
+The field at the bottom sends one question to every session of the group: **Ask all** or
+**↵**. **Esc** goes back.
+
+## Keys
+
+| Keys | What they do |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> | The palette |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | A new pane on the focused pane's server |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> | Close the focused pane (the tab, on its last pane) |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> | Show or hide the Claude panel |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | The Claude composer, or back to the terminal |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> | Group view |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> | The directory split |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> | Find in the scrollback |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd> | Pick a command block |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Send the screen with the next question |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd> | Type the command Claude suggested at the prompt, without running it |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | The server's password: into a waiting sudo prompt, or else copied |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> / <kbd>V</kbd> | Copy the selection / paste |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd>…<kbd>9</kbd> | Go to that tab |
+
+On macOS these are <kbd>⌘</kbd> and the letter. desk's own board keys stay off while you're in
+Servers: the panes and these shortcuts take the keyboard.
+
+## Next
+
+<CardGrid>
+  <LinkCard title="The servers file" href="/desk/servers/servers-file/" description="An OpenSSH config with desk's #@ keys." />
+  <LinkCard title="Panes" href="/desk/servers/panes/" description="Splits, blocks, reconnects and the connection box." />
+  <LinkCard title="The infra Claude" href="/desk/servers/infra-claude/" description="Its tools, approvals, runbooks and the audit log." />
+  <LinkCard title="Cards and servers" href="/desk/servers/cards/" description="A card hands its server work to the infra Claude." />
+</CardGrid>

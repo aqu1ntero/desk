@@ -1,0 +1,190 @@
+---
+title: New card
+description: Make a card by saying what to do, with smart words for its organization, labels, priority, due date and tickets.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Every card starts in the new card dialog. You say what to do, in plain words,
+and pick the organization its session starts in. desk reads the rest out of what you typed.
+
+![The new card dialog over the board: What to do, the organization to pick, and the footer with Improve with Claude and Create card](../../../assets/shots/cards-new.png)
+
+## Open it
+
+- <kbd>Ctrl</kbd>+<kbd>N</kbd> on the board, or **New card** in the toolbar. The card goes in the
+  selected card's column, or Backlog when none is selected.
+- A column's **+**, or **Add card** at its foot. The card goes in that column.
+- **New card** or **New card in** _organization_ from the [palette](/desk/board/palette/).
+
+The dialog's header names the column the card goes to. To pick another, see [More fields](#more-fields).
+
+<figure class="cut">
+
+![The dialog's header: New card, the Backlog pill, "Draft kept if you close" and the close button](../../../assets/shots/cards-new-head.png)
+
+<figcaption>The header: the column the card goes to, and the note that a closed dialog keeps your text.</figcaption>
+</figure>
+
+The organization starts as the one you're looking at: the sidebar's organization
+view, or its Tickets. Otherwise it's the organization of the last card you made.
+From a label view, the card starts with that label.
+
+## Make a card
+
+<Steps>
+
+1. Type **what to do** in the box, as it comes. <kbd>Enter</kbd> makes a new line.
+2. Pick the **organization**, if desk doesn't have one yet.
+3. Optionally, **Improve with Claude** (<kbd>Ctrl</kbd>+<kbd>J</kbd>): Haiku works your request out into a full brief. See [Improve with Claude](/desk/cards/optimize/).
+4. **Create card** (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>).
+
+</Steps>
+
+The new card's panel opens and its session starts working right away. Its title,
+notes and links go with the first message.
+
+Without Improve, the first line of what you wrote becomes the card's title (without
+the smart words below) and the whole text becomes its notes.
+
+<figure class="cut">
+
+![The What to do box with its example text and the hint under it](../../../assets/shots/cards-new-box.png)
+
+<figcaption>What to do. The hint under it lists what you can type.</figcaption>
+</figure>
+
+## Smart words
+
+As you type, desk picks out words that say something about the card and shows each
+one as a pill under the box:
+
+| Type | Sets | Example |
+|---|---|---|
+| `@Org` | the organization, if one has that name | `@Acme` |
+| `#label` | a label | `#infra` |
+| `!priority` | the priority: `!low`, `!medium`, `!high` (also `!lo`, `!med`, `!hi`, `!urgent`) | `!high` |
+| a day | the due date: `today`, `tomorrow`, a weekday (the next one), `next week`, or a date `2026-11-06` | `friday` |
+| a ticket key | a link to that Jira issue | `ABC-123` |
+| a URL | a link: a pull request, an issue, a merge request… | `https://github.com/acme-corp/api/pull/612` |
+
+<figure class="cut">
+
+![The pills for "Renew the TLS certificate on the @Acme api servers before friday, ABC-123 !high #infra": Acme, High, Due Fri, Nov 6, infra, ABC-123, and + Folder, links, due, column…](../../../assets/shots/cards-new-tokens-pills.png)
+
+<figcaption>Each smart word becomes a pill.</figcaption>
+</figure>
+
+![The dialog with "Renew the TLS certificate on the @Acme api servers before friday, ABC-123 !high #infra" typed and its pills under it](../../../assets/shots/cards-new-tokens.png)
+
+`@Acme`, `#infra` and `!high` only set fields, so they're left out of the title.
+Days, keys and URLs stay in it: they read as part of the sentence.
+
+**Meant the word, not the field?** Click its pill. The word goes back to plain text,
+and the pill goes away.
+
+A ticket key only becomes a link when the organization has a Jira account for it:
+one whose `projects` in `desk.toml` list the key's project, or the organization's
+only Jira account. See [Accounts](/desk/orgs/accounts/).
+
+## The organization and folder
+
+A card's session runs in an organization's folder, so the dialog asks for one
+until it has it. A pill says **Pick the organization**, and the organization row shows up under it.
+
+<figure class="cut">
+
+![The organization row: the orange Pick the organization pill, the Organization and Folder fields, and the organizations Acme, Globex and Initech to click](../../../assets/shots/cards-new-org.png)
+
+<figcaption>Type to filter, or click an organization.</figcaption>
+</figure>
+
+- **Organization**: type to filter the list (with fzf's matching), and click one.
+  <kbd>Enter</kbd> in the field takes the first match. `@Acme` in your text works too.
+- **Folder** (optional): a folder inside the organization. Once you've picked an organization, desk
+  shows where the session starts ("Starts in ~/Work/Acme") and the
+  organization's subfolders. Click one to step in, **↑ up** to step out, or type its path.
+  **change organization** clears both.
+
+<figure class="cut">
+
+![Starts in ~/Work/Acme, change organization, and the subfolders api/ and web/](../../../assets/shots/cards-new-more-place.png)
+
+<figcaption>The session's folder, picked by clicks.</figcaption>
+</figure>
+
+Organizations are your folders. See [Organizations](/desk/orgs/organizations/).
+
+## More fields
+
+The last pill, **+ Folder, links, due, column…**, shows every field. **− Fewer fields**
+hides them again. A pill that comes from a field, rather than from a word in your text, shows them too when you click it.
+
+![The dialog with every field shown: Organization and Folder, Ticket, the languages, Links, Labels and Due](../../../assets/shots/cards-new-more.png)
+
+The fields, from the top:
+
+- **Organization** and **Folder**, as above.
+- **Ticket**: see [below](#the-ticket-switch).
+- **Agent**: only when the organization has Claude Code agents. Which one the card's
+  session runs as, or **None**. See [Team view](/desk/sessions/team/).
+- **Card and ticket in** and **Claude speaks with you in**: the languages the card
+  (and its ticket) are written in, and the one Claude uses with you. They start as
+  the ones in your [settings](/desk/orgs/settings/).
+- **Links**: pull request, merge request or ticket URLs, or Jira keys, one per line.
+- **Labels**, comma separated, and **Due** (`YYYY-MM-DD`, or **Today**, **Tomorrow**, **Next week**, **Clear**).
+- **Priority**: None, Low, Medium, High.
+- **Column**: where the card goes.
+
+The dialog scrolls when the fields don't fit. Its buttons always show.
+
+![The dialog scrolled down: Links, Labels and Due with Today, Tomorrow, Next week and Clear, Priority and Column](../../../assets/shots/cards-new-more-end.png)
+
+## The Ticket switch
+
+When the organization has somewhere to create tickets (its first Jira project, or
+a GitHub account's `repo`), the **Ticket** row offers **Create in _ABC (Jira)_ first**.
+With it on, the card's Claude creates the card's ticket before any other work,
+assigned to you, and the card links it.
+
+<figure class="cut">
+
+![Ticket: No ticket, and Create in ABC (Jira) first](../../../assets/shots/cards-new-more-ticket.png)
+
+<figcaption>The Ticket switch, for an organization with a Jira project ABC.</figcaption>
+</figure>
+
+The switch isn't there when the organization has nowhere to create tickets. See
+[Accounts](/desk/orgs/accounts/) for `repo` and `projects`.
+
+## Screenshots
+
+Copy an image and press <kbd>Ctrl</kbd>+<kbd>V</kbd> in the What to do box. desk saves it next to the board and
+puts `![image](path)` in your text. The session reads the image. Improve with Claude keeps it.
+
+desk reads the image from the compositor itself (Hyprland, Sway, other wlroots
+compositors, KDE). There's nothing to install. When the clipboard holds text, <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes the text.
+
+## The draft
+
+Closing the dialog doesn't lose what you typed. Close it with **Cancel**, <kbd>Esc</kbd> or the **×**:
+the next new card dialog starts with your text. The header says so: "Draft kept if
+you close". Once you create the card, the draft is gone.
+
+## Create card
+
+<figure class="cut">
+
+![The footer: Improve with Claude Ctrl+J, its note, Cancel esc and Create card Ctrl+Enter](../../../assets/shots/cards-new-foot.png)
+
+<figcaption>The dialog's buttons.</figcaption>
+</figure>
+
+**Create card** (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>, or <kbd>Ctrl</kbd>+<kbd>S</kbd>) makes the card. desk checks a few
+things first, and a toast says what's wrong:
+
+- the card needs a title (something in What to do);
+- the organization must be one of your organizations;
+- the folder must exist inside it;
+- a due date must read `YYYY-MM-DD`;
+- each link must be a URL, or a Jira key the organization has a Jira account for.

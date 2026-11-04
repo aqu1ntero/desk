@@ -1,0 +1,265 @@
+---
+title: The servers file
+description: An organization's servers are one OpenSSH config, with desk's own settings in #@ comment lines that ssh ignores.
+---
+
+An organization's servers live in one real OpenSSH config file. desk lists its hosts under the
+organization, connects to them with `ssh -F` and that file, and reads its own settings from
+comment lines that start with `#@`. ssh skips those lines, so the same file works from any
+terminal:
+
+```sh
+ssh -F ~/Work/Globex/ssh_config web-01
+```
+
+## Where it is
+
+By default it's `ssh_config` in the organization's folder: `~/Work/Globex/ssh_config`. To use
+another file, set it in the organization's `desk.toml`:
+
+```toml
+[servers]
+file = "infra/ssh_config"   # relative to the organization's folder; ~/ works too
+```
+
+desk reads the file at start. To read it again after you edit it, click **Reload** next to
+Organizations in the sidebar, or pick **reload config** in the
+[palette](/desk/servers/palette/). There is no file watcher.
+
+Every tab of an organization with a servers file works in `<Org>/Infra-Claude/`: that's its
+Claude's working directory, where its `runbooks/` and `CLAUDE.md` live. desk makes the folder
+if it's missing. See [The infra Claude](/desk/servers/infra-claude/#its-folder).
+
+## An annotated example
+
+```ssh-config
+# Before any "#@ group" or Host: the file's defaults.
+#@ vault acme
+#@ password "{user}@{host}"
+
+# A section of the tree until the next "#@ group" ("/" nests); its #@ lines
+# are the group's defaults (eu/web also takes eu's).
+#@ group eu/web
+#@ tags web, nginx
+Host web1
+    HostName 10.0.0.1
+    User deploy
+    # this host's own: host > group > parent groups > file
+    #@ password "web1 root" password
+    #@ wol 52:54:00:12:34:56 10.0.0.255:9
+    #@ desc the public proxy
+    # its name in Nagios (default: the alias and HostName)
+    #@ nagios web1.example.com
+    #@ pin
+Host bastion
+    # usable (ProxyJump), not listed
+    #@ hidden
+Host lab-pi
+    # the password itself, no vault: your call (keep the file chmod 600)
+    #@ password-raw "s3cret"
+
+# Your own defaults last: ssh keeps the first value it finds.
+Match all
+    Include ~/.ssh/config
+```
+
+The demo's Globex file is a smaller one, two groups of two:
+
+```ssh-config
+#@ group web
+Host web-01
+    HostName 192.0.2.11
+    User deploy
+    #@ desc public proxy and billing API
+Host web-02
+    HostName 192.0.2.12
+    User deploy
+    #@ desc public proxy and billing API
+#@ group db
+Host db-01
+    HostName 192.0.2.21
+    User postgres
+    #@ desc billing's Postgres primary
+Host db-02
+    HostName 192.0.2.22
+    User postgres
+    #@ desc its replica
+```
+
+## How `#@` lines work
+
+- A `#@` line is `#@ key value`, on a line of its own. It may be indented.
+- The value is the rest of the line. A `#` after it is part of the value:
+  `#@ desc a # b` keeps `a # b`. Put comments on their own lines.
+- A value in double quotes is unquoted, with Go-style escapes (`\"`).
+- A key desk doesn't know is ignored, with no warning.
+
+### Levels
+
+Where a `#@` line sits decides what it applies to:
+
+1. **The file.** Lines before the first `#@ group` or `Host` are defaults for every host.
+2. **A group.** `#@ group eu/web` starts a section that runs until the next `#@ group`. The
+   `#@` lines right after it, before its first `Host`, are the group's defaults.
+3. **A host.** Lines inside a `Host` block, up to the next `Host`, `Match` or `#@ group`.
+
+For each key, desk takes the nearest level that has it: the host, then its group, then each
+parent group (`eu/web`, then `eu`), then the file.
+
+- Hosts before any `#@ group` go in a group named `servers`.
+- A `Host` line with only patterns (`Host *`, `Host *.example.com`) is not a server, and `#@`
+  lines inside it are dropped.
+- If two blocks have the same alias, the first wins.
+
+## Keys
+
+| Key | Where | Value |
+|---|---|---|
+| `group` | starts a section | a path, `/` nests: `eu/web` |
+| `desc` | any level | a line of text |
+| `tags` | any level | words separated by commas |
+| `vault` | any level | the `name` of one of the organization's `[[vault]]`s |
+| `password` | any level | `ITEM [FIELD]`: a vault item |
+| `password-raw` | any level | the password itself |
+| `wol` | any level | `MAC [BROADCAST:PORT]` |
+| `nagios` | any level | the host's name in Nagios |
+| `pin` | any level | none (or `false`/`no` to turn it off); not shown yet |
+| `hidden` | any level | none (or `false`/`no`) |
+| `hosts-cmd` | file or group | a program's path |
+
+### `group`
+
+`#@ group PATH` puts the hosts after it in that group of the tree, until the next `#@ group`.
+Slashes nest: `eu/web` is the `web` group inside `eu`. Leading and trailing slashes are dropped.
+
+### `desc` and `tags`
+
+A description and labels for the host. The infra Claude sees them when it lists the servers,
+so it can pick the right one when you say "the proxy":
+`eu/web/web1 (10.0.0.1) — the public proxy [web, nginx]`.
+
+### `vault`, `password` and `password-raw`
+
+These give desk the server's password. desk types it into ssh's password prompt, and into a
+`sudo` prompt when you ask (see [Panes](/desk/servers/panes/#sudo-passwords)).
+
+- `#@ vault NAME` picks which of the organization's [vaults](/desk/orgs/vaults/) to use: the
+  `name` of one of its `[[vault]]` tables in `desk.toml`. Without one, desk uses the first
+  `[[vault]]`.
+- `#@ password ITEM [FIELD]` is the vault item that holds the password, by id or name.
+  - In ITEM, `{host}` becomes the host's alias, `{user}` its `User`, and `{group}` its group path.
+    `"{user}@{host}"` on the file reads item `deploy@web1` for web1.
+  - FIELD is optional and defaults to the password. Other fields work with Passbolt and
+    Bitwarden; a HashiCorp vault always gives its `password` key.
+  - Two items with the same name give an error: use the id then.
+- `#@ password-raw PASSWORD` is the password itself, no vault. It's your call: keep the file
+  `chmod 600`.
+- For `password` and `password-raw`, the nearest level that has either one wins. A host's
+  `password-raw` beats the file's `password`.
+
+When the vault can't give the password, ssh's prompt shows why ("(vault: …)") and asks you.
+
+### `wol`
+
+`#@ wol 52:54:00:12:34:56 10.0.0.255:9` sends a Wake-on-LAN packet to that MAC address every
+time a pane opens on the host, just before ssh connects. The broadcast address and port are
+optional: the default is `255.255.255.255:9`. desk doesn't wait for the machine to boot; if it
+isn't up yet, the pane's [connection box](/desk/servers/panes/#the-connection-box) lets you
+keep waiting or reconnect.
+
+### `nagios`
+
+The host's name in the organization's [Nagios](/desk/orgs/alerts/). An alert on that name turns
+the host's dot red. Without `nagios`, an alert matches the host by its alias, its `HostName`, or
+a name that starts with the alias and a dot (`web1.example.com` for `web1`). With it, only that
+name matches.
+
+### `pin`
+
+Marks the host as pinned. desk reads it, but its sidebar and server picker don't show pins
+yet, so for now it changes nothing on screen.
+
+### `hidden`
+
+The host stays out of the lists, and the infra Claude doesn't see it either. It's still a real
+ssh alias, so other hosts can use it, for example a bastion behind `ProxyJump`.
+
+### `hosts-cmd`: a dynamic inventory
+
+`#@ hosts-cmd PATH` runs a program and keeps the servers it prints. Use it when your servers
+come from somewhere else: a cloud API, a CMDB, a script.
+
+- PATH is the program, run directly (no shell, no arguments) from its own folder. A relative
+  path is relative to the organization's folder; `~/` works.
+- It runs when desk starts and on every reload, with a 10-second timeout.
+- desk keeps what it prints in `<Org>/.desk/servers-dynamic.conf` (one inside a group:
+  `servers-dynamic-<group>.conf`, with `/` as `-`).
+- That file isn't read on its own: `Include` it, on the line after `hosts-cmd`, by its full
+  or `~/` path (see [Includes](#includes)).
+- If the program fails, the last good output stays and the host list shows the error as a row.
+
+It can print either of two forms:
+
+- **ssh_config text**: anything with a `Host` or `Match` line is kept as it is, `#@` lines
+  included.
+- **Host lines**: one `name destination` per line (or just `destination`), `#` for comments.
+  The destination can be `user@host:port`, `ssh://user@host:port`, `[2001:db8::1]:22` or a bare
+  host.
+
+```ssh-config
+#@ group cloud
+#@ hosts-cmd bin/inventory.sh
+Include ~/Work/Globex/.desk/servers-dynamic-cloud.conf
+```
+
+```sh
+#!/bin/sh
+# bin/inventory.sh: prints one server per line
+echo "app-01 deploy@192.0.2.31"
+echo "app-02 deploy@192.0.2.32:2222"
+```
+
+## Includes
+
+`Include` lines are followed, inside `Host` and `Match` blocks too, with `~/` and globs. Paths
+resolve as ssh resolves them: a relative path is in `~/.ssh/`, so write full or `~/` paths for
+files in the organization's folder.
+
+- Files **inside the organization's folder** count: their hosts are the organization's servers,
+  and their `#@` lines work. An included file starts in the group of the line that includes it.
+- Files **outside it**, like `~/.ssh/config`, are ssh's alone. desk doesn't list their hosts, so
+  your personal hosts never show as the organization's servers. ssh still reads them, so put
+  `Match all` and `Include ~/.ssh/config` last to keep your own defaults (ssh keeps the first
+  value it finds).
+- Includes nest up to 8 deep.
+
+## The ssh command
+
+For each pane desk runs:
+
+```sh
+ssh -o ControlMaster=auto -o ControlPath=$XDG_RUNTIME_DIR/desk/ssh-%C -o ControlPersist=60 \
+    -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+    -F ~/Work/Globex/ssh_config web-01
+```
+
+- **ControlMaster**: every pane of a server shares one connection, so a second pane opens at
+  once, and the [directory split](/desk/servers/palette/#files) and port forwards ride on it.
+- **ServerAliveInterval**: ssh notices a dead link within about 45 seconds, and desk
+  [reconnects](/desk/servers/panes/#reconnecting). desk leaves it out when your file mentions
+  `ServerAliveInterval` anywhere.
+- After you [accept a changed host key](/desk/servers/host-keys/), the next connection adds
+  `-o StrictHostKeyChecking=accept-new`, once.
+
+The palette's **copy ssh command** gives you this command for the focused server, to run in
+another terminal on the same shared connection.
+
+## Without a servers file
+
+An organization with no servers file can still use the older layout: one folder per group in
+`<Org>/Infra-Claude/<group>/`, each with an `ssh_config` (with `#desk password <vault> <item>`
+and `#desk wol MAC [broadcast:port]` lines), a `hosts` file of `name destination` lines, or an
+executable `hosts.sh` that prints them. The servers file replaces it: prefer that.
+
+Coming from Ásbrú Connection Manager? [Import its connections](/desk/servers/asbru/) into the
+file.

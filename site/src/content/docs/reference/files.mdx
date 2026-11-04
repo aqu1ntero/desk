@@ -1,0 +1,89 @@
+---
+title: Files
+description: Where desk keeps the board, conversations, settings, infra state and sockets on disk.
+---
+
+desk follows the XDG folders. Below, `~/.local/share` is `$XDG_DATA_HOME`, `~/.config` is `$XDG_CONFIG_HOME`, `~/.local/state` is `$XDG_STATE_HOME` and `~/.cache` is `$XDG_CACHE_HOME`, when those are set.
+
+:::tip
+To try something without touching your real board, point `XDG_DATA_HOME` and `DESK_ROOT` at scratch folders. Or run [`desk demo`](/desk/start/demo/), which puts all of the below in a temporary folder.
+:::
+
+## The board: `~/.local/share/desk/`
+
+| Path | What's in it |
+|---|---|
+| `board.json` | The board: columns, cards, their links and session stats, the archive. Saved as you go, atomically (written to `board.json.tmp`, then renamed). A missing file starts a fresh board. |
+| `chats/<card>.jsonl` | Each card's conversation, one message per line. |
+| `images/` | Images you pasted into a card or a message, referenced as `![image](path)`. |
+| `snoozed.json` | Snoozed alerts and until when. |
+| `crash.log` | If desk crashes, the trace goes here. desk runs detached, with no terminal to print it on. |
+
+## Settings: `~/.config/desk/`
+
+| Path | What's in it |
+|---|---|
+| `settings.toml` | desk's own settings: the search folders (`[[folder]]` with `path`, `depth`, `only_toml`, `root`) and the languages (`card_lang`, `chat_lang`). Edit them in **Settings → General**. |
+| `infra-layout.json` | The infra workspace's look: its theme, whether its sidebar and Claude panel show, and the Claude panel's width. |
+
+## Organizations: `$DESK_ROOT` (`~/Work`)
+
+| Path | What's in it |
+|---|---|
+| `<Org>/desk.toml` | The organization's accounts and settings. See [desk.toml](/desk/reference/desk-toml/). When **Settings** saves it, the file is made readable by you only (it may hold a token), and comments in it are not kept. |
+| `<Org>/ssh_config` | The organization's servers file (or the one `[servers] file` names). See [The servers file](/desk/servers/servers-file/). |
+| `<Org>/.desk/servers-dynamic.conf` | What a `#@ hosts-cmd` printed last (`servers-dynamic-<group>.conf` for one in a group). |
+| `<Org>/Infra-Claude/` | The infra Claude's working folder, made when the organization has a servers file. Put a `CLAUDE.md` here for it to read. |
+| `<Org>/Infra-Claude/runbooks/` | Runbooks: Markdown with `sh` blocks and `{{parameters}}`. The infra Claude saves new ones here too. |
+| `<Org>/.claude/agents/` | The Claude Code agents cards can run as (or the folder `agents` names in `desk.toml`). |
+
+## Claude profiles: `~/Secure/Claudes/`
+
+| Path | What's in it |
+|---|---|
+| `~/Secure/Claudes/<Org>/` | An organization's own Claude Code profile. Its sessions run with it in place of `~/.claude`, through `bwrap`. |
+| `~/Secure/Claudes/claude-<org>.json` | That profile's `~/.claude.json` (the organization's name in lower case). Made if missing. |
+
+## Infra state: `~/.local/state/desk/infra/`
+
+`<org>` is the organization folder's name.
+
+| Path | What's in it |
+|---|---|
+| `session.json` | The open tabs and panes, each tab's recent chat and Claude session, and port forwards: what the workspace reopens. |
+| `pins` | Pinned servers, one per line. |
+| `audit/<org>/<date>.jsonl` | The audit log: every command that ran and every approval, who did it (you or Claude), the exit code, time and the output's end. |
+| `recordings/<org>/<time>-<server>.cast` | Recordings of the panes, as asciicasts (`asciinema play <file>`). `record = false` in `desk.toml` turns them off. |
+| `notes/<org>/<server>.md` | The infra Claude's notes about each server. |
+| `reports/<org>-<time>.md` | Incident reports. |
+| `always/<org>.json` | The commands you answered **always** to. Edit it to take one back. |
+| `health/<org>.last` | When the daily health check (`[schedule] health`) last ran. |
+
+## Cache: `~/.cache/desk/`
+
+| Path | What's in it |
+|---|---|
+| `files/<host>/` | Files opened from a server in the files split. |
+| `edit/<host>/…` | Files opened from a server for editing. |
+
+## Sockets: `$XDG_RUNTIME_DIR/desk/`
+
+Made by a running desk, readable by you only. Without `XDG_RUNTIME_DIR`, they go in the system's temp folder.
+
+| Path | What it's for |
+|---|---|
+| `cards-<pid>.sock` | Card sessions' desk tools (alerts, tickets, link, ci). |
+| `infra-<pid>-<tab>.sock` | One per infra tab: its Claude's tools. |
+| `askpass-<pid>.sock` | ssh asking desk for a password. |
+| `peer/<pid>.sock` | `desk peer`. It talks to the newest one. |
+| `ssh-%C` | ssh's shared connections (`ControlMaster`), kept 60 s after the last pane closes. |
+
+## Environment variables
+
+| Variable | What it does |
+|---|---|
+| `DESK_ROOT` | The default search folder for organizations (`~/Work`). |
+| `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `XDG_RUNTIME_DIR` | Move the folders above. |
+| `ASBRU_CFG` | Where Ásbrú's `asbru.yml` is, for the import. |
+| `SHELL` | Handed to everything desk runs. If it names a shell that isn't there, desk fixes it at start. |
+| `DESK_INFRA_DEBUG` | A file to append the infra Claude's raw stream to, for debugging. |

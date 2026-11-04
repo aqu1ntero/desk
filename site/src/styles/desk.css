@@ -1,0 +1,124 @@
+/* desk's look (internal/ui/kit/kit.go) on Starlight: the app's greys,
+   its blue accent, Manrope for text and Geist Mono for code. */
+
+:root {
+	--sl-font: 'Manrope', system-ui, sans-serif;
+	--sl-font-mono: 'Geist Mono', ui-monospace, monospace;
+	--sl-content-width: 52rem;
+	--desk-radius: 10px;
+}
+
+/* dark: the app itself */
+:root,
+::backdrop {
+	--sl-color-accent-low: #14325a; /* CAccSoft */
+	--sl-color-accent: #0a84ff; /* CAcc */
+	--sl-color-accent-high: #64b5ff; /* CAccText */
+	--sl-color-white: #f5f5f7; /* CText */
+	--sl-color-gray-1: #e4e4e9;
+	--sl-color-gray-2: #b8b8c0; /* CText2 */
+	--sl-color-gray-3: #85858e; /* CText3 */
+	--sl-color-gray-4: #5a5a62; /* CIdle */
+	--sl-color-gray-5: #31323a; /* CRim */
+	--sl-color-gray-6: #22232a; /* CPanel */
+	--sl-color-black: #17181d; /* CColumn: the page, as a board column */
+	--sl-color-bg-nav: #1c1d23; /* CCard */
+	--sl-color-bg-sidebar: #17181d;
+	--sl-color-hairline: #2c2d34; /* CLine */
+	--sl-color-hairline-light: #31323a;
+	--sl-color-green: #30d158;
+	--sl-color-orange: #ff9f0a;
+	--sl-color-red: #ff6961;
+	--sl-color-purple: #bf5af2;
+	--sl-color-blue: #64b5ff;
+}
+
+/* light: the same hues on paper */
+:root[data-theme='light'],
+[data-theme='light'] ::backdrop {
+	--sl-color-accent-low: #d6e8ff;
+	--sl-color-accent: #0a6fd8;
+	--sl-color-accent-high: #0b3f7a;
+	--sl-color-white: #15161a;
+	--sl-color-gray-1: #22232a;
+	--sl-color-gray-2: #3b3c45;
+	--sl-color-gray-3: #5a5a62;
+	--sl-color-gray-4: #85858e;
+	--sl-color-gray-5: #d7d7dd;
+	--sl-color-gray-6: #ececf0;
+	--sl-color-gray-7: #f5f5f7;
+	--sl-color-black: #ffffff;
+	--sl-color-bg-nav: #f7f7f9;
+	--sl-color-bg-sidebar: #f7f7f9;
+}
+
+/* Screenshots: the app's rounded window edge and rim. */
+.sl-markdown-content img {
+	border-radius: var(--desk-radius);
+	border: 1px solid var(--sl-color-hairline);
+	box-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.55);
+}
+
+/* A cut (a zoomed part of a shot, <figure class="cut">) sits at its own
+   size, not stretched, with its caption under it. */
+.sl-markdown-content figure.cut {
+	margin-block: 1.25rem;
+}
+.sl-markdown-content figure.cut img {
+	width: auto;
+	max-width: min(100%, 720px);
+}
+.sl-markdown-content figure figcaption {
+	margin-top: 0.4rem;
+	font-size: var(--sl-text-sm);
+	color: var(--sl-color-gray-3);
+}
+
+/* Keys, as the app draws them (kit.KeyCap). */
+.sl-markdown-content kbd {
+	font-family: var(--sl-font-mono);
+	font-size: 0.8em;
+	padding: 0.1em 0.45em;
+	border-radius: 5px;
+	border: 1px solid #3b3c45; /* CKeyRim */
+	background: #2b2c33; /* CPanelCard */
+	color: var(--sl-color-gray-2);
+	white-space: nowrap;
+}
+:root[data-theme='light'] .sl-markdown-content kbd {
+	background: #f1f1f4;
+	border-color: #d0d0d7;
+	color: #3b3c45;
+}
+
+/* The sidebar's current page as desk's selected row (kit.CSel). */
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover {
+	background: var(--sl-color-accent-low);
+	color: var(--sl-color-accent-high);
+	font-weight: 600;
+}
+
+/* Primary buttons as desk's (kit.Primary): its blue, white text. */
+.sl-link-button.primary {
+	background: #0a84ff;
+	border-color: #0a84ff;
+	color: #fff;
+}
+.sl-link-button.primary:hover {
+	background: #2b95ff;
+	color: #fff;
+}
+
+/* The home page: the hero's text alone, the board full width under it. */
+.hero {
+	padding-bottom: 1rem;
+}
+.hero .tagline {
+	max-width: 46rem;
+}
+.home-shot img {
+	width: 100%;
+	box-shadow: 0 30px 80px -30px rgb(10 132 255 / 0.45);
+	margin-bottom: 2.5rem;
+}

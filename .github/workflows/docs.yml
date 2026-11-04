@@ -1,0 +1,76 @@
+name: Docs
+
+# The documentation site (site/, Starlight) on GitHub Pages. Its screenshots
+# are desk's own window drawn on a headless GPU (Mesa's software renderer)
+# over the demo world, made here on every build: they always show this
+# commit's UI. Pull requests build it without deploying.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      CGO_CFLAGS_ALLOW: -fno-strict-overflow
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libwayland-dev libxkbcommon-dev \
+            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libegl-mesa0 libgl1-mesa-dri
+
+      - name: Screenshots
+        env:
+          DESK_DOCSHOTS: site/src/assets/shots
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          EGL_PLATFORM: surfaceless # no display on the runner: Mesa renders offscreen
+        run: |
+          go test -tags nox11 ./internal/ui -run TestDocShots -count=1 -v | grep -E '^(=== RUN|--- |    ---|ok|FAIL|PASS)'
+          n=$(ls site/src/assets/shots/*.png | wc -l)
+          echo "$n screenshots"
+          [ "$n" -gt 0 ] # a skipped run (no headless GPU) makes none: fail rather than publish a broken site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Build
+        working-directory: site
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

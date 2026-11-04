@@ -1,0 +1,262 @@
+---
+title: desk.toml
+description: Every key of an organization's desk.toml, its type, its default and what reads it.
+---
+
+Each organization can have a `desk.toml` in its folder (`~/Work/Acme/desk.toml`). It holds the organization's accounts, the vaults their tokens come from, and the settings of its infra workspace. Every table that starts with `[[…]]` can appear any number of times.
+
+You can edit most of it in **Settings** (see [Settings](/desk/orgs/settings/)), or by hand. The Settings dialog keeps the keys it doesn't show, but not the file's comments.
+
+:::note
+desk ignores keys it doesn't know. A typo isn't an error: the key just does nothing.
+:::
+
+## Top-level keys
+
+These go before the first `[table]` (a TOML rule: after a table header, a key belongs to that table).
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `org` | string | the folder's name | The organization's name. It only counts for a nested organization (a folder inside another org, with its own `desk.toml`) and for a search folder marked **Folder is an org**. A top-level organization is always named after its folder. |
+| `agent` | string | none | The Claude Code agent new cards' sessions run as. The new-card dialog's **Agent** row starts on it. |
+| `agents` | string | `.claude/agents` | Where the agent files are, relative to this folder. |
+| `record` | bool | `true` | `false` stops recording the infra workspace's panes. |
+
+## Tokens
+
+Every account that needs a token (`[[github]]`, `[[jira]]`, `[[bitbucket]]`, `[[gitlab]]`, `[[nagios]]`, `[[metrics]]`) takes these keys, right in its table:
+
+| Key | Type | What it does |
+|---|---|---|
+| `vault` | string | The `name` of a `[[vault]]` in this file to read the token from. |
+| `item` | string | The vault item's name or id. Needed with `vault`. |
+| `field` | string | Which of the item's values. Default: the password. Also `username`, `totp`, `notes`, or a custom field's name (Bitwarden); `username`, `uri`, `description`, or a custom field's name (Passbolt). |
+| `token_env` | string | An environment variable that holds the token. |
+| `token_cmd` | string | A command whose output is the token. It runs with `sh -c`, for at most 20 seconds. |
+| `token` | string | The token itself, in the file. |
+
+desk uses the first one set, in this order: `vault`, `token_env`, `token_cmd`, `token`. A `token_env` naming an unset variable is an error; desk doesn't fall back to the next one. Vault values are cached for 10 minutes.
+
+desk never calls a provider without a token. An account with none is skipped, and the links it would have checked say **no GitHub account** (or GitLab, Bitbucket).
+
+## [[vault]]
+
+A password vault the tokens come from. desk asks for its master password the first time a token needs it, and keeps it in memory only, until desk quits. Organizations naming the same account share one unlock.
+
+| Key | Type | Default | Kinds | What it does |
+|---|---|---|---|---|
+| `name` | string | | all | What `vault =` refers to. |
+| `kind` | string | | all | `bitwarden`, `vaultwarden` (the same as `bitwarden`), `passbolt`, or `hashicorp` (infra workspace only). |
+| `url` | string | `https://vault.bitwarden.com` (Bitwarden); the `config_file`'s server (Passbolt) | all | The server. |
+| `email` | string | | bitwarden | Your account's email. Required. |
+| `client_id` | string | | bitwarden | Your account's API key id. With it, desk logs in with the API key, which skips two-factor login. |
+| `client_secret` | token | | bitwarden | The API key's secret, as an inline table: `client_secret = { token_env = "BW_CLIENT_SECRET" }`. |
+| `config_file` | string | | passbolt | A go-passbolt-cli config file. desk reads its server, private key, passphrase and TOTP token. The keys here override it. |
+| `key_file` | string | | passbolt | Your armored private key (`~` works). |
+| `password` | token | desk asks | bitwarden, passbolt | The master password, or the Passbolt key's passphrase, as an inline table: `password = { token_env = "PASSBOLT_PASSPHRASE" }`. Without it, desk asks. |
+| `mount` | string | `secret` | hashicorp | The KV v2 mount. |
+| `token_env` | string | `VAULT_TOKEN` | hashicorp | The variable that holds the Vault token. |
+| `insecure_tls` | bool | `false` | hashicorp | Don't check the server's TLS certificate. |
+
+:::caution
+A `hashicorp` vault only feeds the infra Claude's secret tools. Accounts' tokens can't come from one. The Settings dialog only edits Bitwarden and Passbolt vaults: edit a `hashicorp` one by hand. Saving the organization in Settings keeps it as it is.
+:::
+
+## [[github]]
+
+GitHub pull requests, issues and commits, over the REST API.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | | A label for you. |
+| `host` | string | `github.com` | A GitHub Enterprise host (its API is `https://<host>/api/v3`). |
+| `owners` | list of strings | every owner | The users or organizations whose repositories this account answers for. The first account that matches wins. |
+| `repo` | string | | `owner/name`: where cards create their issue (the new-card dialog's **Ticket** switch) when the organization has no Jira project. |
+| `sync` | bool | `true` | `false`: moving a card doesn't close or reopen its issues. |
+| token keys | | | See [Tokens](#tokens). |
+
+## [[jira]]
+
+Jira issues, and bare keys like `ABC-12`.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | | A label for you. |
+| `url` | string | | The site, `https://globex.atlassian.net`. Needed for your assigned tickets and for creating tickets. |
+| `email` | string | | Your login. With it, the token is an API token; without it, a bearer token. |
+| `projects` | list of strings | | Project keys. Bare keys of these projects link here. Cards create their tickets in the first one. |
+| `issue_type` | string | `Task`, else the first non-subtask type | What new tickets are created as. A name the project doesn't have is an error. |
+| `sync` | bool | `true` | `false`: moving a card doesn't transition its issues. |
+| `ignore` | list of strings | | Statuses desk leaves alone when a card moves (any case). |
+| `[jira.status]` | table | | The status a column moves issues to, by name: `Done = "In Review"`. Columns are `Backlog`, `To do`, `In progress`, `Blocked`, `Done`. Without it, desk picks by the status's category (Blocked: a status named blocked). |
+| token keys | | | See [Tokens](#tokens). |
+
+`[jira.status]` goes right after the `[[jira]]` it belongs to.
+
+## [[bitbucket]]
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | | A label for you. |
+| `workspace` | string | every workspace | The workspace this account answers for. |
+| `user` | string | | Your username, for an app password. Without it, the token is a bearer token. |
+| token keys | | | See [Tokens](#tokens). |
+
+## [[gitlab]]
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | | A label for you. |
+| `url` | string | `https://gitlab.com` | The server. |
+| `groups` | list of strings | every group | The groups this account answers for. |
+| token keys | | | See [Tokens](#tokens). |
+
+## [[nagios]]
+
+A Nagios whose problems show in the organization's **Alerts** view. desk reads Nagios Core's `statusjson.cgi` (which XI serves too), and a Nagios 3's `status.cgi` pages when there's no JSON.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | its host | What its alerts say they come from. |
+| `url` | string | | Its web root, where `cgi-bin/` is: `https://mon.globex.example.com/nagios`. |
+| `user` | string | | The CGIs' login (basic or digest). The token is the password. Without `user`, the Alerts view uses the vault item's username; with no vault either, the token is sent as a bearer token. |
+| `alerts` | bool | `false` | Infra workspace: check it every minute and notify you of new problems, with an offer to investigate. The Alerts view lists every `[[nagios]]` either way. |
+| `insecure_tls` | bool | `false` | Infra workspace: don't check its TLS certificate. |
+| token keys | | | See [Tokens](#tokens). |
+
+## [[metrics]]
+
+A Prometheus-compatible server the infra Claude can query.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | its host | What the infra Claude calls it. |
+| `type` | string | | `prometheus` or `victoriametrics`. Told to the infra Claude; both are queried the same way, on `<url>/api/v1/…`. |
+| `url` | string | | Its base URL. |
+| `user` | string | | Basic auth login. Without it, the token is a bearer token. |
+| `insecure_tls` | bool | `false` | Don't check its TLS certificate. |
+| token keys | | | See [Tokens](#tokens). |
+
+## [servers]
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `file` | string | `ssh_config` | The organization's servers file, relative to this folder (`~/` works). See [The servers file](/desk/servers/servers-file/). |
+
+## [approvals]
+
+Which of the infra Claude's commands run without asking. Patterns match the whole command line; `*` matches anything, spaces and slashes included.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `allow` | list of strings | | Commands that run without asking. Never applies to compound commands (any with `\|`, `;`, `&`, `<`, `>`, a backquote or `$(`). |
+| `deny` | list of strings | | Commands that always ask, even reads. Beats `allow` and your **always** answers. |
+
+## [schedule]
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `health` | string | off | `"HH:MM"` (24-hour, local time): a daily read-only health check of the servers. You get a notification when it's ready. An invalid time is ignored. |
+
+## A full example
+
+```toml
+# ~/Work/Globex/desk.toml
+agent = "planner"                 # new cards' sessions run as this Claude Code agent
+agents = "meta/.claude/agents"    # where its agent files are (default .claude/agents)
+record = true                     # record the infra panes (default)
+
+[[vault]]
+name = "me"
+kind = "bitwarden"                # or vaultwarden
+url = "https://vault.example.com" # default https://vault.bitwarden.com
+email = "me@globex.com"
+client_id = "user.1b2c…"          # optional: the API key, which skips two-factor login
+client_secret = { token_env = "BW_CLIENT_SECRET" }
+
+[[vault]]
+name = "globex"
+kind = "passbolt"
+config_file = "~/.config/passbolt/globex.toml"   # go-passbolt-cli's: server, key, passphrase, TOTP
+# or, without it:
+# url = "https://passbolt.globex.example.com"
+# key_file = "~/.config/passbolt/globex.asc"
+# password = { token_env = "PASSBOLT_PASSPHRASE" }   # else desk asks
+
+[[vault]]
+name = "ops"
+kind = "hashicorp"                # only the infra Claude's secret tools read it
+url = "https://vault.globex.example.com"
+mount = "secret"                  # default
+token_env = "VAULT_TOKEN"         # default
+
+[[github]]
+owners = ["globex-org"]
+repo = "globex-org/api"           # where cards create their issue, without a Jira project
+vault = "globex"
+item = "GitHub token"
+
+[[jira]]
+url = "https://globex.atlassian.net"
+email = "me@globex.com"
+projects = ["ABC"]                # bare keys like ABC-12 link here; tickets are created in the first
+# issue_type = "Story"            # default Task
+# sync = false                    # moving cards doesn't transition these issues
+# ignore = ["Won't Do"]           # statuses desk leaves alone
+token_env = "JIRA_GLOBEX_TOKEN"
+[jira.status]                     # the status a column moves issues to, by name
+Done = "In Review"
+
+[[bitbucket]]
+workspace = "globex"
+user = "me"                       # an app password; without user, a bearer token
+token_cmd = "pass bitbucket/globex"
+
+[[gitlab]]
+url = "https://gitlab.com"
+groups = ["globex"]
+token_env = "GITLAB_TOKEN"
+
+[[nagios]]
+name = "prod"                     # default: its host
+url = "https://mon.globex.example.com/nagios"
+user = "me"                       # the token is the password
+vault = "globex"
+item = "Nagios prod"
+alerts = true                     # the infra workspace notifies new problems
+
+[[metrics]]
+name = "prom"
+type = "prometheus"
+url = "https://prom.globex.example.com"
+token_env = "PROM_TOKEN"
+
+[servers]
+file = "infra/ssh_config"         # default ssh_config
+
+[approvals]
+allow = ["systemctl status *", "journalctl *"]
+deny = ["reboot*", "* --force*"]
+
+[schedule]
+health = "08:30"
+```
+
+## settings.toml
+
+desk's own settings, not an organization's, are in `~/.config/desk/settings.toml`. **Settings → General** edits them.
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `card_lang` | string | `English` | The language cards, tickets and Improve with Claude write in. |
+| `chat_lang` | string | `English` | The language Claude speaks with you in. |
+| `[[folder]]` | tables | `$DESK_ROOT` (`~/Work`), depth 2 | Where desk looks for organizations, in order. When two give the same name, the first wins. |
+
+Each `[[folder]]`:
+
+| Key | Type | What it does |
+|---|---|---|
+| `path` | string | The folder (`~` works). |
+| `depth` | int | How deep to look. At level 1 every folder is an organization (except ones starting with `.` or `_`); deeper, only folders with a `desk.toml`. |
+| `only_toml` | bool | Level 1 folders need a `desk.toml` too. |
+| `root` | bool | The folder itself is an organization, if it has a `desk.toml`. |

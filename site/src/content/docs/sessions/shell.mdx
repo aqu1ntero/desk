@@ -1,0 +1,93 @@
+---
+title: Shell commands
+description: Run your own shell commands from the message box with !, and read what the commands Claude runs do.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+## Running a command yourself
+
+A message that starts with `!` is a shell command you run yourself, as in Claude Code. desk runs it
+with `bash` in the card's folder, right away: no Claude, no permission prompt. Its output streams
+into the conversation. When it ends, Claude gets the command, its output, its exit code and how long
+it took, and carries on by itself.
+
+<Steps>
+
+1. Type `!` and the command in the message box. The box turns orange and warns you where it will
+   run: "WARNING: runs directly in ~/Work/Globex/billing, now: no Claude, no approval".
+   **Send** becomes **Run**.
+
+   <figure class="cut">
+
+   ![The message box in orange with the warning, "!go test -v -run 'S3|Multipart' ./export/..." and a Run button](../../../assets/shots/sess-shell-typed-composer.png)
+
+   <figcaption>A <code>!</code> command, about to run.</figcaption>
+   </figure>
+
+2. Press <kbd>Enter</kbd> or **Run**. A **You ran** box shows the command, "running…", and its
+   output as it comes, twice a second.
+
+   <figure class="cut">
+
+   ![The You ran box with the command, "running…" and four lines of test output; the message box is locked and offers Stop command](../../../assets/shots/sess-shell-running-end.png)
+
+   <figcaption>While it runs, the message box is locked. <strong>Stop command</strong> ends it.</figcaption>
+   </figure>
+
+3. When it ends, the box says how it ended and how long it took, and that its output went to
+   Claude. Claude takes it from there.
+
+   <figure class="cut">
+
+   ![The You ran box: "exit 0 · 3.8s · sent to Claude" and the whole output, then Claude's reply](../../../assets/shots/sess-shell-done-end.png)
+
+   <figcaption>The command ended with exit 0, and Claude answered.</figcaption>
+   </figure>
+
+</Steps>
+
+While the command runs:
+
+- The card is working, on your command: its status line reads "Running your command: …".
+  A card in Backlog, To do or Blocked moves to **In progress**.
+- The message box is locked until the command ends. You can't send Claude anything meanwhile.
+- **Stop command** ends it. A command that runs 30 minutes is stopped by itself.
+
+When it ends, the box shows "exit 0", another exit code, or "stopped". desk keeps the end of
+long output. The box stays in the conversation.
+
+:::note
+If the card's [terminal](/desk/sessions/terminal/) is open when the command ends, Claude can't take
+it yet. The box says "Claude gets it with your next message", and the card is your turn.
+:::
+
+## Shell commands explained
+
+Claude describes every shell command it runs in plain words. The description shows under the
+command's tool line.
+
+<figure class="cut">
+
+![The tool line "Bash go test ./internal/auth/..." with "Run all the auth tests to confirm the fix" and Explain](../../../assets/shots/sess-tool-line.png)
+
+<figcaption>Claude's own words for what the command does.</figcaption>
+</figure>
+
+For more, click **Explain**. Haiku takes the command apart, part by part, in the card's folder and
+under its account. "Reading the command…" shows while it works. The answer stays under the command,
+and desk keeps it for every later use of the same command.
+
+<figure class="cut">
+
+![The same tool line with a "What it does · Haiku" box under it: go test builds and runs the tests; ./internal/auth/... is the package and every package under it](../../../assets/shots/sess-explain-box.png)
+
+<figcaption>Haiku's breakdown, under the command.</figcaption>
+</figure>
+
+If Haiku can't answer, the box says why and offers **Try again**.
+
+A background shell's own view (see [Subagents and shells](/desk/sessions/subagents/#a-subagent-or-shell-in-full))
+asks Haiku by itself: its command, what it does, then its output.
+
+![The full window showing the background shell "Integration tests": its command, Haiku's breakdown and its output](../../../assets/shots/sess-shell-task.png)

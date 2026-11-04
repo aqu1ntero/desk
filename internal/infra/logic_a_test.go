@@ -583,7 +583,7 @@ func TestCallToolConnectAndRunbookA(t *testing.T) {
 		return tab.callTool(toolCall{Name: "save_runbook", Args: b})
 	}
 	r1, r2 := save("Restart PHP"), save("Restart PHP")
-	if r1.IsError || r1.Text != "saved "+filepath.Join(dir, "runbooks", "restart-php.md")+"; the user starts it from the palette (ctrl+k)" ||
+	if r1.IsError || r1.Text != "saved "+filepath.Join(dir, "runbooks", "restart-php.md")+"; the user starts it from the palette (ctrl+shift+k)" ||
 		!strings.Contains(r2.Text, "restart-php-2.md") {
 		t.Errorf("save: %+v %+v", r1, r2)
 	}
