@@ -29,6 +29,7 @@ type savedFwd struct{ Host, Dir, Name, Kind, Spec string }
 type savedTab struct {
 	Org, Group, Dir, Name string
 	OrgOnly               bool
+	Card                  string `json:",omitempty"` // the card whose server work the tab is
 	Panes                 []savedPane
 	Chat                  []savedChat
 	Claude                string    // Claude Code session id, for --resume
@@ -88,7 +89,7 @@ func (m *model) saveSession() {
 		ss.Forwards = append(ss.Forwards, savedFwd{f.host, f.dir, f.name, f.kind, f.spec})
 	}
 	for _, t := range m.tabs {
-		st := savedTab{Org: t.org, Group: t.group, Dir: t.dir, Name: t.name, OrgOnly: t.orgOnly, Claude: t.session, Opened: t.opened, Model: t.model, Ctx: t.ctxTokens, CtxWindow: t.ctxWindow}
+		st := savedTab{Org: t.org, Group: t.group, Dir: t.dir, Name: t.name, OrgOnly: t.orgOnly, Card: t.card, Claude: t.session, Opened: t.opened, Model: t.model, Ctx: t.ctxTokens, CtxWindow: t.ctxWindow}
 		t.mu.Lock()
 		for _, p := range t.panes {
 			ps := p.kept // the dropped connection's, not a failed retry's
@@ -150,7 +151,7 @@ func (m *model) restore() {
 	}
 	for _, st := range ss.Tabs {
 		t := m.newTab(st.Org, st.Group, st.Dir, st.Name)
-		t.orgOnly, t.session, t.model = st.OrgOnly, st.Claude, st.Model
+		t.orgOnly, t.card, t.session, t.model = st.OrgOnly, st.Card, st.Claude, st.Model
 		t.ctxTokens, t.ctxWindow = st.Ctx, st.CtxWindow
 		if !st.Opened.IsZero() {
 			t.opened = st.Opened

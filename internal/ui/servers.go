@@ -165,7 +165,7 @@ func (u *ui) cardNew(org, title, notes string) (string, error) {
 }
 
 func (u *ui) showTask(t infra.Task) {
-	if u.infra != nil && u.infra.OpenOrg(t.Org) {
+	if u.infra != nil && u.infra.OpenCard(t.Org, t.From) {
 		u.view, u.panel = "srv:"+t.Org, ""
 	}
 }

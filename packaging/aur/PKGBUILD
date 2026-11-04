@@ -1,0 +1,41 @@
+# Maintainer: Luis Felipe Domínguez Vega <ldominguezvega@gmail.com>
+# The release workflow sets pkgver and sha256sums on every release tag and
+# publishes this to the AUR as desk-kanban ("desk" there is another program).
+pkgname=desk-kanban
+pkgver=2026.11.04
+pkgrel=1
+pkgdesc='A Kanban board where every card is a Claude Code session'
+arch=('x86_64' 'aarch64')
+url='https://github.com/lfdominguez/desk'
+license=('MIT')
+depends=('glibc' 'wayland' 'libxkbcommon' 'libglvnd' 'libpipewire' 'hicolor-icon-theme')
+makedepends=('go' 'pkgconf' 'vulkan-headers')
+optdepends=('claude-code: the Claude Code CLI every card runs'
+            'bubblewrap: a Claude account per organization'
+            'openssh: the infra workspace'"'"'s server panes')
+provides=('desk')
+conflicts=('desk')
+options=('!lto')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "desk-$pkgver"
+  export CGO_CPPFLAGS="$CPPFLAGS" CGO_CFLAGS="$CFLAGS" CGO_CXXFLAGS="$CXXFLAGS" CGO_LDFLAGS="$LDFLAGS"
+  export CGO_CFLAGS_ALLOW=-fno-strict-overflow
+  export GOFLAGS='-buildmode=pie -trimpath -mod=readonly -modcacherw'
+  go build -tags nox11 -ldflags "-linkmode=external -X main.version=$pkgver" -o desk ./cmd/desk
+}
+
+check() {
+  cd "desk-$pkgver"
+  [[ "$(./desk --version)" == "desk $pkgver" ]]
+}
+
+package() {
+  cd "desk-$pkgver"
+  install -Dm755 desk "$pkgdir/usr/bin/desk"
+  install -Dm644 packaging/desk.desktop "$pkgdir/usr/share/applications/desk.desktop"
+  install -Dm644 packaging/desk.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/desk.svg"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -23,6 +23,7 @@ require (
 	golang.org/x/crypto v0.58.0
 	golang.org/x/image v0.26.0
 	golang.org/x/net v0.60.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -51,6 +52,7 @@ require (
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.30 // indirect

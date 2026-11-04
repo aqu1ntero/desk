@@ -933,7 +933,7 @@ func TestOrgTab(t *testing.T) {
 	m := model{tree: []node{{depth: 0, label: "Acme", org: "Acme", dir: dir},
 		{depth: 1, label: "g"}, {depth: 2, label: "local", org: "Acme", group: "g", dir: dir, host: "local"},
 		{depth: 2, label: "web1", org: "Acme", group: "g", dir: dir, host: "web1", addr: "192.0.2.10"}}}
-	m.openOrg(m.tree[0])
+	m.openOrg(m.tree[0], "")
 	tab := m.tab()
 	if !tab.orgOnly || len(tab.panes) != 0 {
 		t.Fatalf("org tab: panes=%d", len(tab.panes))
@@ -968,7 +968,7 @@ func TestOrgTab(t *testing.T) {
 	if len(m.tabs) != 1 || m.tabs[0] != tab {
 		t.Errorf("host tab must close with its last pane: tabs=%d", len(m.tabs))
 	}
-	m.openOrg(m.tree[0])
+	m.openOrg(m.tree[0], "")
 	if len(m.tabs) != 1 {
 		t.Error("opening the org again goes back to its tab")
 	}
@@ -1060,6 +1060,47 @@ func TestPeerCards(t *testing.T) {
 	}
 	if r := tab.newCard("Rotate app logs", "found"); r.IsError || !strings.Contains(r.Text, "DESK-5") {
 		t.Errorf("create_card: %+v", r)
+	}
+}
+
+// TestPeerTabPerCard: two cards of one org get a session each, apart from
+// the org's own; the same card comes back to its own, after a restart too.
+func TestPeerTabPerCard(t *testing.T) {
+	m := model{tree: []node{{depth: 0, label: "Acme", org: "Acme", dir: t.TempDir()}}}
+	var w Workspace
+	w.SetCards(Cards{Is: func(n string) bool { return strings.HasPrefix(n, "DESK-") }})
+	defer w.SetCards(Cards{})
+	tab := func(from string) *Tab {
+		t.Helper()
+		if r := m.peer(peerReq{Op: "tell", Org: "acme", From: from, Text: "x"}); r.Err != "" {
+			t.Fatal(r.Err)
+		}
+		return m.tabs[len(m.tabs)-1]
+	}
+	a, b := tab("DESK-3"), tab("DESK-4")
+	own := tab("dev") // not a card: the org's own session
+	if a == b || own == a || own == b || a.card != "DESK-3" || b.card != "DESK-4" || own.card != "" || a.name != "Acme · DESK-3" {
+		t.Fatalf("tabs %+v %+v %+v", a, b, own)
+	}
+	if m.peer(peerReq{Op: "tell", Org: "Acme", From: "DESK-3", Text: "y"}); len(m.tabs) != 3 || len(a.peerCtx) != 2 || len(b.peerCtx) != 1 {
+		t.Errorf("DESK-3 again: %d tabs, ctx %d/%d", len(m.tabs), len(a.peerCtx), len(b.peerCtx))
+	}
+	m.openOrg(m.tree[0], "")
+	if m.tab() != own {
+		t.Error("the org's own session from the sidebar")
+	}
+	m.active = 0
+	if _, err := m.peerTab("Acme", "DESK-4"); err != nil || m.active != 0 {
+		t.Error("an open card session is found, not shown")
+	}
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	m.restored = true
+	m.saveSession()
+	var r model
+	r.tree = m.tree
+	r.restore()
+	if len(r.tabs) != 3 || r.tabs[0].card != "DESK-3" || r.tabs[1].card != "DESK-4" || r.tabs[2].card != "" {
+		t.Fatalf("restored %d tabs", len(r.tabs))
 	}
 }
 

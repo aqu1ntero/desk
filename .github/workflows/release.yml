@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libwayland-dev libxkbcommon-dev \
-            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libfuse2t64
+            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libfuse2t64 librsvg2-bin
 
       - name: Version
         run: |
@@ -82,8 +82,9 @@ jobs:
           app=dist/desk.AppDir
           install -Dm755 dist/desk $app/usr/bin/desk
           install -Dm644 packaging/desk.desktop $app/desk.desktop
-          install -Dm644 packaging/desk.svg $app/desk.svg
-          ln -s desk.svg $app/.DirIcon
+          # .DirIcon must be a PNG: file managers and thumbnailers don't read SVG
+          rsvg-convert -w 256 -h 256 packaging/desk.svg -o $app/desk.png
+          ln -s desk.png $app/.DirIcon
           ln -s usr/bin/desk $app/AppRun
           curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
@@ -101,3 +102,40 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --title "desk $GITHUB_REF_NAME" --generate-notes dist/*.deb dist/*.AppImage
+
+  # The AUR package desk-kanban, from packaging/aur/PKGBUILD with this tag's
+  # version and source checksum. Needs the AUR_SSH_PRIVATE_KEY secret (the
+  # key of the AUR account that maintains it); without it the job says so.
+  aur:
+    needs: package
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version and checksum
+        id: pkg
+        env:
+          KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$KEY" ]]; then
+            echo "::warning::no AUR_SSH_PRIVATE_KEY secret: the AUR package is not published"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          v="$GITHUB_REF_NAME"
+          sum=$(curl -fsSL "https://github.com/lfdominguez/desk/archive/refs/tags/$v.tar.gz" | sha256sum | cut -d' ' -f1)
+          sed -i -e "s/^pkgver=.*/pkgver=$v/" -e "s/^pkgrel=.*/pkgrel=1/" -e "s/^sha256sums=.*/sha256sums=('$sum')/" packaging/aur/PKGBUILD
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        if: steps.pkg.outputs.publish == 'true'
+        uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
+        with:
+          pkgname: desk-kanban
+          pkgbuild: packaging/aur/PKGBUILD
+          commit_username: Luis Felipe Domínguez Vega
+          commit_email: ldominguezvega@gmail.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: desk ${{ github.ref_name }}
+          updpkgsums: false

@@ -4,10 +4,13 @@
 
 # desk
 
-**A Kanban board where every card is a Claude Code session.**
+<img src="docs/desk.gif" width="820" alt="desk: a card typed in plain words becomes a prompt, its Claude session works, and the infra Claude fixes a server">
 
-Each card belongs to an organization (a folder), runs Claude there under that organization's own
-account, and tracks the pull requests, tickets, CI runs and alerts its work depends on.
+**A Kanban board where every card is a Claude Code session.**<br>
+Say what to do; Claude works on it in the right organization, under its own account, and asks you when it needs you.<br>
+Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `desk demo` shows it all with nothing to set up.
+
+▶ [The 85-second demo, narrated](docs/desk-demo.mp4)
 
 [![Build](https://github.com/lfdominguez/desk/actions/workflows/release.yml/badge.svg)](https://github.com/lfdominguez/desk/actions/workflows/release.yml)
 [![Release](https://img.shields.io/github/v/release/lfdominguez/desk?sort=date)](https://github.com/lfdominguez/desk/releases)
@@ -18,10 +21,6 @@ account, and tracks the pull requests, tickets, CI runs and alerts its work depe
 
 [Features](#features) · [Install](#install) · [Getting started](#getting-started) ·
 [Guide](#guide) · [Keys](#keys) · [Development](#development)
-
-<a href="docs/desk-demo.mp4"><img src="docs/screenshots/video.png" width="820" alt="desk in 85 seconds: watch the demo video"></a>
-
-▶ [Watch the 85-second demo](docs/desk-demo.mp4)
 
 </div>
 
@@ -36,7 +35,7 @@ account, and tracks the pull requests, tickets, CI runs and alerts its work depe
 | ✨ **Prompt optimization** | A new card's request is worked out by Haiku in the org's folder into a real brief: context, steps, acceptance criteria, labels, links and the skills to use. |
 | 🔗 **Live links** | GitHub, GitLab and Bitbucket PRs/MRs and Jira issues on each card, with their state and CI. Tickets follow their card's column. |
 | 🎫 **My tickets, CI, alerts** | Per org: tickets assigned to you, failing pipelines, and Nagios alerts. One click turns any of them into a card. |
-| 🖥️ **Infra workspace** | Live SSH panes of the org's servers, from a plain OpenSSH config, shared with an infrastructure Claude that asks before every change. |
+| 🖥️ **Infra workspace** | Live SSH panes of the org's servers, from a plain OpenSSH config (or imported from Ásbrú), shared with an infrastructure Claude that asks before every change. |
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
 | 🔐 **Vaults** | Tokens from Bitwarden/Vaultwarden, Passbolt, env vars or a command. Unlocked keys stay in memory only. |
@@ -90,6 +89,15 @@ chmod +x desk-*-x86_64.AppImage
 ```sh
 sudo apt install ./desk_<version>_amd64.deb
 ```
+
+### Arch Linux (AUR)
+
+```sh
+yay -S desk-kanban   # or paru, or: git clone https://aur.archlinux.org/desk-kanban.git && cd desk-kanban && makepkg -si
+```
+
+It builds the tagged release from source and installs `desk`. The AUR's `desk` is another program
+(a shell workspace manager), so the two conflict. Claude Code itself is the AUR's `claude-code`.
 
 ### From source
 
@@ -312,7 +320,9 @@ change (`[approvals]` in `desk.toml`). **Ctrl+Shift+K** is its palette: runbooks
 notes, reports, the health check, the audit log, recordings, sharing, broadcast.
 
 A card of such an org hands server work to it with `desk peer`; the card shows **⇄ \<org\> infra**,
-and the infra Claude's questions and results come into the card's conversation. It can also write
+and the infra Claude's questions and results come into the card's conversation. Each card gets an
+infra session of its own (tab **\<org\> · DESK-12**, its own Claude), so two tickets' server work
+never mixes; its panes are the servers that one ticket needs. It can also write
 to a card unasked or put follow-up work in To do. Claude Code users outside desk get the same
 through the bundled plugin ([`plugin/`](plugin)).
 
@@ -357,6 +367,10 @@ Match all
 - Comments go on their own lines (`#@ desc a # b` keeps `a # b`).
 - `password ITEM [FIELD]` fills `{host}`, `{user}` and `{group}` in ITEM and takes it from
   `vault`; `password-raw` is the password itself. The nearest level with either one wins.
+- **A changed host key** (a reinstalled server, rotated keys) stops ssh. The pane's box then shows
+  the key the server sent next to the one in `known_hosts`, by fingerprint. **Accept new key** (A)
+  drops that line and reconnects, and ssh saves the new key; it does nothing if the line no longer
+  holds that key for that host.
 - **Includes** resolving inside the org folder count; ones outside it (like `~/.ssh/config`) are
   ssh's alone, so your personal hosts never list as the org's servers.
 - **Dynamic inventory**: `#@ hosts-cmd PATH` runs at start and on reload and keeps what it prints
@@ -365,6 +379,32 @@ Match all
   `CLAUDE.md`.
 
 </details>
+
+#### Import from Ásbrú
+
+Coming from [Ásbrú Connection Manager](https://www.asbru-cm.net/)? An organization's settings page
+has **Import from Ásbrú** under its accounts: pick one of Ásbrú's top-level groups (the one that is
+this organization's), or all of it, and its SSH connections are added to the org's servers file,
+which is made if it has none. From a shell, the same is:
+
+```sh
+desk servers import-asbru -org ~/Work/Acme -group Prod   # add Prod's hosts to Acme's servers file
+desk servers import-asbru > ssh_config                   # or just print the file
+```
+
+It reads `~/.config/asbru/asbru.yml` (or `$ASBRU_CFG`; give another file, such as an export, as the
+last argument). Ásbrú writes that file when it closes cleanly, so close it before importing.
+
+- Groups become `#@ group` paths, relative to the group you picked.
+- For each host it brings the address, user (the key's user for a key login), port and key.
+- Jump hosts become hidden `Host` blocks behind `ProxyJump`, and a SOCKS proxy a `ProxyCommand`.
+- The descriptions become `#@ desc`.
+- Its ssh options (`-X`, `-A`, `-C`, `-o Key=Value`, `-L`/`-R`/`-D` forwards, `-p`, `-i`, `-l`, `-J`)
+  become their config keywords. Anything else stays as a comment in the host's block.
+- Passwords stay behind: an ssh_config can't hold them. Point `#@ password` at your vault instead.
+- Connections that aren't SSH (RDP, VNC, Telnet…) are skipped, and so are hosts written with Ásbrú's
+  variables (`<GV:…>`, `<ENV:…>`). The toast and the shell say which ones.
+- A host the file already has (by name) is left as it is, so importing again only adds the new ones.
 
 ## Keys
 

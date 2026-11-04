@@ -17,17 +17,29 @@
           pname = "desk";
           inherit version;
           src = ./.;
-          vendorHash = "sha256-bFsSG0M9CgnLkfuL+qYkqUZjNa8sUCSYQt8HFGWjHNU=";
+          vendorHash = "sha256-ycBVx7YP2sOc8UR7LGXQakP8cO2mp4b0sHJA1YjezDc=";
           subPackages = [ "cmd/desk" ];
           tags = [ "nox11" ];
           env.CGO_CFLAGS_ALLOW = "-fno-strict-overflow";
-          nativeBuildInputs = [ pkgs.pkg-config ];
+          nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
           buildInputs = libs pkgs;
           ldflags = [ "-s" "-w" "-X main.version=${version}" ];
           doCheck = false; # the tests start shells and terminals: run them with `go test` in the dev shell
           postInstall = ''
             install -Dm644 packaging/desk.desktop $out/share/applications/desk.desktop
             install -Dm644 packaging/desk.svg $out/share/icons/hicolor/scalable/apps/desk.svg
+          '';
+          # Off NixOS (Ubuntu, Fedora…) nixpkgs' libglvnd finds no GPU driver:
+          # it only looks in /run/opengl-driver. There, use nixpkgs' Mesa
+          # (Intel, AMD, nouveau; llvmpipe on anything else, e.g. NVIDIA's
+          # own driver). A driver the user points at still wins.
+          postFixup = ''
+            wrapProgram $out/bin/desk --run '
+            if [ ! -e /run/opengl-driver/lib ]; then
+              export __EGL_VENDOR_LIBRARY_FILENAMES="''${__EGL_VENDOR_LIBRARY_FILENAMES:-${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json}"
+              export LIBGL_DRIVERS_PATH="''${LIBGL_DRIVERS_PATH:-${pkgs.mesa}/lib/dri}"
+              export GBM_BACKENDS_PATH="''${GBM_BACKENDS_PATH:-${pkgs.mesa}/lib/gbm}"
+            fi'
           '';
           meta = {
             description = "A Kanban board where every card is a Claude Code session";

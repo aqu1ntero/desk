@@ -1,28 +1,23 @@
 package infra
 
 import (
-	"os/exec"
-	"runtime"
 	"strings"
 	"time"
+
+	xnotify "gioui.org/x/notify"
 )
 
 // longCommand is how long a command runs before its end is worth a desktop
 // notification (when you're looking elsewhere).
 const longCommand = 20 * time.Second
 
-// desktopNotify shows a desktop notification: notify-send on Linux, osascript
-// on macOS. Errors are dropped; no notifier just means no notification. A
-// variable so tests can catch them.
-var desktopNotify = func(title, body string) {
-	body = firstLine(body, 160)
-	if runtime.GOOS == "darwin" {
-		q := func(s string) string { return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"` }
-		exec.Command("osascript", "-e", "display notification "+q(body)+" with title "+q(title)).Start()
-		return
-	}
-	exec.Command("notify-send", "-a", "desk", title, body).Start()
-}
+// desktopNotify shows a desktop notification (freedesktop over D-Bus on
+// Linux, as desk's own), off the caller's goroutine. Errors are dropped; no
+// notifier just means no notification. A variable so tests can catch them.
+var desktopNotify = func(title, body string) { go pushNotify(title, firstLine(body, 160)) }
+
+// pushNotify is the notifier itself; a test catches what reaches it.
+var pushNotify = func(title, body string) { xnotify.Push(title, body) }
 
 func firstLine(s string, max int) string {
 	s, _, _ = strings.Cut(strings.TrimSpace(s), "\n")

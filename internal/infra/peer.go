@@ -269,7 +269,7 @@ func (m *model) peer(r peerReq) peerResp {
 		q.tab.chat = append(q.tab.chat, &chatEntry{who: "peer", text: fmt.Sprintf("%s · answer %d\n%s", r.From, r.ID, r.Text)})
 		return peerResp{Text: "answer delivered"}
 	}
-	t, err := m.peerTab(r.Org)
+	t, err := m.peerTab(r.Org, r.From)
 	if err != nil {
 		return peerResp{Err: err.Error()}
 	}
@@ -341,10 +341,18 @@ func (m *model) peerList() string {
 	return b.String() + "\n" + peerHelp
 }
 
-// peerTab is the org's Claude-only tab, opened in the background if needed.
-func (m *model) peerTab(org string) (*Tab, error) {
+// peerTab is the org's Claude-only tab, opened in the background if needed:
+// card's own when card is one of desk's cards (each ticket's server work
+// in a session of its own), else the org's.
+func (m *model) peerTab(org, card string) (*Tab, error) {
+	hub.Lock()
+	is := cards.Is
+	hub.Unlock()
+	if is == nil || !is(card) {
+		card = ""
+	}
 	for _, t := range m.tabs {
-		if t.orgOnly && strings.EqualFold(t.org, org) {
+		if t.orgOnly && t.card == card && strings.EqualFold(t.org, org) {
 			return t, nil
 		}
 	}
@@ -355,7 +363,7 @@ func (m *model) peerTab(org string) (*Tab, error) {
 		}
 		if strings.EqualFold(n.org, org) {
 			had, active := len(m.tabs) > 0, m.active
-			m.openOrg(n)
+			m.openOrg(n, card)
 			t := m.tab()
 			if had { // don't pull the user away from what they're doing
 				m.active = active

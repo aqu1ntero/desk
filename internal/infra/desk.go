@@ -174,6 +174,26 @@ func (w *Workspace) OpenOrg(org string) bool {
 	return false
 }
 
+// OpenCard goes to card's own infra session in org (the one its "desk peer"
+// requests went to: its own Claude, apart from the org's and other cards'),
+// opening it if needed. UI goroutine.
+func (w *Workspace) OpenCard(org, card string) bool {
+	u := w.u
+	u.st = u.d.state.Load()
+	for _, n := range u.st.Tree {
+		if n.Depth == 0 && n.Org == org {
+			u.d.act(func(m *model) {
+				if t, err := m.peerTab(org, card); err == nil {
+					m.active, m.group = slices.Index(m.tabs, t), ""
+				}
+			})
+			u.wantTerm = false
+			return true
+		}
+	}
+	return false
+}
+
 // Gen counts the workspace's redraw requests. desk's frame compares it
 // before and after drawing: one that came meanwhile had its Invalidate lost.
 func (w *Workspace) Gen() uint64 { return w.u.gen.Load() }

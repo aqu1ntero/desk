@@ -214,7 +214,9 @@ func mutate(args []string) error {
 		if out, err := gotest(context.Background(), pkg, "", ""); err != nil {
 			return fmt.Errorf("%s: tests fail before any change:\n%s", pkg, out)
 		}
-		limit := 10*time.Since(start) + 30*time.Second // a mutant that loops forever
+		// a mutant that loops forever; the floor covers a worker's first,
+		// cold-cache build of a package that links the whole app (cmd/desk)
+		limit := 10*time.Since(start) + 3*time.Minute
 		ms, err := mutants(dir, *only)
 		if err != nil {
 			return err

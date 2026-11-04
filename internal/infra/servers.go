@@ -75,6 +75,18 @@ type serverHost struct {
 // serversPath is org folder's servers file, "" when it has none (it then
 // keeps the old Infra-Claude/<group>/ folders).
 func serversPath(org string) string {
+	if p := serversTarget(org); fileExists(p) {
+		return p
+	}
+	return ""
+}
+
+// ServersFile is where the organization folder org's servers file is, or
+// goes when an import makes it.
+func ServersFile(org string) string { return serversTarget(org) }
+
+// serversTarget is where org's servers file is, or goes (an import makes it).
+func serversTarget(org string) string {
 	c, _ := deskorgs.Load(filepath.Dir(org), filepath.Base(org)) // a broken desk.toml: the default name
 	p := serversFile
 	if c.Servers.File != "" {
@@ -82,9 +94,6 @@ func serversPath(org string) string {
 	}
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(org, p)
-	}
-	if !fileExists(p) {
-		return ""
 	}
 	return p
 }

@@ -17,6 +17,9 @@ type Screen struct {
 	scroll uv.Rectangle
 	// scrollback is the scrollback buffer for lines scrolled off the top.
 	scrollback *Scrollback
+	// desk patch: wrap says, per row, that autowrap continued it on the next
+	// row (a soft wrap), so a width change can join and rewrap it (reflow.go).
+	wrap []bool
 }
 
 // NewScreen creates a new screen.
@@ -24,15 +27,33 @@ func NewScreen(w, h int) *Screen {
 	s := Screen{
 		buf:        uv.NewRenderBuffer(w, h),
 		scrollback: NewScrollback(DefaultScrollbackSize),
+		wrap:       make([]bool, h),
 	}
 	s.scroll = s.buf.Bounds()
 	return &s
+}
+
+// Wrapped reports whether row y continues on the next row (autowrap).
+// desk patch.
+func (s *Screen) Wrapped(y int) bool {
+	return y >= 0 && y < len(s.wrap) && s.wrap[y]
+}
+
+// unwrapArea drops the wrap mark of the rows an erase reaches the end of, as
+// xterm does: what is left of them no longer runs on. desk patch.
+func (s *Screen) unwrapArea(area uv.Rectangle) {
+	area = area.Intersect(s.buf.Bounds())
+	if area.Max.X < s.buf.Width() {
+		return
+	}
+	clear(s.wrap[area.Min.Y:area.Max.Y])
 }
 
 // Reset resets the screen.
 // It clears the screen, sets the cursor to the top left corner, reset the
 // cursor styles, and resets the scroll region.
 func (s *Screen) Reset() {
+	clear(s.wrap) // desk patch
 	s.buf.Clear()
 	s.cur = Cursor{}
 	s.saved = Cursor{}
@@ -72,6 +93,13 @@ func (s *Screen) Height() int {
 
 // Resize resizes the screen.
 func (s *Screen) Resize(width int, height int) {
+	// desk patch: rows keep their wrap mark while the width stays; cut to
+	// another width (the alt screen; the main one reflows first) they lose it.
+	wrap := make([]bool, height)
+	if s.buf != nil && s.buf.Width() == width {
+		copy(wrap, s.wrap)
+	}
+	s.wrap = wrap
 	if s.buf == nil {
 		s.buf = uv.NewRenderBuffer(width, height)
 	} else {
@@ -100,7 +128,7 @@ func (s *Screen) ClearWithScrollback() {
 		for y := 0; y < s.buf.Height(); y++ {
 			line := s.buf.Line(y)
 			if line != nil && !s.isLineEmpty(line) {
-				s.scrollback.Push(line)
+				s.scrollback.push(line, s.Wrapped(y)) // desk patch: with its wrap mark
 			}
 		}
 	}
@@ -119,6 +147,7 @@ func (s *Screen) isLineEmpty(line uv.Line) bool {
 
 // ClearArea clears the given area.
 func (s *Screen) ClearArea(area uv.Rectangle) {
+	s.unwrapArea(area) // desk patch
 	s.buf.ClearArea(area)
 	s.touchArea(area)
 }
@@ -130,6 +159,7 @@ func (s *Screen) Fill(c *uv.Cell) {
 
 // FillArea fills the given area with the given cell.
 func (s *Screen) FillArea(c *uv.Cell, area uv.Rectangle) {
+	s.unwrapArea(area) // desk patch
 	s.buf.FillArea(c, area)
 	s.touchArea(area)
 }
@@ -332,8 +362,30 @@ func (s *Screen) InsertLine(n int) bool {
 	}
 
 	s.buf.InsertLineArea(y, n, s.blankCell(), s.scroll)
+	s.shiftWrap(y, n, s.scroll) // desk patch
 
 	return true
+}
+
+// shiftWrap moves the wrap marks along with the rows that inserting (n > 0)
+// or deleting (n < 0) lines at y moves inside area; the blank rows coming in
+// have none. Rows shifted inside side margins are cut, not moved: they lose
+// theirs. desk patch.
+func (s *Screen) shiftWrap(y, n int, area uv.Rectangle) {
+	seg := s.wrap[y:area.Max.Y]
+	if area.Min.X > 0 || area.Max.X < s.buf.Width() {
+		clear(seg)
+		return
+	}
+	if n > 0 {
+		k := min(n, len(seg))
+		copy(seg[k:], seg)
+		clear(seg[:k])
+		return
+	}
+	k := min(-n, len(seg))
+	copy(seg, seg[k:])
+	clear(seg[len(seg)-k:])
 }
 
 // DeleteLine deletes n lines at the cursor position Y coordinate.
@@ -363,10 +415,14 @@ func (s *Screen) DeleteLine(n int) bool {
 		scroll.Min.X == 0 && scroll.Max.X == s.buf.Width() {
 		// Save lines that will be deleted
 		linesToSave := min(n, scroll.Max.Y-y)
-		s.scrollback.PushN(s.buf, y, linesToSave)
+		// desk patch: each with its wrap mark (PushN has none).
+		for i := range linesToSave {
+			s.scrollback.push(s.buf.Line(y+i), s.Wrapped(y+i))
+		}
 	}
 
 	s.buf.DeleteLineArea(y, n, s.blankCell(), scroll)
+	s.shiftWrap(y, -n, scroll) // desk patch
 
 	return true
 }

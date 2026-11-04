@@ -19,7 +19,6 @@ import (
 	"syscall"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/vt"
@@ -144,7 +143,11 @@ func NewTerm(host, dir string, w, h int, notify func(), prelude paneState) (*Ter
 		cmd = HostCmd(host)
 	default:
 		// every pane of a tab reuses one SSH connection (OpenSSH multiplexing)
-		cmd = exec.Command("ssh", sshArgs(host, dir)...)
+		args := sshArgs(host, dir)
+		if takeAcceptNew(host) { // the user accepted its new host key: this connection saves it
+			args = append([]string{"-o", "StrictHostKeyChecking=accept-new"}, args...)
+		}
+		cmd = exec.Command("ssh", args...)
 		var tgt *askTarget
 		cmd.Env, tgt = askpassEnv(host, dir)
 		cmd.Dir = dir
@@ -333,23 +336,20 @@ func (t *Term) Keep() paneState {
 	for abs := start; abs < end; abs++ {
 		rows[abs-start] = t.line(abs)
 	}
-	// Rows the terminal wrapped join the next one, so a restore wraps the line
-	// again at the width it has then. vt has no wrap mark: a wrapped row is one
-	// as wide as the terminal that ends in text (the scrollback trims the
-	// blanks after shorter rows; on screen they end in spaces).
-	// ponytail: a line that exactly fills the width joins its successor too,
-	// and rows from before a resize (another width) or with wide chars stay split.
-	w := t.emu.Width()
+	// Rows the terminal wrapped (vt's wrap mark) join the next one, blanks
+	// and all, so a restore wraps the line again at the width it has then.
+	sb := t.emu.ScrollbackLen()
 	var lines []string
 	at := make([]int, end-start+1) // row -> its line in Text
 	cur := ""
 	for abs := start; abs < end; abs++ {
 		at[abs-start] = len(lines)
 		r := rows[abs-start]
-		cur += strings.TrimRight(r, " ")
-		if strings.HasSuffix(r, " ") || utf8.RuneCountInString(r) != w || abs == end-1 {
-			lines, cur = append(lines, cur), ""
+		if t.wrapped(abs, sb) && abs < end-1 {
+			cur += r
+			continue
 		}
+		lines, cur = append(lines, cur+strings.TrimRight(r, " ")), ""
 	}
 	at[end-start] = len(lines)
 	st := paneState{Text: strings.Join(lines, "\n"), Cwd: t.cwd}
@@ -710,23 +710,29 @@ func (t *Term) Screen() Screen {
 	return s
 }
 
-// Unwrapped is the screen text with lines the terminal wrapped (they fill the
-// whole width) joined back, so messages can be matched.
-// ponytail: a line that is exactly full width by itself gets joined too.
+// Unwrapped is the screen text with the rows the terminal wrapped (autowrap,
+// not a newline) joined back, so messages can be matched.
 func (t *Term) Unwrapped() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	sb, w := t.emu.ScrollbackLen(), t.emu.Width()
+	sb := t.emu.ScrollbackLen()
 	var out strings.Builder
 	for y := 0; y < t.emu.Height(); y++ {
-		l := strings.TrimRight(t.line(sb+y), " ")
-		if len([]rune(l)) >= w {
-			out.WriteString(l)
+		if t.emu.Wrapped(y) {
+			out.WriteString(t.line(sb + y))
 			continue
 		}
-		out.WriteString(l + "\n")
+		out.WriteString(strings.TrimRight(t.line(sb+y), " ") + "\n")
 	}
 	return out.String()
+}
+
+// wrapped reports whether absolute line abs continues on the next (autowrap).
+func (t *Term) wrapped(abs, sb int) bool {
+	if abs < sb {
+		return t.emu.ScrollbackWrapped(abs)
+	}
+	return t.emu.Wrapped(abs - sb)
 }
 
 // Live reports, cheaply, whether a snapshot would be sent automatically.
@@ -1036,11 +1042,30 @@ func (t *Term) Resize(w, h int) {
 	if w == t.emu.Width() && h == t.emu.Height() {
 		return
 	}
-	t.emu.Resize(w, h)
+	if mv := t.emu.ResizeMap(w, h); mv != nil {
+		t.reflowed(mv)
+	}
 	t.ver.Add(1)
 	pty.Setsize(t.pty, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
 	if t.rec != nil {
 		t.rec.event("r", fmt.Appendf(nil, "%dx%d", w, h))
+	}
+}
+
+// reflowed moves the blocks and the open block's marks to where the emulator
+// rewrapped their lines (mv: old absolute position -> new). mu is held.
+func (t *Term) reflowed(mv func(line, x int) (int, int)) {
+	for i := range t.blocks {
+		b := &t.blocks[i]
+		start := b.Start
+		b.Start, _ = mv(start, 0)
+		b.End, _ = mv(b.End, 0)
+		_, b.PX = mv(start, b.PX)
+	}
+	for _, p := range []*pos{t.b, t.c} {
+		if p != nil {
+			p.line, p.x = mv(p.line, p.x)
+		}
 	}
 }
 

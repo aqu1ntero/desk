@@ -72,14 +72,15 @@ func (u *ui) sessionView(gtx layout.Context) layout.Dimensions {
 	if org == "" {
 		return chat(gtx)
 	}
-	// its server work beside it: the whole investigation in one view. Asked
-	// once per card and org: OpenOrg is async, so asking until ActiveOrg
-	// says so redrew at full speed (forever, if the panes moved elsewhere);
-	// infra redraws itself once it has switched.
+	// its server work beside it, in the card's own infra session: the whole
+	// investigation in one view. Asked once per card and org: OpenCard is
+	// async, so asking until ActiveOrg says so redrew at full speed
+	// (forever, if the panes moved elsewhere); infra redraws itself once it
+	// has switched.
 	if k := id + "\x00" + org; u.splitFor != k {
 		u.splitFor = k
-		if u.infra.ActiveOrg() != org {
-			u.infra.OpenOrg(org)
+		if c := u.b.Card(id); c != nil {
+			u.infra.OpenCard(org, c.Key())
 		}
 	}
 	u.splitShown = true

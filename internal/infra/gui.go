@@ -190,6 +190,7 @@ type guiPane struct {
 	Tries        int
 	Err          string
 	CanFix       bool
+	KeyChange    *hostKeyChange // ssh refused a changed host key: the one sent and the one known
 }
 
 type guiChat struct {
@@ -268,6 +269,7 @@ func (d *driver) snapshot(m *model) *guiState {
 				gp.Err = lastLine(screen)
 				fixes, _ := legacyFixes(screen)
 				gp.CanFix = len(fixes) > 0
+				gp.KeyChange = parseHostKeyChange(screen)
 			}
 			for _, b := range p.term.Blocks() {
 				b.Output = "" // the snapshot only needs the badges

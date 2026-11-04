@@ -123,6 +123,8 @@ type cfgDialog struct {
 	prev        []orgs.Found
 	skipped     []string
 	showSkipped bool
+	asbru       []string // an org page's Import from Ásbrú: its groups while the picker is open (nil: closed)
+	srvFile     string   // an org page's servers file line, read on its first frame
 }
 
 // sig is what of d the frame draws from, for ui.sig: printing d itself
@@ -131,7 +133,7 @@ func (d *cfgDialog) sig() string {
 	if d == nil {
 		return ""
 	}
-	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev))
+	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d %v %d", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev), d.asbru != nil, len(d.asbru))
 }
 
 type cfgSet struct {
@@ -767,7 +769,7 @@ func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 			if n == 0 {
 				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Bitbucket, GitLab or Nagios.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
 			}
-			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }))
+			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
 		})
 	})

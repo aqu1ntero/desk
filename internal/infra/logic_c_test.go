@@ -283,12 +283,20 @@ echo "== packages"; echo nginx upgraded`)
 
 // --- notify.go ---
 
-func TestDesktopNotifyRunsNotifySendC(t *testing.T) {
-	out := filepath.Join(t.TempDir(), "out")
-	fakeBinC(t, "notify-send", `printf '%s|' "$@" > `+out+".tmp; mv "+out+".tmp "+out+"\n")
+// TestDesktopNotifyC: the notifier gets the title and the body's first
+// line, off the caller's goroutine (no notify-send: D-Bus, as desk's own).
+func TestDesktopNotifyC(t *testing.T) {
+	got := make(chan string, 1)
+	defer func(f func(string, string)) { pushNotify = f }(pushNotify)
+	pushNotify = func(title, body string) { got <- title + "|" + body }
 	realNotifyC("Approval needed", "  systemctl restart nginx\nsecond line")
-	if got := waitFileC(t, out); got != "-a|desk|Approval needed|systemctl restart nginx|" {
-		t.Errorf("notify-send args: %q", got)
+	select {
+	case g := <-got:
+		if g != "Approval needed|systemctl restart nginx" {
+			t.Errorf("pushed %q", g)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("nothing pushed")
 	}
 }
 
@@ -1642,6 +1650,16 @@ func TestWorkspaceAPIC(t *testing.T) {
 	if tr := w.Tree(); !tr[0].Claude || w.ActiveOrg() != "Acme" {
 		t.Fatalf("org session: %+v %q", tr, w.ActiveOrg())
 	}
+	w.SetCards(Cards{Is: func(n string) bool { return n == "DESK-7" }})
+	if !w.OpenCard("Acme", "DESK-7") || w.OpenCard("Globex", "DESK-7") {
+		t.Fatal("OpenCard")
+	}
+	card := make(chan string, 1)
+	w.u.d.act(func(m *model) { card <- fmt.Sprintf("%d %s", len(m.tabs), m.tab().card) })
+	if c := <-card; c != "2 DESK-7" {
+		t.Errorf("the card's own session, active: %s", c)
+	}
+	w.SetCards(Cards{})
 	w.TogglePin("Acme", "g", "web1")
 	if h := w.Tree()[0].Groups[0].Hosts[0]; !h.Pinned {
 		t.Error("pinned")

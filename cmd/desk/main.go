@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime/debug"
 
@@ -45,6 +46,26 @@ func versionOf(v string, bi *debug.BuildInfo) string {
 	return "dev" + rev + dirty
 }
 
+// fixShell makes SHELL a shell that is there. desk hands it to all it runs,
+// and a launcher's /bin/bash (NixOS has none) broke them: ssh runs a host's
+// ProxyCommand or ProxyJump with it, Claude Code its Bash tool. The shell of
+// that name on PATH takes its place, else bash; none found leaves it as is.
+func fixShell() {
+	s := os.Getenv("SHELL")
+	if s == "" {
+		return
+	}
+	if fi, err := os.Stat(s); err == nil && !fi.IsDir() {
+		return
+	}
+	for _, name := range []string{filepath.Base(s), "bash"} {
+		if p, err := exec.LookPath(name); err == nil {
+			os.Setenv("SHELL", p)
+			return
+		}
+	}
+}
+
 // run is desk with args (os.Args); it returns the exit code, or never
 // returns once the window is up (app.Main).
 func run(args []string) int {
@@ -53,6 +74,7 @@ func run(args []string) int {
 		bi = &debug.BuildInfo{}
 	}
 	ui.Version = versionOf(version, bi)
+	fixShell()
 	if len(args) == 2 && (args[1] == "--version" || args[1] == "version") {
 		fmt.Println("desk", ui.Version)
 		return 0
@@ -69,6 +91,8 @@ func run(args []string) int {
 			return 0
 		case "peer":
 			return infra.PeerMain(args[2:])
+		case "servers": // import-asbru: Ásbrú's SSH hosts as a servers file
+			return infra.ServersMain(args[2:], os.Stdout, os.Stderr)
 		case "demo": // made-up organizations and scripted sessions, for recordings
 			dir, err := ui.Demo()
 			if err != nil {

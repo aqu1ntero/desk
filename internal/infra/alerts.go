@@ -187,7 +187,7 @@ func (m *model) investigate(a nagiosAlert) {
 	for _, n := range m.tree {
 		if n.depth == 0 && n.org == a.Org {
 			m.group = ""
-			m.openOrg(n)
+			m.openOrg(n, "")
 			break
 		}
 	}
@@ -248,7 +248,7 @@ func (m *model) dueHealth(now time.Time) []node {
 // runHealth starts the due checks (checked every few seconds from tickMsg).
 func (m *model) runHealth(now time.Time) {
 	for _, n := range m.dueHealth(now) {
-		t, err := m.peerTab(n.org)
+		t, err := m.peerTab(n.org, "")
 		if err != nil || t.busy {
 			continue // next tick
 		}

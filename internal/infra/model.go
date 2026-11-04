@@ -72,6 +72,7 @@ type Tab struct {
 	org, group, dir, account string
 	name                     string     // shown in the tab bar
 	orgOnly                  bool       // stays open with no panes
+	card                     string     // the card (DESK-12) whose server work this is, its own Claude; "" the org's
 	hosts                    []node     // the org's servers, for connect
 	term                     *Term      // the focused pane's terminal; nil with no panes
 	mu                       sync.Mutex // guards panes and cur, read by tool calls
@@ -844,6 +845,9 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if at := m.approvalTab(); at != nil && !strings.HasPrefix(k, "alt+") {
 		return m, m.answer(at, msg)
 	}
+	if m.pal { // the palette is over everything, a pane's connection box too: its keys are its own
+		return m, m.palKey(msg)
+	}
 	if t != nil && t.connState() != "" && !strings.HasPrefix(k, "alt+") {
 		switch k {
 		case "w", "enter":
@@ -857,6 +861,14 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if s := t.connState(); s == "failed" || s == "reconnecting" {
 				m.reconnect(t)
 			}
+		case "a":
+			if c := parseHostKeyChange(t.term.Unwrapped()); c != nil && t.connState() == "failed" {
+				if err := acceptHostKey(t.term.Host, c); err != nil {
+					m.errText = "accepting the new host key: " + err.Error()
+				} else {
+					m.reconnect(t)
+				}
+			}
 		case "f":
 			if fixes, _ := legacyFixes(t.term.Unwrapped()); len(fixes) > 0 && t.connState() == "failed" {
 				if err := applyFixes(hostFile(t.focused().dir, t.term.Host), t.term.Host, fixes); err != nil {
@@ -867,9 +879,6 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
-	}
-	if m.pal {
-		return m, m.palKey(msg)
 	}
 	switch {
 	case k == "alt+p" && t != nil && t.term != nil:
@@ -905,7 +914,7 @@ func (m *model) sideEnter() {
 	if n := m.tree[m.cursor]; n.host != "" {
 		m.open(n)
 	} else if n.depth == 0 && n.dir != "" {
-		m.openOrg(n)
+		m.openOrg(n, "")
 	} else if n.depth == 1 {
 		m.group = m.groupDir(m.cursor)
 	}
@@ -1119,7 +1128,7 @@ func (m *model) palKey(msg tea.KeyPressMsg) tea.Cmd {
 			m.open(it.n)
 		case "orgs":
 			m.group = ""
-			m.openOrg(it.n)
+			m.openOrg(it.n, "")
 		case "runbooks":
 			m.runRunbook(it.runbook)
 		case "alerts":
@@ -1327,15 +1336,22 @@ func (m *model) open(n node) {
 }
 
 // openOrg starts (or goes back to) the org's Claude-only session: no server
-// yet, Claude connects to the ones the user asks for.
-func (m *model) openOrg(n node) {
+// yet, Claude connects to the ones the user asks for. card "" is the org's
+// own; a card's key is that card's, with a Claude of its own: two tickets'
+// server work never share a session.
+func (m *model) openOrg(n node, card string) {
 	for i, t := range m.tabs {
-		if t.orgOnly && t.dir == n.dir {
+		if t.orgOnly && t.dir == n.dir && t.card == card {
 			m.active = i
 			return
 		}
 	}
-	m.newTab(n.org, "", n.dir, n.label).orgOnly = true
+	name := n.label
+	if card != "" {
+		name += " · " + card
+	}
+	t := m.newTab(n.org, "", n.dir, name)
+	t.orgOnly, t.card = true, card
 }
 
 func (m *model) ask() {

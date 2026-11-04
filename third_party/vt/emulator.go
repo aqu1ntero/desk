@@ -228,8 +228,22 @@ func (e *Emulator) CursorStyle() (style CursorStyle, blink bool) {
 
 // Resize resizes the terminal.
 func (e *Emulator) Resize(width int, height int) {
+	e.ResizeMap(width, height)
+}
+
+// ResizeMap resizes the terminal like Resize and, when the main screen
+// reflowed (its width changed), returns where an absolute position (line =
+// scrollback index, then screen row; x its column) of before the resize is
+// now; nil when nothing moved. desk patch: hosts keep marks on lines.
+func (e *Emulator) ResizeMap(width int, height int) func(line, x int) (int, int) {
+	var moved func(line, x int) (int, int)
+	main := e.scr == &e.scrs[0]
+	var phantom bool
+	if width > 0 && height > 0 && width != e.scrs[0].Width() {
+		moved, phantom = e.scrs[0].reflow(width, height, main && e.atPhantom)
+	}
 	x, y := e.scr.CursorPosition()
-	if e.atPhantom {
+	if e.atPhantom && (moved == nil || !main) {
 		if x < width-1 {
 			e.atPhantom = false
 			x++
@@ -262,10 +276,14 @@ func (e *Emulator) Resize(width int, height int) {
 	e.tabstops = uv.DefaultTabStops(width)
 
 	e.setCursor(x, y)
+	if moved != nil && main {
+		e.atPhantom = phantom // desk patch: the reflowed cursor's pending wrap
+	}
 
 	if e.isModeSet(ansi.ModeInBandResize) {
 		_, _ = io.WriteString(e.pw, ansi.InBandResize(e.Height(), e.Width(), 0, 0))
 	}
+	return moved
 }
 
 // Read reads data from the terminal input buffer.
@@ -490,6 +508,17 @@ func (e *Emulator) ScrollbackCellAt(x, y int) *uv.Cell {
 		return nil
 	}
 	return sb.CellAt(x, y)
+}
+
+// Wrapped reports whether row y of the current screen continues on the next
+// row (autowrap, not a newline). desk patch.
+func (e *Emulator) Wrapped(y int) bool {
+	return e.scr.Wrapped(y)
+}
+
+// ScrollbackWrapped is Wrapped for scrollback line y (0 = oldest). desk patch.
+func (e *Emulator) ScrollbackWrapped(y int) bool {
+	return e.Scrollback().Wrapped(y)
 }
 
 // SetScrollbackSize sets the maximum number of lines in the scrollback buffer.

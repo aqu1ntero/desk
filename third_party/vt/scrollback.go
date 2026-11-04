@@ -12,6 +12,7 @@ const DefaultScrollbackSize = 10000
 // Scrollback represents a scrollback buffer that stores lines scrolled off the screen.
 type Scrollback struct {
 	lines    []uv.Line
+	wrap     []bool // desk patch: lines[i] continues on lines[i+1] (autowrap)
 	maxLines int
 }
 
@@ -29,23 +30,33 @@ func NewScrollback(maxLines int) *Scrollback {
 // Push adds a line to the scrollback buffer.
 // If the buffer is full, the oldest line is removed.
 func (s *Scrollback) Push(line uv.Line) {
+	s.push(line, false)
+}
+
+// push adds a line and whether autowrap continued it on the next one. desk
+// patch: a wrapped line keeps its trailing blanks, they are part of the text
+// a reflow joins.
+func (s *Scrollback) push(line uv.Line, wrapped bool) {
 	if s == nil || s.maxLines <= 0 {
 		return
 	}
 
 	// Find last non-empty cell to trim trailing empty cells.
 	// This helps with wrapping and window resizing.
-	lastNonEmpty := -1
-	for i := len(line) - 1; i >= 0; i-- {
-		c := &line[i]
-		if !c.IsZero() && !c.Equal(&uv.EmptyCell) {
-			lastNonEmpty = i
-			break
+	end := len(line)
+	if !wrapped {
+		end = 0
+		for i := len(line) - 1; i >= 0; i-- {
+			c := &line[i]
+			if !c.IsZero() && !c.Equal(&uv.EmptyCell) {
+				end = i + 1
+				break
+			}
 		}
 	}
 
 	// Clone the line content up to and including the last non-empty cell
-	cloned := slices.Clone(line[:lastNonEmpty+1])
+	cloned := slices.Clone(line[:end])
 
 	if len(s.lines) >= s.maxLines {
 		// Drop the oldest line by reslicing: append reallocates (and copies)
@@ -53,8 +64,16 @@ func (s *Scrollback) Push(line uv.Line) {
 		// every push.
 		s.lines[0] = nil
 		s.lines = s.lines[1:]
+		s.wrap = s.wrap[1:]
 	}
 	s.lines = append(s.lines, cloned)
+	s.wrap = append(s.wrap, wrapped)
+}
+
+// Wrapped reports whether line index continues on the next one (autowrap).
+// desk patch.
+func (s *Scrollback) Wrapped(index int) bool {
+	return s != nil && index >= 0 && index < len(s.wrap) && s.wrap[index]
 }
 
 // PushN adds n lines from the buffer starting at line y to the scrollback.
@@ -97,6 +116,7 @@ func (s *Scrollback) SetMaxLines(maxLines int) {
 	if len(s.lines) > maxLines {
 		// Remove oldest lines
 		s.lines = s.lines[len(s.lines)-maxLines:]
+		s.wrap = s.wrap[len(s.wrap)-maxLines:] // desk patch
 	}
 }
 
@@ -125,6 +145,7 @@ func (s *Scrollback) Clear() {
 		return
 	}
 	s.lines = s.lines[:0]
+	s.wrap = s.wrap[:0] // desk patch
 }
 
 // CellAt returns the cell at the given position in the scrollback buffer.

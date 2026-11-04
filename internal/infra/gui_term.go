@@ -930,7 +930,17 @@ func (u *ui) connOverlay(gtx layout.Context, area image.Rectangle, p guiPane) {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, head...)
 				}))
 		}))
-		if p.Err != "" {
+		if c := p.KeyChange; c != nil { // the key sent and the one known, to compare
+			lines := []string{fmt.Sprintf("sent now  %-8s %s", c.Type, c.Remote)}
+			for _, o := range c.Old {
+				lines = append(lines, fmt.Sprintf("known     %-8s %s", cmpOr(o.Type, "?"), cmpOr(o.Print, "(unreadable)")),
+					fmt.Sprintf("          in %s:%d", tildeHome(o.File), o.Line))
+			}
+			kids = append(kids, layout.Rigid(vgap(12)), layout.Rigid(boxed(cPane, cLine, rCard, layout.Inset{Top: 8, Bottom: 8, Left: 10, Right: 10}, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return u.label(gtx, strings.Join(lines, "\n"), 12, cText, monoFont, 6)
+			})))
+		} else if p.Err != "" {
 			kids = append(kids, layout.Rigid(vgap(12)), layout.Rigid(boxed(cPane, cLine, rCard, layout.Inset{Top: 8, Bottom: 8, Left: 10, Right: 10}, func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X
 				return u.label(gtx, p.Err, 12, cRedText, monoFont, 4)
@@ -940,6 +950,9 @@ func (u *ui) connOverlay(gtx layout.Context, area image.Rectangle, p guiPane) {
 		row := []layout.FlexChild{u.kb("connC", kit.Ghost, "Close pane", "C", press("c")), spacer()}
 		if p.CanFix {
 			row = append(row, u.kb("connF", kit.Secondary, "Fix algorithms", "F", press("f")), layout.Rigid(hgap(8)))
+		}
+		if p.KeyChange != nil && len(p.KeyChange.Old) > 0 {
+			row = append(row, u.kb("connA", kit.Danger, "Accept new key", "A", press("a")), layout.Rigid(hgap(8)))
 		}
 		row = append(row, u.kb("connR", kit.Primary, "Reconnect", "R", press("r")))
 		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -973,6 +986,9 @@ func (u *ui) connOverlay(gtx layout.Context, area image.Rectangle, p guiPane) {
 	if p.Conn != "failed" {
 		width, in = 360, layout.Inset{Top: 14, Bottom: 14, Left: 16, Right: 16}
 	}
+	if p.KeyChange != nil {
+		width = 560 // a fingerprint per line
+	}
 	st := op.Offset(area.Min).Push(gtx.Ops)
 	cgtx := gtx
 	cgtx.Constraints = layout.Exact(area.Size())
@@ -998,6 +1014,11 @@ func connText(p guiPane, now time.Time) (title, sub, guide string) {
 		}
 		if p.CanFix {
 			guide = "The server offers only algorithms this ssh turned off. Fix adds them to its ssh_config and reconnects."
+		}
+		if p.KeyChange != nil {
+			title = p.Name + "'s host key changed"
+			guide = "It sent another key than the one you have for it. If it was reinstalled or its keys rotated, accept the new one: " +
+				"desk drops the old line from known_hosts and connects, saving the key it sends. Not expecting a change? Don't: someone may be in between."
 		}
 	case "timeout":
 		title, sub = p.Name+" isn't answering yet", secs(now.Sub(p.Since))+" and counting. A VPN may be down."

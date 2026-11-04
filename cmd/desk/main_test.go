@@ -49,6 +49,34 @@ func TestVersion(t *testing.T) {
 	}
 }
 
+// TestFixShell: a SHELL that isn't there becomes the shell of its name on
+// PATH, else bash; one that is there, none, or nothing to find stays.
+func TestFixShell(t *testing.T) {
+	bin := t.TempDir()
+	for _, n := range []string{"bash", "zsh"} {
+		os.WriteFile(filepath.Join(bin, n), []byte("#!/bin/sh\n"), 0o755)
+	}
+	t.Setenv("PATH", bin)
+	for in, want := range map[string]string{
+		"/no/such/bin/zsh":         filepath.Join(bin, "zsh"),
+		"/nix/store/gone/bin/bash": filepath.Join(bin, "bash"),
+		"/no/such/bin/fish":        filepath.Join(bin, "bash"),
+		filepath.Join(bin, "zsh"):  filepath.Join(bin, "zsh"),
+		bin:                        filepath.Join(bin, "bash"), // a folder is no shell
+		"":                         "",
+	} {
+		t.Setenv("SHELL", in)
+		if fixShell(); os.Getenv("SHELL") != want {
+			t.Errorf("%q: %q, want %q", in, os.Getenv("SHELL"), want)
+		}
+	}
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("SHELL", "/no/such/bin/bash")
+	if fixShell(); os.Getenv("SHELL") != "/no/such/bin/bash" {
+		t.Errorf("nothing to find: %q", os.Getenv("SHELL"))
+	}
+}
+
 // TestSubcommands: peer hands back its exit code, mcp serves
 // the protocol on stdin/stdout.
 func TestSubcommands(t *testing.T) {
@@ -57,6 +85,9 @@ func TestSubcommands(t *testing.T) {
 	out := stdio(t, "", func() { code = run([]string{"desk", "peer", "help"}) })
 	if code != 0 || !strings.Contains(out, "desk peer:") {
 		t.Errorf("peer help: %d %q", code, out)
+	}
+	if code := run([]string{"desk", "servers"}); code != 2 {
+		t.Errorf("servers usage: %d, want 2", code)
 	}
 	if code := run([]string{"desk", "peer", "list", "-bogus"}); code != 2 {
 		t.Errorf("peer bad flag: %d, want 2", code)
