@@ -13,6 +13,11 @@ on:
 permissions:
   contents: write
 
+# one run per ref at a time: two pushes to main mustn't both rebuild nightly
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
+
 jobs:
   package:
     runs-on: ubuntu-24.04
@@ -102,6 +107,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --title "desk $GITHUB_REF_NAME" --generate-notes dist/*.deb dist/*.AppImage
+
+      # Every push to main replaces the rolling "nightly" pre-release (and
+      # moves its tag to this commit); dated tags stay the real releases.
+      - name: Nightly
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete nightly --yes --cleanup-tag || true
+          gh release create nightly --prerelease --latest=false --target "$GITHUB_SHA" \
+            --title "desk nightly ($VERSION)" \
+            --notes "Built from main at $GITHUB_SHA. Replaced on every push; for a stable version take a dated release." \
+            dist/*.deb dist/*.AppImage
 
   # The AUR package desk-kanban, from packaging/aur/PKGBUILD with this tag's
   # version and source checksum. Needs the AUR_SSH_PRIVATE_KEY secret (the

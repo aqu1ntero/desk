@@ -436,7 +436,9 @@ go run ./cmd/qa mutate -file internal/ui/smart.go ./internal/ui   # mutation tes
 **Releases** are dated, not semver (desk is an app, not a library): `2026.11.03`, and another
 the same day `2026.11.03.1`, `.2`… Pushing such a tag builds the `.deb` and the AppImage and
 publishes them; `desk --version` and the Settings say which one runs (a build between releases says
-`dev-<commit>`).
+`dev-<commit>`). Every push to `main` also replaces the
+[`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly) with that
+commit's `.deb` and AppImage.
 
 ```sh
 git tag 2026.11.03 && git push origin 2026.11.03
