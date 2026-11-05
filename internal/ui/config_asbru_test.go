@@ -50,7 +50,7 @@ func TestConfigAsbru(t *testing.T) {
 	}
 	h.clickButton("cfgAsbru")
 	h.clickButton("cfgAsbru:Prod")
-	file := filepath.Join(h.u.root, "Acme", "ssh_config")
+	file := filepath.Join(h.u.root, "Acme", ".desk", "ssh_config")
 	b, _ := os.ReadFile(file)
 	if !strings.Contains(string(b), "Host web-01") || strings.Contains(string(b), "lab") || h.u.cfg.asbru != nil || h.u.toastBad ||
 		!strings.HasPrefix(h.u.toast, "Added 1 servers to ") || !strings.HasSuffix(h.u.toast, "(1 skipped: Prod/win-01: VNC, not SSH)") {

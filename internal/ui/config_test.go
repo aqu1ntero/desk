@@ -15,6 +15,12 @@ import (
 	"github.com/lfdominguez/desk/internal/orgs"
 )
 
+// writeAt writes a fixture, its folders first (an org's .desk among them).
+func writeAt(path string, b []byte, perm os.FileMode) error {
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	return os.WriteFile(path, b, perm)
+}
+
 // cfgHarness draws the settings alone in a tall window, for clickIn.
 func cfgHarness(h *harness) (image.Point, image.Rectangle, layout.Widget) {
 	sz := image.Pt(1100, 2000)
@@ -132,7 +138,7 @@ func TestConfigNav(t *testing.T) {
 	h := newHarness(t)
 	h.orgToml("Acme", "[[github]]\n")
 	h.orgToml("Globex", "[[jira]\n")
-	os.WriteFile(filepath.Join(h.u.root, "Acme", "api", "desk.toml"), nil, 0o644)
+	writeAt(filepath.Join(h.u.root, "Acme", "api", ".desk", "desk.toml"), nil, 0o644)
 	h.u.openConfig("nope") // an unknown org opens the first
 	d := h.u.cfg
 	s := d.set
@@ -162,7 +168,7 @@ func TestConfigNavAccounts(t *testing.T) {
 	kinds := map[string]string{"Initech": "jira", "Umbrella": "bitbucket", "Soylent": "gitlab", "Vandelay": "nagios", "Acme": "vault"}
 	for org, kind := range kinds {
 		os.MkdirAll(filepath.Join(h.u.root, org), 0o755)
-		os.WriteFile(filepath.Join(h.u.root, org, "desk.toml"), []byte("[["+kind+"]]\n"), 0o644)
+		writeAt(filepath.Join(h.u.root, org, ".desk", "desk.toml"), []byte("[["+kind+"]]\n"), 0o644)
 	}
 	h.u.openConfig("Acme")
 	for org := range kinds {
@@ -220,7 +226,7 @@ func TestFolderPage(t *testing.T) {
 	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g", "Initech"} {
 		os.MkdirAll(filepath.Join(other, n), 0o755)
 	}
-	os.WriteFile(filepath.Join(other, "Initech", "desk.toml"), nil, 0o644)
+	writeAt(filepath.Join(other, "Initech", ".desk", "desk.toml"), nil, 0o644)
 	h.u.openConfig(cfgFolders)
 	d := h.u.cfg
 	sz, all, w := cfgHarness(h)
@@ -297,7 +303,7 @@ func TestConfigTexts(t *testing.T) {
 			t.Errorf("note of %q: %q", o, n)
 		}
 	}
-	d := &cfgDialog{org: "Acme", set: s}
+	d := &cfgDialog{org: "Acme", set: s, file: orgs.File(h.u.root, "Acme")}
 	s.pages["Acme"] = d
 	if n, _ := s.note("Acme"); n != "" {
 		t.Fatal("a clean page says edited")
@@ -306,7 +312,7 @@ func TestConfigTexts(t *testing.T) {
 	if n, _ := s.note("Acme"); n != "edited" {
 		t.Fatal("an edited page")
 	}
-	if m, _, note := h.u.barText(d); m != "1 unsaved change" || !strings.HasSuffix(note, "Acme/desk.toml; comments in it are not kept") {
+	if m, _, note := h.u.barText(d); m != "1 unsaved change" || !strings.HasSuffix(note, "Acme/.desk/desk.toml; comments in it are not kept") {
 		t.Fatalf("bar %q %q", m, note)
 	}
 	d.entries = append(d.entries, newEntry("jira", map[string]any{}))

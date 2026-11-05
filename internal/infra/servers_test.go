@@ -19,8 +19,45 @@ func write(t *testing.T, path, s string) {
 func orgWith(t *testing.T, toml string) string {
 	t.Helper()
 	infra := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(orgOfInfra(infra), "desk.toml"), toml)
+	write(t, filepath.Join(orgOfInfra(infra), ".desk", "desk.toml"), toml)
 	return infra
+}
+
+// TestServersFileMoves: an org's old ssh_config moves to .desk/ssh_config
+// as it is read (and is the one ssh runs with); with both, the new one wins
+// and the old one stays.
+func TestServersFileMoves(t *testing.T) {
+	org := filepath.Join(t.TempDir(), "Acme")
+	write(t, filepath.Join(org, "ssh_config"), "Host web1\n")
+	if p := serversPath(org); p != filepath.Join(org, ".desk", "ssh_config") || fileExists(filepath.Join(org, "ssh_config")) {
+		t.Fatalf("servers file %s", p)
+	}
+	if hs := serverHosts(makeInfra(org)); len(hs) != 1 || hs[0].alias != "web1" {
+		t.Fatalf("hosts %v", hs)
+	}
+	write(t, filepath.Join(org, "ssh_config"), "Host old\n")
+	if sshConfigFor(filepath.Join(org, infraDir)) != filepath.Join(org, ".desk", "ssh_config") {
+		t.Error("ssh runs with the old file")
+	}
+	if b, _ := os.ReadFile(filepath.Join(org, "ssh_config")); string(b) != "Host old\n" {
+		t.Error("the old file changed")
+	}
+}
+
+// TestServersRelativeAfterMove: an old desk.toml's relative [servers] file
+// still means the org folder's, once desk.toml is in .desk; no ssh_config
+// moves then.
+func TestServersRelativeAfterMove(t *testing.T) {
+	org := filepath.Join(t.TempDir(), "Acme")
+	write(t, filepath.Join(org, "desk.toml"), "[servers]\nfile = \"hosts/servers.conf\"\n")
+	write(t, filepath.Join(org, "ssh_config"), "Host personal\n")
+	write(t, filepath.Join(org, "hosts", "servers.conf"), "Host web1\n")
+	if p := ServersFile(org); p != filepath.Join(org, "hosts", "servers.conf") {
+		t.Fatalf("servers file %s", p)
+	}
+	if !fileExists(filepath.Join(org, ".desk", "desk.toml")) || !fileExists(filepath.Join(org, "ssh_config")) {
+		t.Error("desk.toml stays, or an ssh_config desk doesn't use moved")
+	}
 }
 
 func hostByAlias(hs []serverHost, a string) *serverHost {
@@ -44,7 +81,7 @@ Host db1
 #@ group lab
 Host lab1
 `)
-	write(t, filepath.Join(org, "ssh_config"), `#@ vault acme
+	write(t, filepath.Join(org, ".desk", "ssh_config"), `#@ vault acme
 #@ password "{user}@{host}"
 #@ tags all
 Host bastion
@@ -75,7 +112,7 @@ Include rel.conf
 Match all
     Include ~/.ssh/config
 `)
-	hs, err := parseServers(filepath.Join(org, "ssh_config"), org, false)
+	hs, err := parseServers(filepath.Join(org, ".desk", "ssh_config"), org, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +168,7 @@ Host db2
 #@ hosts-cmd bin/inventory.sh
 Include ~/Work/Acme/.desk/servers-dynamic-lab.conf
 `)
-	write(t, filepath.Join(org, "desk.toml"), "[servers]\nfile = \"servers.conf\"\n")
+	write(t, filepath.Join(org, ".desk", "desk.toml"), "[servers]\nfile = \"servers.conf\"\n")
 	write(t, filepath.Join(org, "bin", "inventory.sh"), "#!/bin/sh\necho 'pi deploy@192.0.2.7:2222'\n")
 	os.Chmod(filepath.Join(org, "bin", "inventory.sh"), 0o755)
 	var got []string
@@ -187,14 +224,14 @@ func TestApplyFixesServersFile(t *testing.T) {
 	infra := filepath.Join(org, infraDir)
 	os.MkdirAll(infra, 0o755)
 	write(t, filepath.Join(org, "inc.conf"), "Host old2\n    HostName 192.0.2.2\n")
-	write(t, filepath.Join(org, "ssh_config"), "#@ group a\nHost old1\n    HostName 192.0.2.1\n#@ group b\n#@ vault x\nHost new1\nInclude ~/Work/Acme/inc.conf\n")
+	write(t, filepath.Join(org, ".desk", "ssh_config"), "#@ group a\nHost old1\n    HostName 192.0.2.1\n#@ group b\n#@ vault x\nHost new1\nInclude ~/Work/Acme/inc.conf\n")
 	fixes := []legacyFix{{"HostKeyAlgorithms", []string{"ssh-rsa"}}}
 	for _, h := range []string{"old1", "old2"} {
 		if err := applyFixes(hostFile(infra, h), h, fixes); err != nil {
 			t.Fatal(err)
 		}
 	}
-	b, _ := os.ReadFile(filepath.Join(org, "ssh_config"))
+	b, _ := os.ReadFile(filepath.Join(org, ".desk", "ssh_config"))
 	if !strings.Contains(string(b), "Host old1\n    # old server") || strings.Count(string(b), "HostKeyAlgorithms") != 1 {
 		t.Errorf("main file:\n%s", b)
 	}
@@ -202,7 +239,7 @@ func TestApplyFixesServersFile(t *testing.T) {
 		t.Errorf("included file:\n%s", b)
 	}
 	applyFixes(hostFile(infra, "old1"), "old1", []legacyFix{{"HostKeyAlgorithms", []string{"ssh-dss"}}})
-	if b, _ := os.ReadFile(filepath.Join(org, "ssh_config")); !strings.Contains(string(b), "HostKeyAlgorithms +ssh-rsa,ssh-dss\n    HostName 192.0.2.1\n#@ group b") {
+	if b, _ := os.ReadFile(filepath.Join(org, ".desk", "ssh_config")); !strings.Contains(string(b), "HostKeyAlgorithms +ssh-rsa,ssh-dss\n    HostName 192.0.2.1\n#@ group b") {
 		t.Errorf("merge must stay inside old1's block:\n%s", b)
 	}
 }

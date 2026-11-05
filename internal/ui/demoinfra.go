@@ -70,7 +70,7 @@ func demoInfra(dir string) error {
 	if err := os.WriteFile(rc, []byte(demoHostRC), 0o644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "home", "Work", "Globex", "ssh_config"), []byte(demoServers), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config"), []byte(demoServers), 0o644); err != nil {
 		return err
 	}
 	infra.HostCmd = func(host string) *exec.Cmd {

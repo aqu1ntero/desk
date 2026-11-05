@@ -51,7 +51,7 @@ A folder inside an organization can be one of its own: give it a `desk.toml`. It
 as it is within the search folder's depth.
 
 ```toml
-# ~/Work/Acme/billing/desk.toml
+# ~/Work/Acme/billing/.desk/desk.toml
 org = "Billing"   # optional: without it, the organization is named after its folder
 ```
 
@@ -103,7 +103,7 @@ A card runs in `<Org>/<folder>` (the folder you pick on the card), or in the org
 folder. When it runs in a subfolder, desk also adds the organization's folder to the session with
 `--add-dir`, so the organization's `.claude/skills` load in every one of its sessions.
 
-The organization's `desk.toml` also holds:
+The organization's `desk.toml` (`<Org>/.desk/desk.toml`, see [Files](/desk/reference/files/)) also holds:
 
 - its accounts (GitHub, Jira, Bitbucket, GitLab, Nagios) and vaults: see
   [Accounts](/desk/orgs/accounts/) and [Vaults](/desk/orgs/vaults/);

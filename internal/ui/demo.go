@@ -40,10 +40,10 @@ func Demo() (string, error) {
 	os.Setenv("DESK_DEMO_TOKEN", "demo") // the accounts' token: the providers are fakes
 	work := filepath.Join(dir, "home", "Work")
 	for org, toml := range demoOrgs {
-		for _, d := range demoDirs[org] {
+		for _, d := range append(demoDirs[org], orgs.DeskDir) {
 			os.MkdirAll(filepath.Join(work, org, d), 0o755)
 		}
-		if err := os.WriteFile(filepath.Join(work, org, "desk.toml"), []byte(toml), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(work, org, orgs.DeskDir, "desk.toml"), []byte(toml), 0o644); err != nil {
 			return "", err
 		}
 	}

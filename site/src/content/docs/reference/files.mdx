@@ -28,10 +28,16 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 
 ## Organizations: `$DESK_ROOT` (`~/Work`)
 
+desk keeps what it has in an organization's folder inside that folder's `.desk/`. Only Claude Code's own files (`.claude/`, `CLAUDE.md`) stay where Claude Code reads them.
+
+:::note
+Older versions of desk kept `desk.toml` and `ssh_config` in the organization's folder itself. desk moves them into `.desk/` by itself the first time it reads them (a relative link is moved as one that still points at its file). If both are there, the one in `.desk/` is used and the old one is left alone. Relative paths inside them still start from the organization's folder, so nothing in them needs changing.
+:::
+
 | Path | What's in it |
 |---|---|
-| `<Org>/desk.toml` | The organization's accounts and settings. See [desk.toml](/desk/reference/desk-toml/). When **Settings** saves it, the file is made readable by you only (it may hold a token), and comments in it are not kept. |
-| `<Org>/ssh_config` | The organization's servers file (or the one `[servers] file` names). See [The servers file](/desk/servers/servers-file/). |
+| `<Org>/.desk/desk.toml` | The organization's accounts and settings. See [desk.toml](/desk/reference/desk-toml/). When **Settings** saves it, the file is made readable by you only (it may hold a token), and comments in it are not kept. |
+| `<Org>/.desk/ssh_config` | The organization's servers file (or the one `[servers] file` names). See [The servers file](/desk/servers/servers-file/). |
 | `<Org>/.desk/servers-dynamic.conf` | What a `#@ hosts-cmd` printed last (`servers-dynamic-<group>.conf` for one in a group). |
 | `<Org>/.desk/infra/` | The infra Claude's working folder, made when the organization has a servers file (an older `<Org>/Infra-Claude/` moves here). Put a `CLAUDE.md` here for it to read. |
 | `<Org>/.desk/infra/runbooks/` | Runbooks: Markdown with `sh` blocks and `{{parameters}}`. The infra Claude saves new ones here too. |

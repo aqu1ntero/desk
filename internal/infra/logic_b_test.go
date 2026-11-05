@@ -550,7 +550,7 @@ func TestReloadOrgsAndBrokenConfigs(t *testing.T) {
 	root := t.TempDir()
 	infra := filepath.Join(root, "Acme", infraDir)
 	os.MkdirAll(infra, 0o755)
-	toml := filepath.Join(root, "Acme", "desk.toml")
+	toml := filepath.Join(root, "Acme", ".desk", "desk.toml")
 	os.WriteFile(toml, []byte("[[vault]\n"), 0o644)
 	if _, err := orgFor(infra); err == nil || !strings.Contains(err.Error(), toml) {
 		t.Fatalf("broken desk.toml: %v", err)
@@ -584,7 +584,7 @@ mount = "kv"
 
 	g := filepath.Join(root, "Globex", infraDir)
 	os.MkdirAll(g, 0o755)
-	os.WriteFile(filepath.Join(root, "Globex", "desk.toml"), []byte("record = [\n"), 0o644)
+	os.WriteFile(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte("record = [\n"), 0o644)
 	if _, err := orgFor(g); err == nil {
 		t.Error("a broken desk.toml must fail")
 	}
@@ -792,14 +792,14 @@ func TestHostFileAndPasswordRef(t *testing.T) {
 	os.MkdirAll(infra, 0o755)
 	inc := filepath.Join(org, "servers.d", "extra.conf")
 	write(t, inc, "Host web2\n    HostName 10.0.0.2\n    #@ password web2-item\n")
-	write(t, filepath.Join(org, "ssh_config"), "#@ vault pb\nHost web1\n    HostName 10.0.0.1\n    #@ password web1-item\nInclude "+inc+"\n")
+	write(t, filepath.Join(org, ".desk", "ssh_config"), "#@ vault pb\nHost web1\n    HostName 10.0.0.1\n    #@ password web1-item\nInclude "+inc+"\n")
 	if f := hostFile(infra, "web2"); f != inc {
 		t.Errorf("included host: %s", f)
 	}
-	if f := hostFile(infra, "web1"); f != filepath.Join(org, "ssh_config") {
+	if f := hostFile(infra, "web1"); f != filepath.Join(org, ".desk", "ssh_config") {
 		t.Errorf("main host: %s", f)
 	}
-	if f := hostFile(infra, "ghost"); f != filepath.Join(org, "ssh_config") {
+	if f := hostFile(infra, "ghost"); f != filepath.Join(org, ".desk", "ssh_config") {
 		t.Errorf("unknown host: %s", f)
 	}
 	if r := passwordRef(infra, "web2"); r == nil || r.Vault != "pb" || r.Item != "web2-item" {
@@ -815,7 +815,7 @@ func TestHostFileAndPasswordRef(t *testing.T) {
 
 func TestServerPasswordSources(t *testing.T) {
 	g := filepath.Join(t.TempDir(), "Acme", infraDir)
-	if _, err := serverPassword(g, nil); err == nil || !strings.Contains(err.Error(), filepath.Join(orgOfInfra(g), serversFile)) || !strings.Contains(err.Error(), "#@ password") {
+	if _, err := serverPassword(g, nil); err == nil || !strings.Contains(err.Error(), filepath.Join(orgOfInfra(g), ".desk", serversFile)) || !strings.Contains(err.Error(), "#@ password") {
 		t.Errorf("nil ref: %v", err)
 	}
 	if pw, err := serverPassword(g, &SecretRef{Raw: "fake-raw"}); pw != "fake-raw" || err != nil {
@@ -835,7 +835,7 @@ func TestServerPasswordSources(t *testing.T) {
 		t.Error("missing item must fail")
 	}
 	bad := filepath.Join(t.TempDir(), "Globex", infraDir)
-	write(t, filepath.Join(orgOfInfra(bad), "desk.toml"), "[[nagios]\n")
+	write(t, filepath.Join(orgOfInfra(bad), ".desk", "desk.toml"), "[[nagios]\n")
 	if _, err := serverPassword(bad, &SecretRef{Vault: "pb", Item: "x"}); err == nil {
 		t.Error("a broken org config must fail")
 	}
@@ -844,7 +844,7 @@ func TestServerPasswordSources(t *testing.T) {
 func TestAskpassSocketAndRemoteSh(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web1\n    HostName 10.0.0.1\n    #@ vault pb\n    #@ password web1-item\n")
+	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host web1\n    HostName 10.0.0.1\n    #@ vault pb\n    #@ password web1-item\n")
 	env, tgt := askpassEnv("web1", dir)
 	if askSock == "" || tgt == nil {
 		t.Skip("no askpass socket")
@@ -971,7 +971,7 @@ func TestPortForwardText(t *testing.T) {
 		}
 	}
 	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web1\n")
+	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host web1\n")
 	a := portFwd{host: "web1", dir: dir, kind: "R", spec: "9000:localhost:3000"}.args("cancel")
 	tail := strings.Join(a[len(a)-5:], " ")
 	if tail != "-O cancel -R 9000:localhost:3000 web1" || strings.Count(strings.Join(a, " "), "web1") != 1 || a[len(a)-7] != "-F" {

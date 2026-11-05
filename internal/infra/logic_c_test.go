@@ -491,7 +491,7 @@ func TestServersParseErrorsC(t *testing.T) {
 	os.Chmod(filepath.Join(org, "fail.sh"), 0o755)
 	write(t, filepath.Join(org, "gen.sh"), "#!/bin/sh\nprintf 'Host gen1\\n  HostName 10.0.0.1\\n'\n")
 	os.Chmod(filepath.Join(org, "gen.sh"), 0o755)
-	file := filepath.Join(org, "ssh_config")
+	file := filepath.Join(org, ".desk", "ssh_config")
 	write(t, file, "Include "+filepath.Join(org, "conf.d")+"\n#@ hosts-cmd ./fail.sh\n#@ group gen\n#@ hosts-cmd ./gen.sh\nHost b\n")
 	_, err = parseServers(file, org, true)
 	if err == nil || !strings.Contains(err.Error(), "is a directory") || !strings.Contains(err.Error(), "hosts-cmd fail.sh: exit status 1") {
@@ -1357,11 +1357,11 @@ func TestFixLegacyKeyC(t *testing.T) {
 	if m = r.(model); !strings.Contains(m.errText, "no such file") || p.term != failed {
 		t.Errorf("no ssh_config: %q", m.errText)
 	}
-	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web1\n    HostName 192.0.2.1\n")
+	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host web1\n    HostName 192.0.2.1\n")
 	m.errText = ""
 	r, _ = m.key(keyA("f"))
 	m = r.(model)
-	b, _ := os.ReadFile(filepath.Join(orgOfInfra(dir), serversFile))
+	b, _ := os.ReadFile(filepath.Join(orgOfInfra(dir), ".desk", serversFile))
 	if m.errText != "" || !strings.Contains(string(b), "HostKeyAlgorithms +ssh-rsa") || p.term == failed {
 		t.Errorf("fixed and reconnected: %q\n%s", m.errText, b)
 	}
@@ -1469,7 +1469,7 @@ func TestPaletteActionsC(t *testing.T) {
 	if m.flash == "" || !strings.Contains(m.flash, "claude") {
 		t.Errorf("postmortem without claude: %q", m.flash)
 	}
-	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web2\n")
+	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host web2\n")
 	m.tree = []node{{depth: 0, org: "Acme", label: "Acme", dir: dir}, {depth: 1, label: "g"}, {depth: 2, org: "Acme", group: "g", host: "web2", label: "web2", dir: dir}}
 	palPickC(t, m, "Acme › g › web2", "Acme › g › web2")
 	if len(m.tabs) != 1 || m.group != "" {
@@ -1500,14 +1500,14 @@ func TestApproveBlockedRunsC(t *testing.T) {
 func TestNewTabAndReloadErrorsC(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	bad := filepath.Join(t.TempDir(), "Bad", infraDir)
-	write(t, filepath.Join(orgOfInfra(bad), "desk.toml"), "[[[ broken")
+	write(t, filepath.Join(orgOfInfra(bad), ".desk", "desk.toml"), "[[[ broken")
 	m := &model{}
 	tab := m.newTab("Bad", "", bad, "Bad")
 	if m.errText == "" || tab.orgCfg == nil {
 		t.Errorf("a broken config: %q", m.errText)
 	}
 	root := t.TempDir()
-	write(t, filepath.Join(root, "Acme", serversFile), "#@ group g\nHost web1\n")
+	write(t, filepath.Join(root, "Acme", ".desk", serversFile), "#@ group g\nHost web1\n")
 	m.errText, m.root, m.cursor = "", root, 99
 	m.reloadConfig()
 	if len(m.tree) != 3 || m.cursor != 2 || m.errText == "" {
@@ -1629,8 +1629,8 @@ func TestWorkspaceAPIC(t *testing.T) {
 	}
 	fakeSSHC(t, "sleep 30\n")
 	root := t.TempDir()
-	write(t, filepath.Join(root, "Acme", serversFile), "#@ group g\nHost web1\n")
-	write(t, filepath.Join(root, "Acme", "desk.toml"), "record = false\n")
+	write(t, filepath.Join(root, "Acme", ".desk", serversFile), "#@ group g\nHost web1\n")
+	write(t, filepath.Join(root, "Acme", ".desk", "desk.toml"), "record = false\n")
 	write(t, uiPath(), `{"Theme":"`+themeName+`"}`)
 	defer func() { dispatch, repaint, guiReplies = nil, nil, false }()
 	w := New(root, func() {})

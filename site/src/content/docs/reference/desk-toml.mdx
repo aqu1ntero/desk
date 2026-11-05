@@ -3,7 +3,7 @@ title: desk.toml
 description: Every key of an organization's desk.toml, its type, its default and what reads it.
 ---
 
-Each organization can have a `desk.toml` in its folder (`~/Work/Acme/desk.toml`). It holds the organization's accounts, the vaults their tokens come from, and the settings of its infra workspace. Every table that starts with `[[…]]` can appear any number of times.
+Each organization can have a `desk.toml` in its folder's `.desk/` (`~/Work/Acme/.desk/desk.toml`; one still at `~/Work/Acme/desk.toml` moves there by itself, see [Files](/desk/reference/files/#organizations-desk_root-work)). Relative paths in it start from the organization's folder (`~/Work/Acme`), not from `.desk/`. It holds the organization's accounts, the vaults their tokens come from, and the settings of its infra workspace. Every table that starts with `[[…]]` can appear any number of times.
 
 You can edit most of it in **Settings** (see [Settings](/desk/orgs/settings/)), or by hand. The Settings dialog keeps the keys it doesn't show, but not the file's comments.
 
@@ -141,7 +141,7 @@ A Prometheus-compatible server the infra Claude can query.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
-| `file` | string | `ssh_config` | The organization's servers file, relative to this folder (`~/` works). See [The servers file](/desk/servers/servers-file/). |
+| `file` | string | `.desk/ssh_config` | The organization's servers file, relative to the organization's folder (`~/` works). See [The servers file](/desk/servers/servers-file/). |
 
 ## [approvals]
 
@@ -161,7 +161,7 @@ Which of the infra Claude's commands run without asking. Patterns match the whol
 ## A full example
 
 ```toml
-# ~/Work/Globex/desk.toml
+# ~/Work/Globex/.desk/desk.toml (paths below are from ~/Work/Globex)
 agent = "planner"                 # new cards' sessions run as this Claude Code agent
 agents = "meta/.claude/agents"    # where its agent files are (default .claude/agents)
 record = true                     # record the infra panes (default)
@@ -232,7 +232,7 @@ url = "https://prom.globex.example.com"
 token_env = "PROM_TOKEN"
 
 [servers]
-file = "infra/ssh_config"         # default ssh_config
+file = "infra/ssh_config"         # default .desk/ssh_config
 
 [approvals]
 allow = ["systemctl status *", "journalctl *"]

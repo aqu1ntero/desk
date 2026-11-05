@@ -76,7 +76,7 @@ func init() {
 			home := os.Getenv("HOME")
 			s.t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config")) // the footer's path from ~
 			os.MkdirAll(filepath.Join(home, "Work", "Acme", "billing"), 0o755)
-			os.WriteFile(filepath.Join(home, "Work", "Acme", "billing", "desk.toml"), []byte("org = \"Billing\"\n"), 0o644)
+			writeAt(filepath.Join(home, "Work", "Acme", "billing", ".desk", "desk.toml"), []byte("org = \"Billing\"\n"), 0o644)
 			os.MkdirAll(filepath.Join(home, "Work", "scratch"), 0o755)
 			s.click("sideOrgCfg")
 			s.click("cfgOrg" + cfgFolders)

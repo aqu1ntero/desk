@@ -272,7 +272,7 @@ func notify() {
 	}
 }
 
-// loadTree reads each org's servers file (<root>/<org>/ssh_config, see
+// loadTree reads each org's servers file (<root>/<org>/.desk/ssh_config, see
 // servers.go), creating its infra dir, where all its tabs work. Orgs without
 // one are skipped.
 func loadTree(root string) []node {

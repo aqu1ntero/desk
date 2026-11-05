@@ -39,7 +39,7 @@ func TestDemo(t *testing.T) {
 	if os.Getenv("WAYLAND_DISPLAY") != "/run/user/7/wayland-1" || os.Getenv("XDG_RUNTIME_DIR") != filepath.Join(dir, "run") {
 		t.Fatalf("the window's socket %q, the demo's %q", os.Getenv("WAYLAND_DISPLAY"), os.Getenv("XDG_RUNTIME_DIR"))
 	}
-	if _, err := os.Stat(filepath.Join(dir, "home", "Work", "Globex", "ssh_config")); err != nil || infra.HostCmd == nil {
+	if _, err := os.Stat(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config")); err != nil || infra.HostCmd == nil {
 		t.Fatal("Globex's servers", err)
 	}
 	demoPace = 0

@@ -26,7 +26,7 @@ when it closes cleanly, so close it before importing, or desk may read an older 
 
    <figure class="cut">
 
-   ![Servers: "no servers file yet: an import makes ~/Work/Acme/ssh_config", and an Import from Ásbrú button](../../../assets/shots/srv-asbru-page-servers.png)
+   ![Servers: "no servers file yet: an import makes ~/Work/Acme/.desk/ssh_config", and an Import from Ásbrú button](../../../assets/shots/srv-asbru-page-servers.png)
 
    <figcaption>Acme has no servers file yet.</figcaption>
    </figure>
@@ -49,7 +49,7 @@ A toast says what happened, with the first few skipped hosts:
 
 <figure class="cut">
 
-![Added 3 servers to ~/Work/Acme/ssh_config (1 skipped: Prod/win-01: RDP, not SSH)](../../../assets/shots/srv-asbru-done-toast.png)
+![Added 3 servers to ~/Work/Acme/.desk/ssh_config (1 skipped: Prod/win-01: RDP, not SSH)](../../../assets/shots/srv-asbru-done-toast.png)
 
 <figcaption>Three SSH hosts added; the RDP one skipped.</figcaption>
 </figure>
@@ -57,7 +57,7 @@ A toast says what happened, with the first few skipped hosts:
 desk then reads the organization's servers again, so its **Servers** row shows up in the
 sidebar at once:
 
-![The settings after the import: the servers file is ~/Work/Acme/ssh_config, and Acme now has Servers in the sidebar](../../../assets/shots/srv-asbru-done.png)
+![The settings after the import: the servers file is ~/Work/Acme/.desk/ssh_config, and Acme now has Servers in the sidebar](../../../assets/shots/srv-asbru-done.png)
 
 If nothing was new, the toast says "Nothing to import from Ásbrú (N skipped)". If desk can't
 read Ásbrú's file, it says "No Ásbrú connections: …".
@@ -140,7 +140,7 @@ The toast and the shell list which ones were skipped and why.
 
 ## Where it writes
 
-- The organization's servers file: `<Org>/ssh_config`, or the `[servers] file` of its
+- The organization's servers file: `<Org>/.desk/ssh_config`, or the `[servers] file` of its
   `desk.toml`.
 - New hosts go at the end, after a blank line. What's already there isn't touched.
 - desk makes the file if there's none, readable by you only (`600`).

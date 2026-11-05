@@ -117,7 +117,7 @@ CGO_CFLAGS_ALLOW=-fno-strict-overflow go build -tags nox11 -o desk ./cmd/desk
    Claude speaks with you in (English unless you change them; each new card can pick its own).
 2. **Optionally give an org a Claude account.** A profile in `~/Secure/Claudes/<Org>/` makes that
    org's sessions run under it, sandboxed with bwrap. Others use your own login.
-3. **Optionally connect its accounts** in **Settings** (or by hand in `<Org>/desk.toml`, see
+3. **Optionally connect its accounts** in **Settings** (or by hand in `<Org>/.desk/desk.toml`, see
    [Links and organizations](#links-and-organizations)).
 4. **Ctrl+N** for a new card: say what to do, pick the organization, **Improve with Claude**,
    **Create card**. The card starts working right away.
@@ -224,9 +224,12 @@ runs under.
 
 Add links in the card's sheet (E): GitHub PRs and issues, Bitbucket PRs, GitLab MRs, Jira issues,
 or bare Jira keys. Their state refreshes every 3 minutes through the organization's own accounts in
-`<Org>/desk.toml`: any number of each kind. Edit them in **Settings** or by hand (the dialog keeps
+`<Org>/.desk/desk.toml`: any number of each kind. Edit them in **Settings** or by hand (the dialog keeps
 keys it doesn't show, but not the file's comments). **Reload** looks for organizations again and
-rechecks every link.
+rechecks every link. desk keeps everything of its own in an org's `.desk/` (Claude Code's
+`.claude/` and `CLAUDE.md` stay where they are); a `desk.toml` or `ssh_config` still at the org's
+root from an older desk moves there by itself, and relative paths in them still start from the
+org's folder.
 
 A folder inside an organization can be one of its own: give it a `desk.toml` (e.g.
 `~/Work/Acme/billing`). It is named after the folder, or by a top-level `org = "Billing"`, and its
@@ -307,8 +310,8 @@ user = "me"                     # the CGIs' login; the password is the token
 vault = "globex"
 item = "Nagios prod"
 
-[servers]                       # optional: the org's servers file (below), from this folder
-file = "infra/ssh_config"       # default ssh_config
+[servers]                       # optional: the org's servers file (below), from the org's folder
+file = "infra/ssh_config"       # default .desk/ssh_config
 ```
 
 </details>
@@ -328,7 +331,7 @@ never mixes; its panes are the servers that one ticket needs. It can also write
 to a card unasked or put follow-up work in To do. Claude Code users outside desk get the same
 through the bundled plugin ([`plugin/`](plugin)).
 
-An organization's servers are one real OpenSSH config, `<Org>/ssh_config` (or `[servers] file`).
+An organization's servers are one real OpenSSH config, `<Org>/.desk/ssh_config` (or `[servers] file`).
 desk runs `ssh -F <that file> <alias>`, so the same command works from any terminal. desk's own
 data are comment lines OpenSSH ignores, `#@ key value`:
 

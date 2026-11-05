@@ -9,13 +9,14 @@ comment lines that start with `#@`. ssh skips those lines, so the same file work
 terminal:
 
 ```sh
-ssh -F ~/Work/Globex/ssh_config web-01
+ssh -F ~/Work/Globex/.desk/ssh_config web-01
 ```
 
 ## Where it is
 
-By default it's `ssh_config` in the organization's folder: `~/Work/Globex/ssh_config`. To use
-another file, set it in the organization's `desk.toml`:
+By default it's `ssh_config` in the organization's `.desk` folder: `~/Work/Globex/.desk/ssh_config`
+(one still at `~/Work/Globex/ssh_config` moves there by itself). To use another file, set it in
+the organization's `desk.toml`:
 
 ```toml
 [servers]
@@ -222,8 +223,8 @@ echo "app-02 deploy@192.0.2.32:2222"
 ## Includes
 
 `Include` lines are followed, inside `Host` and `Match` blocks too, with `~/` and globs. Paths
-resolve as ssh resolves them: a relative path is in `~/.ssh/`, so write full or `~/` paths for
-files in the organization's folder.
+resolve as ssh resolves them: a relative path is in `~/.ssh/` (not next to the servers file), so
+write full or `~/` paths for files in the organization's folder.
 
 - Files **inside the organization's folder** count: their hosts are the organization's servers,
   and their `#@` lines work. An included file starts in the group of the line that includes it.
@@ -240,7 +241,7 @@ For each pane desk runs:
 ```sh
 ssh -o ControlMaster=auto -o ControlPath=$XDG_RUNTIME_DIR/desk/ssh-%C -o ControlPersist=60 \
     -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-    -F ~/Work/Globex/ssh_config web-01
+    -F ~/Work/Globex/.desk/ssh_config web-01
 ```
 
 - **ControlMaster**: every pane of a server shares one connection, so a second pane opens at

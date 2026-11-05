@@ -106,6 +106,7 @@ const (
 // so switching pages keeps their edits until Save or Discard.
 type cfgDialog struct {
 	org     string
+	file    string         // its desk.toml, found (and moved to .desk/) once on load: not per frame
 	raw     map[string]any // the file; tables desk doesn't edit are kept
 	entries []*cfgEntry
 	langs   *cfgEntry // cfgFolders only: the languages ("card", "chat"), saved with the folders
@@ -322,6 +323,7 @@ func (u *ui) cfgPage(o string) {
 }
 
 func (u *ui) loadOrg(d *cfgDialog) {
+	d.file = orgs.File(u.root, d.org)
 	raw, err := orgs.LoadRaw(u.root, d.org)
 	if err != nil {
 		d.err, d.broken, raw = firstLine(err.Error())+" — fix it by hand", true, map[string]any{}
@@ -567,7 +569,7 @@ func (s *cfgSet) note(o string) (string, color.NRGBA) {
 
 // barText is the footer's message, its color, and the note after it.
 func (u *ui) barText(d *cfgDialog) (msg string, tone color.NRGBA, note string) {
-	file := orgs.File(u.root, d.org)
+	file := d.file
 	if d.org == cfgFolders {
 		file = orgs.SettingsFile()
 	}
@@ -658,7 +660,7 @@ func (u *ui) cfgMain(gtx layout.Context) layout.Dimensions {
 	k, d := u.k, u.cfg
 	gtx.Constraints.Min = gtx.Constraints.Max
 	title := d.org
-	sub := "Accounts its cards' links, tickets and alerts go through · " + strings.Replace(orgs.File(u.root, d.org), u.home, "~", 1)
+	sub := "Accounts its cards' links, tickets and alerts go through · " + strings.Replace(d.file, u.home, "~", 1)
 	body := u.cfgAccounts
 	if d.org == cfgFolders {
 		title, sub, body = "General", "The languages new cards start with, and the folders desk searches for organizations.", u.cfgFolderPage

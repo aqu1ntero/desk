@@ -14,10 +14,10 @@ import (
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 )
 
-// An organization's servers can be one OpenSSH config: <Org>/ssh_config, or
-// the file `[servers] file = "…"` in its desk.toml names (relative to the org
-// folder). desk runs `ssh -F <file> <alias>`, and so can any terminal. desk's
-// own data sits in comment lines OpenSSH ignores, "#@ key value" (indented
+// An organization's servers can be one OpenSSH config: <Org>/.desk/ssh_config
+// (one at <Org>/ssh_config moves there), or the file `[servers] file = "…"`
+// in its desk.toml names (relative to the org folder). desk runs
+// `ssh -F <file> <alias>`, and so can any terminal. desk's own data sits in comment lines OpenSSH ignores, "#@ key value" (indented
 // or not; values may be "quoted"):
 //
 //	#@ vault acme
@@ -58,7 +58,7 @@ import (
 // hosts lines ("name destination"), in <Org>/.desk/servers-dynamic.conf (a
 // group's: servers-dynamic-<group>.conf). Include that file on the next line;
 // a failed run keeps the last output.
-const serversFile = "ssh_config"
+const serversFile = "ssh_config" // its name in <Org>/.desk
 
 // topGroup is the tree's name for the hosts outside any #@ group.
 const topGroup = "servers"
@@ -85,14 +85,16 @@ func serversPath(org string) string {
 // goes when an import makes it.
 func ServersFile(org string) string { return serversTarget(org) }
 
-// serversTarget is where org's servers file is, or goes (an import makes it).
+// serversTarget is where org's servers file is, or goes (an import makes it):
+// desk.toml's [servers] file, else .desk/ssh_config (Moved there from the
+// org's folder).
 func serversTarget(org string) string {
 	c, _ := deskorgs.Load(filepath.Dir(org), filepath.Base(org)) // a broken desk.toml: the default name
-	p := serversFile
-	if c.Servers.File != "" {
-		p = expandHome(c.Servers.File)
+	if c.Servers.File == "" {
+		return deskorgs.Moved(org, serversFile)
 	}
-	if !filepath.IsAbs(p) {
+	p := expandHome(c.Servers.File)
+	if !filepath.IsAbs(p) { // from the org's folder, wherever desk.toml is
 		p = filepath.Join(org, p)
 	}
 	return p
@@ -299,7 +301,7 @@ func dynamicFile(org, group string) string {
 	if group != "" {
 		name = "servers-dynamic-" + strings.ReplaceAll(group, "/", "-") + ".conf"
 	}
-	return filepath.Join(org, ".desk", name)
+	return filepath.Join(org, deskorgs.DeskDir, name)
 }
 
 // hostsCmd runs a hosts-cmd and keeps its output as ssh_config text.

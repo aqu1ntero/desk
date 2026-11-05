@@ -18,7 +18,7 @@ An organization is a folder: `~/Work/Acme`, `~/Work/Globex`. desk finds them in 
 An organization can have:
 
 - **its own Claude account**: a profile in `~/Secure/Claudes/<Org>/`, which its sessions run under, sandboxed with `bwrap`. Without one, they use your login.
-- **a `desk.toml`**: its GitHub, GitLab, Bitbucket, Jira and Nagios accounts, the vaults their tokens come from, its servers file and more. Edit it in **Settings** or by hand. See the [desk.toml reference](/desk/reference/desk-toml/).
+- **a `desk.toml`** (in its `.desk/` folder): its GitHub, GitLab, Bitbucket, Jira and Nagios accounts, the vaults their tokens come from, its servers file and more. Edit it in **Settings** or by hand. See the [desk.toml reference](/desk/reference/desk-toml/).
 - **nested organizations**: a folder inside it with its own `desk.toml` (`~/Work/Acme/billing`) is an organization of its own, whose sessions run under the outer one's Claude account.
 
 ## Statuses
@@ -50,7 +50,7 @@ Claude adds links itself when it opens a PR, and tickets follow their card: movi
 
 ## The infra workspace and the infra Claude
 
-An organization with a servers file (`<Org>/ssh_config`, a plain OpenSSH config) gets a **Servers** view: its infra workspace. It holds live SSH panes of the organization's servers, and an **infra Claude** beside them that runs commands in those panes. It asks you before every change: approve, always, edit or deny.
+An organization with a servers file (`<Org>/.desk/ssh_config`, a plain OpenSSH config) gets a **Servers** view: its infra workspace. It holds live SSH panes of the organization's servers, and an **infra Claude** beside them that runs commands in those panes. It asks you before every change: approve, always, edit or deny.
 
 ## Peers
 
@@ -66,7 +66,7 @@ Claude Code sessions outside desk can do the same through desk's bundled plugin.
 | **Key** | A card's id, `DESK-12`. |
 | **Organization** | A folder of work, with its own accounts, Claude profile and servers. |
 | **Search folder** | A folder desk looks in for organizations, to a depth. |
-| **`desk.toml`** | An organization's settings file, in its folder. |
+| **`desk.toml`** | An organization's settings file, in its folder's `.desk/`. |
 | **Claude profile** | A Claude Code login of its own for one organization, in `~/Secure/Claudes/<Org>/`. |
 | **Improve with Claude** | The new-card dialog's optional step: Haiku turns your request into a full brief. |
 | **Status** | Where a card's session stands: working, your turn, blocked, failed, done. |

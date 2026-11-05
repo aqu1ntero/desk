@@ -21,11 +21,11 @@ import (
 func TestDemoInfra(t *testing.T) {
 	defer func() { infra.HostCmd, infra.ClaudeCmd = nil, nil }()
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "home", "Work", "Globex"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "home", "Work", "Globex", ".desk"), 0o755)
 	if err := demoInfra(dir); err != nil {
 		t.Fatal(err)
 	}
-	if b, _ := os.ReadFile(filepath.Join(dir, "home", "Work", "Globex", "ssh_config")); string(b) != demoServers {
+	if b, _ := os.ReadFile(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config")); string(b) != demoServers {
 		t.Fatalf("servers file %q", b)
 	}
 	c := infra.HostCmd("web-02")

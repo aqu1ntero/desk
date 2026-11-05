@@ -82,7 +82,7 @@ func (h *harness) off(f func()) {
 // orgToml writes org's desk.toml.
 func (h *harness) orgToml(org, s string) {
 	h.t.Helper()
-	if err := os.WriteFile(orgs.File(h.u.root, org), []byte(s), 0o644); err != nil {
+	if err := writeAt(orgs.File(h.u.root, org), []byte(s), 0o644); err != nil {
 		h.t.Fatal(err)
 	}
 }

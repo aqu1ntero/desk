@@ -929,7 +929,7 @@ func TestTicketsView(t *testing.T) {
 // count the unacknowledged ones, red with an error; orgs without none.
 func TestAlertsView(t *testing.T) {
 	h := newHarness(t)
-	os.WriteFile(filepath.Join(h.u.root, "Globex", "desk.toml"), []byte("[[nagios]]\nname = \"prod\"\nurl = \"https://mon.globex.com/nagios\"\n"), 0o644)
+	writeAt(filepath.Join(h.u.root, "Globex", ".desk", "desk.toml"), []byte("[[nagios]]\nname = \"prod\"\nurl = \"https://mon.globex.com/nagios\"\n"), 0o644)
 	nagiosAlerts = func(_ context.Context, cfg orgs.Config) ([]links.Alert, error) {
 		if len(cfg.Nagios) != 1 {
 			t.Errorf("asked with %+v", cfg.Nagios)
@@ -959,8 +959,8 @@ func TestAlertsView(t *testing.T) {
 // (a local shell), in group web.
 func localServer(t *testing.T, root, org string) {
 	t.Helper()
-	os.MkdirAll(filepath.Join(root, org), 0o755)
-	if err := os.WriteFile(filepath.Join(root, org, "ssh_config"), []byte("#@ group web\nHost local\n"), 0o644); err != nil {
+	os.MkdirAll(filepath.Join(root, org, ".desk"), 0o755)
+	if err := os.WriteFile(filepath.Join(root, org, ".desk", "ssh_config"), []byte("#@ group web\nHost local\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1111,7 +1111,7 @@ func TestShortcutsQuiet(t *testing.T) {
 // TestReloadConfig: an org made after start shows up on Reload.
 func TestReloadConfig(t *testing.T) {
 	h := newHarness(t)
-	os.WriteFile(filepath.Join(h.u.root, "Acme/api/desk.toml"), []byte(`org = "Api"`), 0o600)
+	writeAt(filepath.Join(h.u.root, "Acme/api/.desk/desk.toml"), []byte(`org = "Api"`), 0o600)
 	h.clickButton("sideOrgReload")
 	if !slices.Contains(h.u.orgList, "Api") || orgs.Dir(h.u.root, "Api", "") != filepath.Join(h.u.root, "Acme", "api") {
 		t.Fatalf("orgs after reload: %v", h.u.orgList)
@@ -1956,7 +1956,7 @@ func TestTeamView(t *testing.T) {
 func TestCardAgent(t *testing.T) {
 	h := newHarness(t)
 	root := os.Getenv("DESK_ROOT")
-	os.WriteFile(filepath.Join(root, "Acme", "desk.toml"), []byte("agent = \"planner\"\nagents = \"meta/.claude/agents\"\n"), 0o644)
+	writeAt(filepath.Join(root, "Acme", ".desk", "desk.toml"), []byte("agent = \"planner\"\nagents = \"meta/.claude/agents\"\n"), 0o644)
 	dir := filepath.Join(root, "Acme", "meta", ".claude", "agents")
 	os.MkdirAll(dir, 0o755)
 	os.WriteFile(filepath.Join(dir, "planner.md"), []byte("---\nname: planner\ndescription: Tech lead\n---\nLead.\n"), 0o644)

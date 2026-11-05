@@ -2,8 +2,9 @@
 // one's desk.toml with the GitHub, Jira, Bitbucket and GitLab accounts its
 // cards' links go through (any number of each).
 //
-//	# ~/Work/Globex/desk.toml (a folder one level down that says org = "Name"
-//	# in its own desk.toml is an organization apart, under Globex's account)
+//	# ~/Work/Globex/.desk/desk.toml (a folder one level down that says org = "Name"
+//	# in its own desk.toml is an organization apart, under Globex's account;
+//	# relative paths in it are from ~/Work/Globex)
 //	[[vault]]
 //	name = "globex"
 //	kind = "passbolt"                     # or "bitwarden", for Bitwarden and Vaultwarden
@@ -174,7 +175,7 @@ type Schedule struct {
 }
 
 // Servers is where the infra workspace's servers are: File, an OpenSSH config
-// relative to the organization's folder (default ssh_config). Without that
+// relative to the organization's folder (default .desk/ssh_config). Without that
 // file the organization has no servers.
 type Servers struct {
 	File string `toml:"file"`
@@ -328,13 +329,46 @@ var (
 
 func hidden(name string) bool { return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") }
 
+// DeskDir is the folder inside an organization's where desk keeps its files
+// (desk.toml, the servers file, the infra dir, caches).
+const DeskDir = ".desk"
+
+// Moved is where desk's file name of the organization folder dir is: dir/.desk/name. One
+// still at dir/name, where desk kept it before, moves there first, once;
+// with both, the new one is used and the old one left alone. When the move
+// fails (a read-only folder), the old one is still read.
+func Moved(dir, name string) string {
+	p, old := filepath.Join(dir, DeskDir, name), filepath.Join(dir, name)
+	if _, err := os.Lstat(p); !errors.Is(err, fs.ErrNotExist) {
+		return p
+	}
+	if _, err := os.Lstat(old); err != nil {
+		return p
+	}
+	if os.MkdirAll(filepath.Dir(p), 0o755) != nil {
+		return old
+	}
+	if t, err := os.Readlink(old); err == nil && !filepath.IsAbs(t) {
+		// a relative link points one folder further up from .desk
+		if os.Symlink(filepath.Join("..", t), p) != nil {
+			return old
+		}
+		os.Remove(old)
+		return p
+	}
+	if os.Rename(old, p) != nil {
+		return old
+	}
+	return p
+}
+
 // tomlOrg is the organization dir is, if it has a desk.toml: named by its
 // org = "Billing", else after the folder.
 func tomlOrg(dir string) (string, bool) {
 	var c struct {
 		Org string `toml:"org"`
 	}
-	if _, err := toml.DecodeFile(filepath.Join(dir, "desk.toml"), &c); errors.Is(err, fs.ErrNotExist) {
+	if _, err := toml.DecodeFile(Moved(dir, "desk.toml"), &c); errors.Is(err, fs.ErrNotExist) {
 		return "", false
 	} // a broken file is still an org, named after its folder; Load says what's wrong
 	if c.Org == "" {
@@ -359,8 +393,10 @@ func Scan(fs []Folder) (out []Found, skipped []string) {
 			}
 		}
 		base := Expand(f.Path)
-		if n, ok := tomlOrg(base); ok && f.Root {
-			add(n, base)
+		if f.Root { // only then: tomlOrg moves an old desk.toml, and base isn't an org
+			if n, ok := tomlOrg(base); ok {
+				add(n, base)
+			}
 		}
 		dirs := []string{base}
 		for level := 1; level <= f.Depth; level++ {
@@ -455,8 +491,10 @@ func AccountAt(root, dir string) string {
 			continue
 		}
 		if rel == "." {
-			if n, ok := tomlOrg(base); ok && f.Root {
-				return n
+			if f.Root {
+				if n, ok := tomlOrg(base); ok {
+					return n
+				}
 			}
 			continue
 		}
@@ -475,8 +513,9 @@ func Dir(root, org, sub string) string {
 	return filepath.Join(where(root, org), filepath.Clean("/"+sub)) // Clean("/"+sub) keeps sub from climbing out
 }
 
-// File is org's desk.toml.
-func File(root, org string) string { return filepath.Join(where(root, org), "desk.toml") }
+// File is org's desk.toml, <Org>/.desk/desk.toml (Moved there from the
+// org's folder). Paths inside it stay relative to the org's folder.
+func File(root, org string) string { return Moved(where(root, org), "desk.toml") }
 
 // LoadRaw reads org's desk.toml as tables, for the settings dialog to edit
 // without losing keys it doesn't show; a missing file is empty.
@@ -502,6 +541,8 @@ func SaveRaw(root, org string, raw map[string]any) error {
 	}
 	path := File(root, org)
 	tmp := path + ".tmp"
+	// a new org's .desk (not its folder); a failure shows in the write
+	os.Mkdir(filepath.Dir(path), 0o755)
 	if err := os.WriteFile(tmp, b.Bytes(), 0o600); err != nil { // 0600: it may hold a token
 		return err
 	}

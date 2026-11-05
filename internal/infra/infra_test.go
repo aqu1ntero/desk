@@ -86,7 +86,7 @@ func TestLoadTreeEmpty(t *testing.T) {
 func TestInfraMoves(t *testing.T) {
 	org := filepath.Join(t.TempDir(), "Acme")
 	write(t, filepath.Join(org, oldInfraDir, "CLAUDE.md"), "notes")
-	write(t, filepath.Join(org, "ssh_config"), "Host web1\n")
+	write(t, filepath.Join(org, ".desk", "ssh_config"), "Host web1\n")
 	dir := makeInfra(org)
 	if dir != filepath.Join(org, ".desk", "infra") || !isInfraDir(dir) || orgOfInfra(dir) != org {
 		t.Fatalf("infra dir %s", dir)
@@ -552,7 +552,7 @@ func TestOrgConfig(t *testing.T) {
 	root := t.TempDir()
 	group := filepath.Join(root, "Company", infraDir)
 	os.MkdirAll(group, 0o755)
-	os.WriteFile(filepath.Join(root, "Company", "desk.toml"), []byte(`
+	os.WriteFile(filepath.Join(root, "Company", ".desk", "desk.toml"), []byte(`
 [[vault]]
 name = "passbolt"
 kind = "passbolt"
@@ -1592,7 +1592,7 @@ func TestChmodRemote(t *testing.T) {
 func TestWakeOnLAN(t *testing.T) {
 	org := filepath.Join(t.TempDir(), "Acme")
 	dir := filepath.Join(org, infraDir)
-	write(t, filepath.Join(org, serversFile), "Host nas\n    HostName 10.0.0.9\n    #@ wol 52:54:00:12:34:56 127.0.0.1:0\n    ServerAliveInterval 60\n")
+	write(t, filepath.Join(org, ".desk", serversFile), "Host nas\n    HostName 10.0.0.9\n    #@ wol 52:54:00:12:34:56 127.0.0.1:0\n    ServerAliveInterval 60\n")
 	hs := serverHosts(dir)
 	if len(hs) != 1 || hs[0].wol != "52:54:00:12:34:56 127.0.0.1:0" {
 		t.Fatalf("hosts %+v", hs)
@@ -1750,7 +1750,7 @@ func TestPruneRecordings(t *testing.T) {
 func TestRecordingDefault(t *testing.T) {
 	for toml, want := range map[string]bool{"": true, "record = true\n": true, "record = false\n": false} {
 		dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-		write(t, filepath.Join(orgOfInfra(dir), "desk.toml"), toml)
+		write(t, filepath.Join(orgOfInfra(dir), ".desk", "desk.toml"), toml)
 		if o, err := orgFor(dir); err != nil || o.records() != want {
 			t.Errorf("%q: records() = %v, want %v (%v)", toml, o.records(), want, err)
 		}
@@ -1763,7 +1763,7 @@ func TestRecordingDefault(t *testing.T) {
 func TestDailyHealthDue(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(orgOfInfra(dir), "desk.toml"), "[schedule]\nhealth = \"08:30\"\n")
+	write(t, filepath.Join(orgOfInfra(dir), ".desk", "desk.toml"), "[schedule]\nhealth = \"08:30\"\n")
 	m := model{tree: []node{{depth: 0, label: "Acme", org: "Acme", dir: dir}}}
 	day := time.Date(2026, 10, 26, 0, 0, 0, 0, time.Local)
 	if len(m.dueHealth(day.Add(8*time.Hour))) != 0 {
@@ -1785,7 +1785,7 @@ func TestDeskTomlConfig(t *testing.T) {
 	root := t.TempDir()
 	infra := filepath.Join(root, "Globex", infraDir)
 	os.MkdirAll(infra, 0o755)
-	os.WriteFile(filepath.Join(root, "Globex", "desk.toml"), []byte(`record = false
+	os.WriteFile(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte(`record = false
 [[vault]]
 name = "hv"
 kind = "hashicorp"
@@ -1929,8 +1929,8 @@ func TestWorkspace(t *testing.T) {
 		t.Setenv(v, t.TempDir())
 	}
 	root := t.TempDir()
-	write(t, filepath.Join(root, "Acme", serversFile), "#@ group g\nHost local\n")
-	os.WriteFile(filepath.Join(root, "Acme", "desk.toml"), []byte("record = false\n"), 0o644)
+	write(t, filepath.Join(root, "Acme", ".desk", serversFile), "#@ group g\nHost local\n")
+	os.WriteFile(filepath.Join(root, "Acme", ".desk", "desk.toml"), []byte("record = false\n"), 0o644)
 	defer func() { dispatch, repaint, guiReplies = nil, nil, false }() // other tests run without a loop
 	var frames atomic.Int32
 	w := New(root, func() { frames.Add(1) })

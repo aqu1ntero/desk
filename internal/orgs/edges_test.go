@@ -97,7 +97,7 @@ func TestDirUnknown(t *testing.T) {
 // without root and a desk.toml.
 func TestAccountAtSearchFolder(t *testing.T) {
 	root := t.TempDir()
-	os.WriteFile(filepath.Join(root, "desk.toml"), []byte(`org = "Acme"`), 0o644)
+	writeAt(filepath.Join(root, ".desk", "desk.toml"), []byte(`org = "Acme"`), 0o644)
 	if got := AccountAt(root, root); got != "" {
 		t.Errorf("AccountAt(root) = %q, want none", got)
 	}
@@ -128,7 +128,7 @@ func TestLoadEdges(t *testing.T) {
 		t.Fatalf("no org: %+v %v", c, err)
 	}
 	os.MkdirAll(filepath.Join(root, "Globex"), 0o755)
-	os.WriteFile(filepath.Join(root, "Globex", "desk.toml"), []byte("agent = "), 0o644)
+	writeAt(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte("agent = "), 0o644)
 	if _, err := Load(root, "Globex"); err == nil || !strings.Contains(err.Error(), "desk.toml") {
 		t.Fatalf("broken file: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestSaveRawErrors(t *testing.T) {
 	if err := SaveRaw(root, "Acme", map[string]any{"github": "nope"}); err == nil || !strings.Contains(err.Error(), "would not read back") {
 		t.Errorf("bad shape: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, "Acme", "desk.toml")); err == nil {
+	if _, err := os.Stat(filepath.Join(root, "Acme", ".desk", "desk.toml")); err == nil {
 		t.Error("failed SaveRaw wrote the file")
 	}
 	if err := SaveRaw(root, "Missing", map[string]any{"agent": "a"}); err == nil {

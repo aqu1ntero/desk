@@ -348,7 +348,7 @@ func TestImportAsbru(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "asbru.yml")
 	write(t, src, asbruSample)
 	file, added, _, err := ImportAsbru(org, src, "Prod")
-	if err != nil || file != filepath.Join(org, "ssh_config") || len(added) != 2 {
+	if err != nil || file != filepath.Join(org, ".desk", "ssh_config") || len(added) != 2 {
 		t.Fatalf("%q %q %v", file, added, err)
 	}
 	if st, _ := os.Stat(file); st.Mode().Perm() != 0o600 {
@@ -362,7 +362,7 @@ func TestImportAsbru(t *testing.T) {
 		t.Fatalf("nothing to add changed the file:\n%s", after)
 	}
 	other := filepath.Join(t.TempDir(), "Globex")
-	write(t, filepath.Join(other, "desk.toml"), "[servers]\nfile = \"infra/hosts.conf\"\n")
+	write(t, filepath.Join(other, ".desk", "desk.toml"), "[servers]\nfile = \"infra/hosts.conf\"\n")
 	write(t, filepath.Join(other, "infra", "hosts.conf"), "Host web-01\n    HostName 192.0.2.99") // no newline at its end
 	file, added, _, err = ImportAsbru(other, src, "")
 	b, _ := os.ReadFile(file)
@@ -373,11 +373,11 @@ func TestImportAsbru(t *testing.T) {
 		t.Error("a missing Ásbrú file")
 	}
 	bad := filepath.Join(t.TempDir(), "Initech")
-	os.MkdirAll(filepath.Join(bad, "ssh_config"), 0o755) // a folder where the file goes
+	os.MkdirAll(filepath.Join(bad, ".desk", "ssh_config"), 0o755) // a folder where the file goes
 	if _, _, _, err := ImportAsbru(bad, src, ""); err == nil {
 		t.Error("an unreadable servers file")
 	}
-	write(t, filepath.Join(bad, "desk.toml"), "[servers]\nfile = \"desk.toml/x\"\n") // its folder is a file
+	write(t, filepath.Join(bad, ".desk", "desk.toml"), "[servers]\nfile = \".desk/desk.toml/x\"\n") // its folder is a file
 	if _, _, _, err := ImportAsbru(bad, src, ""); err == nil {
 		t.Error("a servers file it can't make")
 	}
@@ -398,7 +398,7 @@ func TestServersMain(t *testing.T) {
 	errw.Reset()
 	org := filepath.Join(t.TempDir(), "Acme")
 	if c := ServersMain([]string{"import-asbru", "-org", org, src}, &out, &errw); c != 0 || out.Len() != 0 ||
-		!strings.Contains(errw.String(), "4 servers added to "+filepath.Join(org, "ssh_config")) || !strings.Contains(errw.String(), "skipped Prod/win-01") {
+		!strings.Contains(errw.String(), "4 servers added to "+filepath.Join(org, ".desk", "ssh_config")) || !strings.Contains(errw.String(), "skipped Prod/win-01") {
 		t.Fatalf("add: %d %s", c, errw.String())
 	}
 	for args, code := range map[string]int{"": 2, "bogus": 2, "import-asbru -nope": 2, "import-asbru " + src + ".none": 1} {

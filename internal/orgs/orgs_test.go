@@ -8,12 +8,18 @@ import (
 	"testing"
 )
 
+// writeAt writes a fixture, its folders first (a .desk among them).
+func writeAt(path string, b []byte, perm os.FileMode) error {
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	return os.WriteFile(path, b, perm)
+}
+
 func TestLoadAndList(t *testing.T) {
 	root := t.TempDir()
 	for _, d := range []string{"Globex", "_h5ai", ".git", "acme"} {
 		os.MkdirAll(filepath.Join(root, d), 0o755)
 	}
-	os.WriteFile(filepath.Join(root, "Globex", "desk.toml"), []byte(`
+	writeAt(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte(`
 [[github]]
 owners = ["globex-org"]
 token_env = "X_TOKEN"
@@ -49,9 +55,9 @@ func TestNested(t *testing.T) {
 	for _, d := range []string{"Personal/billing", "Personal/notes", "Personal/.cache"} {
 		os.MkdirAll(filepath.Join(root, d), 0o755)
 	}
-	os.WriteFile(filepath.Join(root, "Personal/billing/desk.toml"), []byte("org = \"Billing\"\n[[jira]]\nurl = \"https://initech.atlassian.net\"\n"), 0o600)
-	os.WriteFile(filepath.Join(root, "Personal/.cache/desk.toml"), []byte(`org = "Hidden"`), 0o600)
-	os.WriteFile(filepath.Join(root, "Personal/notes/desk.toml"), []byte("[[jira]]\nname = \"not the org\"\n"), 0o600)
+	writeAt(filepath.Join(root, "Personal/billing/.desk/desk.toml"), []byte("org = \"Billing\"\n[[jira]]\nurl = \"https://initech.atlassian.net\"\n"), 0o600)
+	writeAt(filepath.Join(root, "Personal/.cache/.desk/desk.toml"), []byte(`org = "Hidden"`), 0o600)
+	writeAt(filepath.Join(root, "Personal/notes/.desk/desk.toml"), []byte("[[jira]]\nname = \"not the org\"\n"), 0o600)
 	if got := List(root); !slices.Equal(got, []string{"Billing", "notes", "Personal"}) {
 		t.Fatalf("orgs: %v", got)
 	}
@@ -78,9 +84,9 @@ func TestFolders(t *testing.T) {
 	for _, d := range []string{"Acme/a/b", "Initech"} {
 		os.MkdirAll(filepath.Join(work, d), 0o755)
 	}
-	os.WriteFile(filepath.Join(work, "Acme/a/b/desk.toml"), []byte(`org = "Deep"`), 0o600)
+	writeAt(filepath.Join(work, "Acme/a/b/.desk/desk.toml"), []byte(`org = "Deep"`), 0o600)
 	os.MkdirAll(filepath.Join(clients, "Globex"), 0o755)
-	os.WriteFile(filepath.Join(clients, "desk.toml"), []byte(`org = "Clients"`), 0o600)
+	writeAt(filepath.Join(clients, ".desk", "desk.toml"), []byte(`org = "Clients"`), 0o600)
 	if got := List(work); !slices.Equal(got, []string{"Acme", "Initech"}) {
 		t.Fatalf("default, two levels: %v", got)
 	}
@@ -130,8 +136,8 @@ func TestScanOnlyToml(t *testing.T) {
 	for _, d := range []string{"Acme/x/deep", "Globex", ".hidden", "Initech"} {
 		os.MkdirAll(filepath.Join(work, d), 0o755)
 	}
-	os.WriteFile(filepath.Join(work, "Acme/desk.toml"), []byte(`org = "Named"`), 0o600)
-	os.WriteFile(filepath.Join(work, "Acme/x/deep/desk.toml"), nil, 0o600)
+	writeAt(filepath.Join(work, "Acme/.desk/desk.toml"), []byte(`org = "Named"`), 0o600)
+	writeAt(filepath.Join(work, "Acme/x/deep/.desk/desk.toml"), nil, 0o600)
 	os.WriteFile(filepath.Join(work, "loose.txt"), nil, 0o600)
 	os.MkdirAll(filepath.Join(other, "Acme"), 0o755)
 	os.MkdirAll(filepath.Join(other, "Umbrella"), 0o755)
@@ -176,7 +182,7 @@ func TestSaveRaw(t *testing.T) {
 	if back, _ := LoadRaw(root, "Globex"); back["vault"].([]map[string]any)[0]["future"] != "kept" {
 		t.Fatalf("an unknown key was dropped: %v", back["vault"])
 	}
-	if fi, _ := os.Stat(filepath.Join(root, "Globex", "desk.toml")); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(filepath.Join(root, "Globex", ".desk", "desk.toml")); fi.Mode().Perm() != 0o600 {
 		t.Fatalf("mode %v", fi.Mode())
 	}
 }

@@ -19,7 +19,7 @@ import (
 )
 
 // orgConfig is an organization's infra config: the external systems Claude may
-// use there. It comes from the org's desk.toml (<root>/<Org>/desk.toml, see
+// use there. It comes from the org's desk.toml (<root>/<Org>/.desk/desk.toml, see
 // internal/orgs), the same file desk's links read:
 //
 //	record = false # top-level, before any [table]: don't record panes as asciicasts (on by default)
@@ -109,7 +109,7 @@ func reloadOrgs() {
 // beside the hosts-cmd cache: the dir of every tab and pane, the infra
 // Claude's working folder (its CLAUDE.md, runbooks). The org folder also
 // decides which Claude account runs (see claudeCmd).
-var infraDir = filepath.Join(".desk", "infra")
+var infraDir = filepath.Join(deskorgs.DeskDir, "infra")
 
 // oldInfraDir is where infraDir was before it moved (makeInfra, movedInfra).
 const oldInfraDir = "Infra-Claude"

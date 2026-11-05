@@ -903,7 +903,7 @@ func TestCardToolRun(t *testing.T) {
 func TestCardToolBadConfig(t *testing.T) {
 	h := newHarness(t)
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
-	if err := os.WriteFile(orgs.File(h.u.root, "Acme"), []byte("[[nagios]\n"), 0o644); err != nil {
+	if err := writeAt(orgs.File(h.u.root, "Acme"), []byte("[[nagios]\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var text string
