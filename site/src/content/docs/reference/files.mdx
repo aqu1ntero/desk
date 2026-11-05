@@ -6,7 +6,7 @@ description: Where desk keeps the board, conversations, settings, infra state an
 desk follows the XDG folders. Below, `~/.local/share` is `$XDG_DATA_HOME`, `~/.config` is `$XDG_CONFIG_HOME`, `~/.local/state` is `$XDG_STATE_HOME` and `~/.cache` is `$XDG_CACHE_HOME`, when those are set.
 
 :::tip
-To try something without touching your real board, point `XDG_DATA_HOME` and `DESK_ROOT` at scratch folders. Or run [`desk demo`](/desk/start/demo/), which puts all of the below in a temporary folder.
+To try something without touching your real board, point `XDG_DATA_HOME` and `DESK_ROOT` at scratch folders. Or run [`desk demo`](/start/demo/), which puts all of the below in a temporary folder.
 :::
 
 ## The board: `~/.local/share/desk/`
@@ -36,8 +36,8 @@ Older versions of desk kept `desk.toml` and `ssh_config` in the organization's f
 
 | Path | What's in it |
 |---|---|
-| `<Org>/.desk/desk.toml` | The organization's accounts and settings. See [desk.toml](/desk/reference/desk-toml/). When **Settings** saves it, the file is made readable by you only (it may hold a token), and comments in it are not kept. |
-| `<Org>/.desk/ssh_config` | The organization's servers file (or the one `[servers] file` names). See [The servers file](/desk/servers/servers-file/). |
+| `<Org>/.desk/desk.toml` | The organization's accounts and settings. See [desk.toml](/reference/desk-toml/). When **Settings** saves it, the file is made readable by you only (it may hold a token), and comments in it are not kept. |
+| `<Org>/.desk/ssh_config` | The organization's servers file (or the one `[servers] file` names). See [The servers file](/servers/servers-file/). |
 | `<Org>/.desk/servers-dynamic.conf` | What a `#@ hosts-cmd` printed last (`servers-dynamic-<group>.conf` for one in a group). |
 | `<Org>/.desk/infra/` | The infra Claude's working folder, made when the organization has a servers file (an older `<Org>/Infra-Claude/` moves here). Put a `CLAUDE.md` here for it to read. |
 | `<Org>/.desk/infra/runbooks/` | Runbooks: Markdown with `sh` blocks and `{{parameters}}`. The infra Claude saves new ones here too. |

@@ -24,7 +24,7 @@ under, its title and folder, the status line, the links, and the session's figur
 </figure>
 
 - **Claude · \<account\>** is the Claude account the session runs under. It is the
-  organization's account (see [Accounts](/desk/orgs/accounts/)). Every view of a session names it:
+  organization's account (see [Accounts](/orgs/accounts/)). Every view of a session names it:
   the panel, the full window and the terminal.
 - **The folder** is where Claude works: `<Org>/<folder>`, shown from your home as `~/…`.
   Claude runs there with `--permission-mode auto`. The organization's own folder is added
@@ -33,7 +33,7 @@ under, its title and folder, the status line, the links, and the session's figur
   should the exports use?".
 - **Link chips** show each link with its live state. Click one to open it in your browser.
   Artifacts the session publishes are listed under the links, as "Artifact … · open in the browser".
-- **Turns, tokens and cost** of the session so far. See [Tokens, cost and limits](/desk/sessions/usage/).
+- **Turns, tokens and cost** of the session so far. See [Tokens, cost and limits](/sessions/usage/).
 
 The icons at the right end act on the card:
 
@@ -44,8 +44,8 @@ The icons at the right end act on the card:
 <figcaption>From left to right: Open full window, Edit the card (<kbd>E</kbd>), Open in the Claude Code terminal (<kbd>T</kbd>), Archive the card, and Close the panel (<kbd>Esc</kbd>).</figcaption>
 </figure>
 
-The [full window](/desk/sessions/full-window/) shows the same session over the whole window.
-The [terminal](/desk/sessions/terminal/) opens it in the full Claude Code TUI.
+The [full window](/sessions/full-window/) shows the same session over the whole window.
+The [terminal](/sessions/terminal/) opens it in the full Claude Code TUI.
 
 ## Starting a session
 
@@ -74,9 +74,9 @@ a line for every tool Claude uses.
 
 A tool line names the tool and its most telling input: the file read, the pattern searched, the
 command run. A shell command adds Claude's plain description of it, and **Explain** has Haiku take
-it apart (see [Shell commands](/desk/sessions/shell/#shell-commands-explained)). A file change shows
-as a [diff](/desk/sessions/diffs/), and a subagent's work shows in the
-[subagents bar](/desk/sessions/subagents/).
+it apart (see [Shell commands](/sessions/shell/#shell-commands-explained)). A file change shows
+as a [diff](/sessions/diffs/), and a subagent's work shows in the
+[subagents bar](/sessions/subagents/).
 
 Claude's replies are drawn from their Markdown: headings, lists, tables, quotes, links and code
 with its highlighting.
@@ -149,11 +149,11 @@ Type in the box at the foot of the panel and press <kbd>Enter</kbd> or **Send**.
 - While Claude works, the box says **Claude is working; your message goes next**. A **Stop**
   button beside Send interrupts the turn.
 - A message that starts with `!` is a shell command you run yourself. See
-  [Shell commands](/desk/sessions/shell/).
+  [Shell commands](/sessions/shell/).
 - <kbd>Ctrl</kbd>+<kbd>V</kbd> with an image on the clipboard saves it beside the board and puts
   `![image](path)` in your message. Claude reads the image.
 - If Claude asked you something, what you type answers it in your own words. See
-  [Questions and permissions](/desk/sessions/questions/).
+  [Questions and permissions](/sessions/questions/).
 
 Sending a message moves a card in Backlog, To do or Blocked to **In progress**.
 

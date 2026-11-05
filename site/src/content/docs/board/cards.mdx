@@ -29,7 +29,7 @@ From top to bottom:
    - The **age** is the time since the card last changed: "now", "5 min. ago",
      "3 hr. ago", "yesterday", then a date ("Oct 20").
    - A card whose Claude handed server work to its organization's infra Claude also shows an orange
-     **⇄ _org_ infra** pill. See [Cards and servers](/desk/servers/cards/).
+     **⇄ _org_ infra** pill. See [Cards and servers](/servers/cards/).
 2. **The title**, up to three lines.
 3. **The status line**: the state in words and, after a colon, its reason:
    - "Working", in purple, while Claude takes its turn.
@@ -39,7 +39,7 @@ From top to bottom:
    - "Done", in green.
 4. **Link chips**, one per link: its reference and its live state, colored by tone
    ("PR #88 · open · CI passing" in green). A card shows up to three. After that
-   it says "+2 more links", and the session panel lists them all. See [Links](/desk/cards/links/).
+   it says "+2 more links", and the session panel lists them all. See [Links](/cards/links/).
 5. **The last message** from the session, on up to two lines. A card with no messages yet shows the start of its notes.
 6. **The foot**: up to three labels (more fold into "+n"), the due date, and on
    the right, after a star, the session's turns, tokens and cost ("6   182k tokens · $1.84":
@@ -70,7 +70,7 @@ From top to bottom:
 ### Selected and hovered
 
 The card you select with the arrow keys (or the last one you clicked) has a blue
-outline. A click opens its [session panel](/desk/sessions/panel/).
+outline. A click opens its [session panel](/sessions/panel/).
 
 ## The card menu
 
@@ -85,10 +85,10 @@ Right-click a card for its menu.
 
 | Item | Key | What it does |
 |---|---|---|
-| **Open session** | <kbd>Enter</kbd> | Opens the card's [session panel](/desk/sessions/panel/) beside the board. |
-| **Open full window** | | Opens the session in the whole window, as in Agent Sessions. See [Full window](/desk/sessions/full-window/). |
-| **Claude Code terminal** | <kbd>T</kbd> | Opens the session in the real Claude Code TUI, inside desk. See [Terminal](/desk/sessions/terminal/). |
-| **Edit card** | <kbd>E</kbd> | Opens the card's [editor](/desk/cards/editing/). |
+| **Open session** | <kbd>Enter</kbd> | Opens the card's [session panel](/sessions/panel/) beside the board. |
+| **Open full window** | | Opens the session in the whole window, as in Agent Sessions. See [Full window](/sessions/full-window/). |
+| **Claude Code terminal** | <kbd>T</kbd> | Opens the session in the real Claude Code TUI, inside desk. See [Terminal](/sessions/terminal/). |
+| **Edit card** | <kbd>E</kbd> | Opens the card's [editor](/cards/editing/). |
 | **Copy key DESK-5** | <kbd>Ctrl</kbd>+<kbd>C</kbd> | Copies the key to the clipboard. |
 | **Move to** | <kbd>1</kbd>…<kbd>5</kbd> | Moves the card to another column. |
 | **Archive** | <kbd>Backspace</kbd> | Archives the card. The toast's **Undo** (or <kbd>Ctrl</kbd>+<kbd>Z</kbd>) brings it back. |
@@ -106,4 +106,4 @@ Each column's number moves the card there.
 </figure>
 
 When the card's session is running, **Archive** reads **Archive and stop the session**:
-archiving ends the session too. See [Done archive](/desk/board/archive/).
+archiving ends the session too. See [Done archive](/board/archive/).

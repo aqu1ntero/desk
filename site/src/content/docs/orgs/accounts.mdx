@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 An organization's accounts are what its cards' links, its tickets, its CI and its alerts go
 through. They live in the organization's `desk.toml`, and you can edit them in
-[Settings](/desk/orgs/settings/#an-organizations-page) or by hand. An organization can have any
+[Settings](/orgs/settings/#an-organizations-page) or by hand. An organization can have any
 number of each kind.
 
 ![Acme's settings page with its GitHub and Jira accounts](../../../assets/shots/orgs-settings-org.png)
@@ -112,7 +112,7 @@ token_env = "GITLAB_TOKEN"
 | User | `user` | the CGIs' login; empty: none |
 | Password | see [Tokens](#tokens) | the login's password |
 
-Each `[[nagios]]` adds its alerts to the organization's [Alerts view](/desk/orgs/alerts/).
+Each `[[nagios]]` adds its alerts to the organization's [Alerts view](/orgs/alerts/).
 
 ```toml
 [[nagios]]
@@ -126,7 +126,7 @@ item = "Nagios prod"
 </TabItem>
 </Tabs>
 
-The [desk.toml reference](/desk/reference/desk-toml/) has every key.
+The [desk.toml reference](/reference/desk-toml/) has every key.
 
 ## Tokens
 
@@ -142,7 +142,7 @@ account's card:
 
 | Source | Keys | |
 |---|---|---|
-| Vault item | `vault`, `item`, `field` | an item of one of the organization's [vaults](/desk/orgs/vaults/), by name or id; `field` is `password` (the default), `username`, `notes`, `totp` or a custom field |
+| Vault item | `vault`, `item`, `field` | an item of one of the organization's [vaults](/orgs/vaults/), by name or id; `field` is `password` (the default), `username`, `notes`, `totp` or a custom field |
 | Environment variable | `token_env` | the variable's name; desk says so when it isn't set |
 | Command | `token_cmd` | a command that prints it (run with `sh -c`, at most 20 seconds) |
 | In desk.toml | `token` | the value itself, in plain text |
@@ -173,7 +173,7 @@ group or workspace. Links refresh every 3 minutes, and so do the tickets, CI and
 
 desk only asks a provider through an account with a token. A link whose organization has no
 matching account, or whose token comes out empty, is never fetched: its chip says
-**no GitHub account** (or GitLab, Bitbucket), its CI stays out of the [CI view](/desk/orgs/ci/),
+**no GitHub account** (or GitLab, Bitbucket), its CI stays out of the [CI view](/orgs/ci/),
 and moving its card doesn't move the ticket.
 
 <figure class="cut">
@@ -188,4 +188,4 @@ allows 60 an hour per address). To fix it, add an account for that owner, or add
 account's **Owners**.
 
 A link whose token is in a locked vault says **locked: unlock \<vault\>** until you unlock it:
-see [Vaults](/desk/orgs/vaults/).
+see [Vaults](/orgs/vaults/).

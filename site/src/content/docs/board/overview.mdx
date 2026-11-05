@@ -15,7 +15,7 @@ A board has five columns: **Backlog**, **To do**, **In progress**, **Blocked** a
 Each has its own color: To do is blue, In progress yellow, Blocked red, Done green.
 
 The board never shows the **Done** column. Done cards wait in the
-[Done archive](/desk/board/archive/) instead, so the board holds only work that's still open.
+[Done archive](/board/archive/) instead, so the board holds only work that's still open.
 
 Sessions move their own cards. Sending a message moves the card to In progress.
 When Claude reports it's blocked, the card moves to Blocked. When Claude reports it's done, the card moves to Done.
@@ -28,7 +28,7 @@ When Claude reports it's blocked, the card moves to Blocked. When Claude reports
 </figure>
 
 There are two ways to add a card to a column: the **+** in its header, or **Add card** at
-its foot. Both open the [new card dialog](/desk/cards/new-card/) for that column.
+its foot. Both open the [new card dialog](/cards/new-card/) for that column.
 
 <figure class="cut">
 
@@ -48,10 +48,10 @@ its foot. Both open the [new card dialog](/desk/cards/new-card/) for that column
 
 - **Sidebar toggle**: shows or hides the sidebar.
 - **The header**: the view's name, with its summary under it.
-- **Unlock _vault_**: shows up only when a password vault is waiting for its password. See [Vaults](/desk/orgs/vaults/).
-- **The archive box**: archives every card in Done. See [Done archive](/desk/board/archive/).
-- **The search field**: filters the cards. See [Search](/desk/board/search/).
-- **New card** (<kbd>Ctrl</kbd>+<kbd>N</kbd>): opens the [new card dialog](/desk/cards/new-card/).
+- **Unlock _vault_**: shows up only when a password vault is waiting for its password. See [Vaults](/orgs/vaults/).
+- **The archive box**: archives every card in Done. See [Done archive](/board/archive/).
+- **The search field**: filters the cards. See [Search](/board/search/).
+- **New card** (<kbd>Ctrl</kbd>+<kbd>N</kbd>): opens the [new card dialog](/cards/new-card/).
 
 <figure class="cut">
 
@@ -77,7 +77,7 @@ none of those apply, it just counts the cards ("3 cards"). Done cards don't coun
 
 ## Sidebar on and off
 
-The toggle at the toolbar's far left shows or hides the [sidebar](/desk/board/sidebar/).
+The toggle at the toolbar's far left shows or hides the [sidebar](/board/sidebar/).
 With the sidebar hidden, the columns spread across the whole window.
 
 ![The board with the sidebar hidden: the columns fill the window](../../../assets/shots/board-nosidebar.png)
@@ -104,8 +104,8 @@ faded until you let go.
 <figcaption>Dragging DESK-4 from To do to In progress.</figcaption>
 </figure>
 
-A click on a card, without dragging it, opens its [session panel](/desk/sessions/panel/).
-You can also move a card from its [right-click menu](/desk/board/cards/#the-card-menu) (**Move to**).
+A click on a card, without dragging it, opens its [session panel](/sessions/panel/).
+You can also move a card from its [right-click menu](/board/cards/#the-card-menu) (**Move to**).
 
 ## Keys
 
@@ -120,7 +120,7 @@ Board keys work only on the board itself, not while you type in a field or a dia
 | Open its terminal | <kbd>T</kbd> |
 | New card | <kbd>Ctrl</kbd>+<kbd>N</kbd>, in the selected card's column (else Backlog) |
 | Search | <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>F</kbd> |
-| Go anywhere | <kbd>Ctrl</kbd>+<kbd>K</kbd>, the [palette](/desk/board/palette/) |
+| Go anywhere | <kbd>Ctrl</kbd>+<kbd>K</kbd>, the [palette](/board/palette/) |
 | Back out | <kbd>Esc</kbd>: the dialog, the search, the panel, then the selection |
 
-The full list is in [Keys](/desk/reference/keys/).
+The full list is in [Keys](/reference/keys/).

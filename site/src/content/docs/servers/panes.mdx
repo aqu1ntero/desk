@@ -65,7 +65,7 @@ then on each command you or Claude run becomes a **block**, numbered from #1 in 
     next one.
   - <kbd>Esc</kbd> or <kbd>Enter</kbd> stops picking. Any other key stops and goes to the shell.
 
-Every finished block is also written to the [audit log](/desk/servers/infra-claude/#the-audit-log).
+Every finished block is also written to the [audit log](/servers/infra-claude/#the-audit-log).
 
 ### What Claude sees
 
@@ -84,7 +84,7 @@ is running, or when your question mentions the screen, a snapshot, `top` or `hto
 - Each pane keeps 10,000 lines of scrollback. The mouse wheel scrolls it, unless a full-screen
   program asked for the mouse.
 - <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> opens **Find in scrollback**, with the same
-  [fzf syntax](/desk/board/search/) as the board. Typing jumps to the newest match; **↵** goes to
+  [fzf syntax](/board/search/) as the board. Typing jumps to the newest match; **↵** goes to
   the next older one; **esc** closes. It shows "N of M", "no matches" or "type to search".
 - **Drag** to select: it's copied when you let go ("Copied").
 - **Double-click** selects a word (a path, a URL or a `host:port` counts as one word);
@@ -115,7 +115,7 @@ side.
 - It needs two or more panes ("broadcast needs two or more panes").
 - While it's on, each pane has an orange outline and the pill **typing into every pane**.
 - Click the button again, or pick **broadcast typing to all panes** in the
-  [palette](/desk/servers/palette/), to stop.
+  [palette](/servers/palette/), to stop.
 
 ## The connection box
 
@@ -152,7 +152,7 @@ When ssh ends before the server answered:
 - **Fix algorithms** (<kbd>F</kbd>) shows up when the server offers only algorithms modern ssh
   turned off. It adds them to that host in its ssh_config and reconnects.
 - When the server's host key changed, the box shows both keys instead.
-  See [A changed host key](/desk/servers/host-keys/).
+  See [A changed host key](/servers/host-keys/).
 
 ### Reconnecting
 
@@ -168,7 +168,7 @@ A link that drops after it was up (a laptop asleep, a VPN down) comes back on it
 ### Passwords for ssh
 
 desk is ssh's password helper (`SSH_ASKPASS`). On the first password prompt it answers from the
-vault when the server has a [`#@ password`](/desk/servers/servers-file/#vault-password-and-password-raw).
+vault when the server has a [`#@ password`](/servers/servers-file/#vault-password-and-password-raw).
 Otherwise, or for any other question ssh asks, a box asks you: "ssh web-01 asks", with "Sent to
 this ssh session only, not stored." Your answer goes to that ssh only.
 
@@ -188,7 +188,7 @@ prompt reads "Asks for deploy's password" with **Type server password**
 
 ## Wake-on-LAN
 
-A server with [`#@ wol`](/desk/servers/servers-file/#wol) gets a magic packet each time a pane
+A server with [`#@ wol`](/servers/servers-file/#wol) gets a magic packet each time a pane
 opens on it, just before ssh starts. desk doesn't wait for it to boot: if the pane says the
 server isn't answering yet, **Keep waiting**.
 
@@ -204,7 +204,7 @@ asciinema play ~/.local/state/desk/infra/recordings/Globex/2026-11-04-143207-web
 - One file per pane and connection, in `~/.local/state/desk/infra/recordings/<Org>/`, named by
   the date, time and server.
 - They're kept 7 days, and at most 1 GiB per organization; older ones go first.
-- **Open recordings** in the [palette](/desk/servers/palette/) opens the folder.
+- **Open recordings** in the [palette](/servers/palette/) opens the folder.
 - To turn recording off for an organization, put `record = false` at the top of its `desk.toml`.
 
 :::caution

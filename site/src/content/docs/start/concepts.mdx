@@ -18,7 +18,7 @@ An organization is a folder: `~/Work/Acme`, `~/Work/Globex`. desk finds them in 
 An organization can have:
 
 - **its own Claude account**: a profile in `~/Secure/Claudes/<Org>/`, which its sessions run under, sandboxed with `bwrap`. Without one, they use your login.
-- **a `desk.toml`** (in its `.desk/` folder): its GitHub, GitLab, Bitbucket, Jira and Nagios accounts, the vaults their tokens come from, its servers file and more. Edit it in **Settings** or by hand. See the [desk.toml reference](/desk/reference/desk-toml/).
+- **a `desk.toml`** (in its `.desk/` folder): its GitHub, GitLab, Bitbucket, Jira and Nagios accounts, the vaults their tokens come from, its servers file and more. Edit it in **Settings** or by hand. See the [desk.toml reference](/reference/desk-toml/).
 - **nested organizations**: a folder inside it with its own `desk.toml` (`~/Work/Acme/billing`) is an organization of its own, whose sessions run under the outer one's Claude account.
 
 ## Statuses

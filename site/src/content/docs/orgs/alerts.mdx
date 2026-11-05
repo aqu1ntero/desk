@@ -10,8 +10,8 @@ hosts that are down or unreachable and the services in warning or critical, erro
 
 ## Connecting Nagios
 
-Add a Nagios account to the organization, in [Settings](/desk/orgs/settings/) or in its
-`desk.toml` (see [Accounts](/desk/orgs/accounts/)):
+Add a Nagios account to the organization, in [Settings](/orgs/settings/) or in its
+`desk.toml` (see [Accounts](/orgs/accounts/)):
 
 ```toml
 [[nagios]]                      # as many as the organization has
@@ -53,7 +53,7 @@ worst of them (red for an error, orange for a warning).
 <figcaption>Investigate is blue on an error nobody acknowledged or snoozed.</figcaption>
 </figure>
 
-When the organization has servers (an [infra workspace](/desk/servers/overview/)), each alert has
+When the organization has servers (an [infra workspace](/servers/overview/)), each alert has
 **Investigate**. It makes the alert a card, titled *Investigate CRITICAL web-02 / HTTP*, in
 **In progress**, with the alert's output and link in its notes. It opens the card's session and
 asks its Claude to look into it: the monitoring and metrics, and the servers through the
@@ -96,4 +96,4 @@ before then.
 <figcaption>web-02 snoozed for 4 hours: out of the count, at the bottom.</figcaption>
 </figure>
 
-A card's Claude can read the same alerts with the [card tools](/desk/orgs/card-tools/).
+A card's Claude can read the same alerts with the [card tools](/orgs/card-tools/).

@@ -22,7 +22,7 @@ GBM_BACKENDS_PATH=<mesa>/lib/gbm
 ```
 
 - **Intel, AMD, nouveau**: Mesa drives the GPU, and desk runs normally.
-- **NVIDIA's own driver**: Mesa can't drive it, so desk falls back to llvmpipe, Mesa's software renderer. It works, but uses the CPU to draw. For GPU drawing, install the [AppImage or .deb](/desk/start/install/), which use your system's driver, or point the variables above at your driver yourself: a value you set wins over the wrapper's.
+- **NVIDIA's own driver**: Mesa can't drive it, so desk falls back to llvmpipe, Mesa's software renderer. It works, but uses the CPU to draw. For GPU drawing, install the [AppImage or .deb](/start/install/), which use your system's driver, or point the variables above at your driver yourself: a value you set wins over the wrapper's.
 ## Wayland only
 
 desk needs a Wayland session (Hyprland, Sway, KDE, GNOME…). It's built without X11 support, so it doesn't open under an X11 session. X11 support is on the roadmap.
@@ -56,7 +56,7 @@ To fix it, add an account to the card's organization in **Settings**, or in its 
 - `owners` must include the repository's owner (or be left out, for all owners).
 - Its token must resolve. A `token_env` naming an unset variable is an error, not an empty token.
 
-Then **Reload** in the sidebar rechecks every link. See [desk.toml](/desk/reference/desk-toml/#github).
+Then **Reload** in the sidebar rechecks every link. See [desk.toml](/reference/desk-toml/#github).
 
 A card's **Ticket** switch needs somewhere to create the ticket. Without one, desk says `no tracker to create it in: give a Jira account projects, or a GitHub account a repo, in desk.toml`.
 
@@ -75,7 +75,7 @@ A reinstalled server, or one whose keys were rotated, sends a key ssh doesn't kn
 - If you expected it, **Accept new key** (<kbd>A</kbd>). desk drops that line from `known_hosts` and reconnects, and ssh saves the new key. It does nothing if the line no longer holds that key for that host.
 - If you didn't expect it, don't accept. Someone may be in between. **Close pane** (<kbd>C</kbd>).
 
-More in [Host keys](/desk/servers/host-keys/).
+More in [Host keys](/servers/host-keys/).
 
 ## desk peer says desk is not running
 

@@ -6,7 +6,7 @@ description: Bring your SSH connections from Ásbrú Connection Manager into an 
 import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Coming from [Ásbrú Connection Manager](https://www.asbru-cm.net/)? desk can read its
-connections and add them to an organization's [servers file](/desk/servers/servers-file/): its
+connections and add them to an organization's [servers file](/servers/servers-file/): its
 groups, users, ports, keys and jump hosts. Passwords stay behind.
 
 :::caution[Close Ásbrú first]
@@ -127,7 +127,7 @@ Host build
 ## What it leaves behind
 
 - **Passwords.** An ssh_config can't hold them. Point
-  [`#@ password`](/desk/servers/servers-file/#vault-password-and-password-raw) at your vault
+  [`#@ password`](/servers/servers-file/#vault-password-and-password-raw) at your vault
   instead.
 - **Connections that aren't SSH** (RDP, VNC, Telnet…): "RDP, not SSH".
 - **Hosts written with Ásbrú's variables** (`<GV:…>`, `<ENV:…>`) in the address, user or port:

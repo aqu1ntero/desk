@@ -14,7 +14,7 @@ card's conversation.
 
 ## How a card hands work over
 
-Cards of an organization with a [servers file](/desk/servers/servers-file/) get two things in
+Cards of an organization with a [servers file](/servers/servers-file/) get two things in
 their Claude session:
 
 - Instructions to never touch the organization's servers themselves (no ssh, scp, remote psql,
@@ -37,7 +37,7 @@ their Claude session:
    </figure>
 
 3. The infra Claude works on it in panes, and every change waits for
-   [your approval](/desk/servers/infra-claude/#approvals), as always.
+   [your approval](/servers/infra-claude/#approvals), as always.
 
 4. Its questions, results and messages come into the card's conversation. The card's Claude
    answers them itself, with `desk peer answer`.

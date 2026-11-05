@@ -7,8 +7,7 @@ import starlightImageZoom from 'starlight-image-zoom';
 // Screenshots in src/assets/shots are made by `npm run shots` (desk's own
 // window on a headless GPU, see internal/ui/docshots_test.go), not committed.
 export default defineConfig({
-	site: 'https://lfdominguez.github.io',
-	base: '/desk',
+	site: 'https://desk.domivega.com',
 	integrations: [
 		starlight({
 			title: 'desk',

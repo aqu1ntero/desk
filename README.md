@@ -10,7 +10,7 @@
 Say what to do; Claude works on it in the right organization, under its own account, and asks you when it needs you.<br>
 Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `desk demo` shows it all with nothing to set up.
 
-▶ [The 85-second demo, narrated](docs/desk-demo.mp4) · 📖 [**Documentation**](https://lfdominguez.github.io/desk/)
+▶ [The 85-second demo, narrated](docs/desk-demo.mp4) · 📖 [**Documentation**](https://desk.domivega.com/)
 
 [![Build](https://github.com/lfdominguez/desk/actions/workflows/release.yml/badge.svg)](https://github.com/lfdominguez/desk/actions/workflows/release.yml)
 [![Release](https://img.shields.io/github/v/release/lfdominguez/desk?sort=date)](https://github.com/lfdominguez/desk/releases)
@@ -18,7 +18,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 ![Go](https://img.shields.io/github/go-mod/go-version/lfdominguez/desk)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%C2%B7%20Wayland-informational)
 [![Nix](https://img.shields.io/badge/nix-run-5277C3?logo=nixos&logoColor=white)](#nix)
-[![Docs](https://img.shields.io/badge/docs-lfdominguez.github.io%2Fdesk-0a84ff)](https://lfdominguez.github.io/desk/)
+[![Docs](https://img.shields.io/badge/docs-desk.domivega.com-0a84ff)](https://desk.domivega.com/)
 
 [Features](#features) · [Install](#install) · [Getting started](#getting-started) ·
 [Guide](#guide) · [Keys](#keys) · [Development](#development)

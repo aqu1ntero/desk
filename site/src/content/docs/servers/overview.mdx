@@ -5,7 +5,7 @@ description: Servers under an organization opens its infra workspace, where you 
 
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-An organization with a [servers file](/desk/servers/servers-file/) gets a **Servers** row under
+An organization with a [servers file](/servers/servers-file/) gets a **Servers** row under
 it in the sidebar. Click it to open the organization's infra workspace: session tabs, live SSH
 panes and the organization's infra Claude beside them. The Claude runs commands in the same
 terminals you type in, and every change waits for your approval.
@@ -46,7 +46,7 @@ with the organization's own Claude first.
 <figcaption>Type to filter by name, group or address. Enter opens the first match.</figcaption>
 </figure>
 
-The search uses the same [fzf syntax](/desk/board/search/) as the board. A click opens the
+The search uses the same [fzf syntax](/board/search/) as the board. A click opens the
 server's session, or goes to it if it's already open. A click outside closes the picker.
 
 Pick **Globex Claude** for the organization-wide session: a Claude with no terminal yet, which
@@ -54,7 +54,7 @@ connects to the servers you ask it about.
 
 :::tip
 The palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>) lists every organization's
-servers too, plus each group. See [The palette](/desk/servers/palette/).
+servers too, plus each group. See [The palette](/servers/palette/).
 :::
 
 ## Session tabs
@@ -97,7 +97,7 @@ From left to right:
 
 | Button | What it does | Key |
 |---|---|---|
-| New pane | Another pane on the focused pane's server. See [Panes](/desk/servers/panes/). | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> |
+| New pane | Another pane on the focused pane's server. See [Panes](/servers/panes/). | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> |
 | Broadcast | Type into every pane of the tab at once. | |
 | Directory | The directory split: this server's files beside this machine's. | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> |
 | Group view | Every session of the group on one page. | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> |
@@ -116,7 +116,7 @@ the command, its output, its exit code and how long it took.
 <figcaption>The commands Claude ran on web-02, as blocks #1 to #4. #2 exited with 3.</figcaption>
 </figure>
 
-You point Claude at blocks by number. [Panes](/desk/servers/panes/) explains blocks, splits and
+You point Claude at blocks by number. [Panes](/servers/panes/) explains blocks, splits and
 the connection box.
 
 ## The Claude panel
@@ -136,7 +136,7 @@ The panel on the right is the tab's infra Claude.
 - The composer is at the bottom: **↵** sends, **⇧↵** starts a new line.
   <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> jumps to it, and again back to the terminal.
 
-[The infra Claude](/desk/servers/infra-claude/) covers what it can do and how approvals work.
+[The infra Claude](/servers/infra-claude/) covers what it can do and how approvals work.
 
 ## Group view
 
@@ -174,8 +174,8 @@ Servers: the panes and these shortcuts take the keyboard.
 ## Next
 
 <CardGrid>
-  <LinkCard title="The servers file" href="/desk/servers/servers-file/" description="An OpenSSH config with desk's #@ keys." />
-  <LinkCard title="Panes" href="/desk/servers/panes/" description="Splits, blocks, reconnects and the connection box." />
-  <LinkCard title="The infra Claude" href="/desk/servers/infra-claude/" description="Its tools, approvals, runbooks and the audit log." />
-  <LinkCard title="Cards and servers" href="/desk/servers/cards/" description="A card hands its server work to the infra Claude." />
+  <LinkCard title="The servers file" href="/servers/servers-file/" description="An OpenSSH config with desk's #@ keys." />
+  <LinkCard title="Panes" href="/servers/panes/" description="Splits, blocks, reconnects and the connection box." />
+  <LinkCard title="The infra Claude" href="/servers/infra-claude/" description="Its tools, approvals, runbooks and the audit log." />
+  <LinkCard title="Cards and servers" href="/servers/cards/" description="A card hands its server work to the infra Claude." />
 </CardGrid>

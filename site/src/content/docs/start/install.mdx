@@ -35,7 +35,7 @@ environment.systemPackages = [ inputs.desk.packages.${pkgs.system}.default ];
 
 The flake builds for `x86_64-linux` and `aarch64-linux`. A flake build reports its version as `dev-<commit>`.
 
-**Off NixOS** (Ubuntu, Fedora…), nixpkgs' graphics libraries can't find your system's GPU driver: they only look in `/run/opengl-driver`. When that folder is missing, the `desk` wrapper points them at nixpkgs' own Mesa instead. That covers Intel, AMD and nouveau; anything else (NVIDIA's own driver, for example) gets llvmpipe, Mesa's software renderer. If you set `__EGL_VENDOR_LIBRARY_FILENAMES`, `LIBGL_DRIVERS_PATH` or `GBM_BACKENDS_PATH` yourself, your value wins. See [Troubleshooting](/desk/reference/troubleshooting/#nix-run-off-nixos).
+**Off NixOS** (Ubuntu, Fedora…), nixpkgs' graphics libraries can't find your system's GPU driver: they only look in `/run/opengl-driver`. When that folder is missing, the `desk` wrapper points them at nixpkgs' own Mesa instead. That covers Intel, AMD and nouveau; anything else (NVIDIA's own driver, for example) gets llvmpipe, Mesa's software renderer. If you set `__EGL_VENDOR_LIBRARY_FILENAMES`, `LIBGL_DRIVERS_PATH` or `GBM_BACKENDS_PATH` yourself, your value wins. See [Troubleshooting](/reference/troubleshooting/#nix-run-off-nixos).
 
 </TabItem>
 <TabItem label="AppImage">
@@ -86,7 +86,7 @@ cd desk
 CGO_CFLAGS_ALLOW=-fno-strict-overflow go build -tags nox11 -o desk ./cmd/desk
 ```
 
-With Nix, `nix develop` gives you a shell with all of that. See [Development](/desk/reference/development/).
+With Nix, `nix develop` gives you a shell with all of that. See [Development](/reference/development/).
 
 </TabItem>
 </Tabs>
@@ -107,4 +107,4 @@ The Settings show it too, at the bottom of their left column.
 
 ## Next
 
-Try it with nothing set up: [`desk demo`](/desk/start/demo/). Or go straight to your own board: [Quick start](/desk/start/quick-start/).
+Try it with nothing set up: [`desk demo`](/start/demo/). Or go straight to your own board: [Quick start](/start/quick-start/).

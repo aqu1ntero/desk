@@ -9,7 +9,7 @@ description: Every desk subcommand and flag, including the ones desk only runs i
 |---|---|
 | `desk` | Opens the board. |
 | `desk --version`, `desk version` | Prints `desk <version>` and exits. |
-| `desk demo` | Opens a made-up board with nothing of yours read or written. See [The demo](/desk/start/demo/). |
+| `desk demo` | Opens a made-up board with nothing of yours read or written. See [The demo](/start/demo/). |
 | `desk peer …` | Talks to the infra Claude of a running desk. |
 | `desk servers import-asbru …` | Turns Ásbrú's SSH connections into a servers file. |
 | `desk mcp …` | Internal: the MCP server desk gives its Claude sessions. |
@@ -97,7 +97,7 @@ desk servers import-asbru -org ~/Work/Acme -group Prod   # add Prod's hosts to A
 desk servers import-asbru > ssh_config                   # or just print the file
 ```
 
-It reports on stderr the hosts it skipped (`skipped …`) and how many it added (`N servers added to …`). Passwords are never imported. Close Ásbrú first: it writes its file when it closes. More in [Import from Ásbrú](/desk/servers/asbru/).
+It reports on stderr the hosts it skipped (`skipped …`) and how many it added (`N servers added to …`). Passwords are never imported. Close Ásbrú first: it writes its file when it closes. More in [Import from Ásbrú](/servers/asbru/).
 
 ## Internal commands
 

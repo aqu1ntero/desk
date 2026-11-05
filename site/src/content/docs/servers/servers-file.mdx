@@ -25,11 +25,11 @@ file = "infra/ssh_config"   # relative to the organization's folder; ~/ works to
 
 desk reads the file at start. To read it again after you edit it, click **Reload** next to
 Organizations in the sidebar, or pick **reload config** in the
-[palette](/desk/servers/palette/). There is no file watcher.
+[palette](/servers/palette/). There is no file watcher.
 
 Every tab of an organization with a servers file works in `<Org>/.desk/infra/`: that's its
 Claude's working directory, where its `runbooks/` and `CLAUDE.md` live. desk makes the folder
-if it's missing (and moves an older `<Org>/Infra-Claude/` there, once). See [The infra Claude](/desk/servers/infra-claude/#its-folder).
+if it's missing (and moves an older `<Org>/Infra-Claude/` there, once). See [The infra Claude](/servers/infra-claude/#its-folder).
 
 ## An annotated example
 
@@ -142,9 +142,9 @@ so it can pick the right one when you say "the proxy":
 ### `vault`, `password` and `password-raw`
 
 These give desk the server's password. desk types it into ssh's password prompt, and into a
-`sudo` prompt when you ask (see [Panes](/desk/servers/panes/#sudo-passwords)).
+`sudo` prompt when you ask (see [Panes](/servers/panes/#sudo-passwords)).
 
-- `#@ vault NAME` picks which of the organization's [vaults](/desk/orgs/vaults/) to use: the
+- `#@ vault NAME` picks which of the organization's [vaults](/orgs/vaults/) to use: the
   `name` of one of its `[[vault]]` tables in `desk.toml`. Without one, desk uses the first
   `[[vault]]`.
 - `#@ password ITEM [FIELD]` is the vault item that holds the password, by id or name.
@@ -165,12 +165,12 @@ When the vault can't give the password, ssh's prompt shows why ("(vault: …)") 
 `#@ wol 52:54:00:12:34:56 10.0.0.255:9` sends a Wake-on-LAN packet to that MAC address every
 time a pane opens on the host, just before ssh connects. The broadcast address and port are
 optional: the default is `255.255.255.255:9`. desk doesn't wait for the machine to boot; if it
-isn't up yet, the pane's [connection box](/desk/servers/panes/#the-connection-box) lets you
+isn't up yet, the pane's [connection box](/servers/panes/#the-connection-box) lets you
 keep waiting or reconnect.
 
 ### `nagios`
 
-The host's name in the organization's [Nagios](/desk/orgs/alerts/). An alert on that name turns
+The host's name in the organization's [Nagios](/orgs/alerts/). An alert on that name turns
 the host's dot red. Without `nagios`, an alert matches the host by its alias, its `HostName`, or
 a name that starts with the alias and a dot (`web1.example.com` for `web1`). With it, only that
 name matches.
@@ -245,11 +245,11 @@ ssh -o ControlMaster=auto -o ControlPath=$XDG_RUNTIME_DIR/desk/ssh-%C -o Control
 ```
 
 - **ControlMaster**: every pane of a server shares one connection, so a second pane opens at
-  once, and the [directory split](/desk/servers/palette/#files) and port forwards ride on it.
+  once, and the [directory split](/servers/palette/#files) and port forwards ride on it.
 - **ServerAliveInterval**: ssh notices a dead link within about 45 seconds, and desk
-  [reconnects](/desk/servers/panes/#reconnecting). desk leaves it out when your file mentions
+  [reconnects](/servers/panes/#reconnecting). desk leaves it out when your file mentions
   `ServerAliveInterval` anywhere.
-- After you [accept a changed host key](/desk/servers/host-keys/), the next connection adds
+- After you [accept a changed host key](/servers/host-keys/), the next connection adds
   `-o StrictHostKeyChecking=accept-new`, once.
 
 The palette's **copy ssh command** gives you this command for the focused server, to run in
@@ -261,5 +261,5 @@ An organization with no servers file has no servers. The servers file is the onl
 reads them from: the older `<Org>/Infra-Claude/<group>/` folders (with their `ssh_config`,
 `hosts` or `hosts.sh`) are no longer read, so move their hosts into the servers file.
 
-Coming from Ásbrú Connection Manager? [Import its connections](/desk/servers/asbru/) into the
+Coming from Ásbrú Connection Manager? [Import its connections](/servers/asbru/) into the
 file.

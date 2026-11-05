@@ -16,9 +16,9 @@ see what needs you without opening anything.
 
 ## Add links
 
-- Type a URL or a ticket key in the [new card dialog](/desk/cards/new-card/#smart-words), or in its **Links** field.
-- In the card's [editor](/desk/cards/editing/) (<kbd>E</kbd>), add it to the **Links** field, one per line. Delete a line to remove that link.
-- [Improve with Claude](/desk/cards/optimize/) adds the tickets and pull requests it finds.
+- Type a URL or a ticket key in the [new card dialog](/cards/new-card/#smart-words), or in its **Links** field.
+- In the card's [editor](/cards/editing/) (<kbd>E</kbd>), add it to the **Links** field, one per line. Delete a line to remove that link.
+- [Improve with Claude](/cards/optimize/) adds the tickets and pull requests it finds.
 - The card's session adds the ones it makes: when Claude opens a pull request, it attaches it to the card.
 
 ## Kinds
@@ -55,7 +55,7 @@ Each link shows its state next to its reference, in a color that says how it's g
 | Purple | done | `merged`, a closed issue, a Jira issue in a done status |
 
 An open pull or merge request adds its CI: "approved — merge · CI failed". A failed CI turns
-the chip red whatever the review says. Its runs are in the organization's [CI view](/desk/orgs/ci/).
+the chip red whatever the review says. Its runs are in the organization's [CI view](/orgs/ci/).
 
 ![DESK-3's session panel beside the board, listing its five links and an artifact](../../../assets/shots/cards-links-panel.png)
 
@@ -66,7 +66,7 @@ the chip red whatever the review says. Its runs are in the organization's [CI vi
 <figcaption>In the session panel, every link shows. Click one to open it in your browser.</figcaption>
 </figure>
 
-The sidebar's [Links views](/desk/board/sidebar/#links) gather cards by these states:
+The sidebar's [Links views](/board/sidebar/#links) gather cards by these states:
 waiting on review, ready to merge, changes requested or CI failed, and open tickets.
 
 ### When it's refreshed
@@ -82,13 +82,13 @@ organization has no account (with a token) for its host and owner shows
 **no GitHub account** (or GitLab, Bitbucket) and is never fetched. Its CI stays out
 of the CI view too. Anonymous calls would see no private repositories, and run out fast.
 
-Add the account in [Settings](/desk/orgs/settings/), or by hand in `desk.toml`.
-See [Accounts](/desk/orgs/accounts/).
+Add the account in [Settings](/orgs/settings/), or by hand in `desk.toml`.
+See [Accounts](/orgs/accounts/).
 
 Other states you may see:
 
 - **locked: unlock _vault_**: the account's token is in a password vault that's still locked.
-  The toolbar shows **Unlock _vault_**. See [Vaults](/desk/orgs/vaults/).
+  The toolbar shows **Unlock _vault_**. See [Vaults](/orgs/vaults/).
 - **⚠ _the error_**: the provider answered with an error, shown in red.
 
 ## Tickets follow their card
@@ -102,7 +102,7 @@ When a card moves to another column, its Jira and GitHub issues move to match:
 
 A toast says where each one went ("ABC-131 → In Review"). When desk starts, and
 every 3 minutes, it moves back any ticket that drifted from its card's column.
-An account with `sync = false` is left out. See [desk.toml](/desk/reference/desk-toml/).
+An account with `sync = false` is left out. See [desk.toml](/reference/desk-toml/).
 
 ## Artifacts
 

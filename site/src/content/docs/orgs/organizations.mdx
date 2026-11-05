@@ -32,7 +32,7 @@ subfolder there is an organization, named after its folder:
 
 Folders whose name starts with `.` or `_` are left out. You can change all of this in
 **Settings → General**: search other folders, go deeper or shallower, and decide which folders
-count. See [Settings](/desk/orgs/settings/#search-folders).
+count. See [Settings](/orgs/settings/#search-folders).
 
 - **Search folders**: any number, searched top to bottom. When two folders give the same name,
   the higher one wins.
@@ -103,14 +103,14 @@ A card runs in `<Org>/<folder>` (the folder you pick on the card), or in the org
 folder. When it runs in a subfolder, desk also adds the organization's folder to the session with
 `--add-dir`, so the organization's `.claude/skills` load in every one of its sessions.
 
-The organization's `desk.toml` (`<Org>/.desk/desk.toml`, see [Files](/desk/reference/files/)) also holds:
+The organization's `desk.toml` (`<Org>/.desk/desk.toml`, see [Files](/reference/files/)) also holds:
 
 - its accounts (GitHub, Jira, Bitbucket, GitLab, Nagios) and vaults: see
-  [Accounts](/desk/orgs/accounts/) and [Vaults](/desk/orgs/vaults/);
+  [Accounts](/orgs/accounts/) and [Vaults](/orgs/vaults/);
 - `agent` and `agents`: the Claude Code agent new cards run as;
-- `[servers]`: its servers file, for the [infra workspace](/desk/servers/overview/).
+- `[servers]`: its servers file, for the [infra workspace](/servers/overview/).
 
-The [desk.toml reference](/desk/reference/desk-toml/) lists every key.
+The [desk.toml reference](/reference/desk-toml/) lists every key.
 
 ## Reload
 

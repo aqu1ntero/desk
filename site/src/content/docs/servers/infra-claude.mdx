@@ -21,7 +21,7 @@ gets you there) and press **↵**. **⇧↵** starts a new line.
 <figcaption>The composer. Chips above the field show what goes with your question.</figcaption>
 </figure>
 
-- Write `#3` or "the last 2" to send those [command blocks](/desk/servers/panes/#command-blocks)
+- Write `#3` or "the last 2" to send those [command blocks](/servers/panes/#command-blocks)
   with your question. Pinned blocks show as chips; a click unpins one.
 - The **□ screen** chip sends a snapshot of the screen too.
 - While Claude works, the send button becomes a stop button. **↵** still queues your next
@@ -52,11 +52,11 @@ desk's tools, in your panes:
 | `connect` | Opens a pane on a server of the organization and waits for its shell. |
 | `split` | Opens another pane on the same server. |
 | `close_pane` | Closes a pane it opened. Yours stay. |
-| `hosts` | Lists the organization's servers, with their [`desc` and `tags`](/desk/servers/servers-file/#desc-and-tags). |
+| `hosts` | Lists the organization's servers, with their [`desc` and `tags`](/servers/servers-file/#desc-and-tags). |
 | `changes` | What changed on a server in the last hours: packages, `/etc`, services, logins, reboots, containers. Read-only. |
 | `note` | Saves a fact about a server for next time. See [Notes](#notes). |
 | `save_runbook` | Saves a procedure as a [runbook](#runbooks). |
-| `ask_peer`, `task_done`, `message_card`, `create_card` | Talk to the cards that hand it work. See [Cards and servers](/desk/servers/cards/). |
+| `ask_peer`, `task_done`, `message_card`, `create_card` | Talk to the cards that hand it work. See [Cards and servers](/servers/cards/). |
 | `nagios` | The organization's Nagios: hosts, services, alerts. Only with a `[[nagios]]`. |
 | `metrics` | PromQL queries on the organization's Prometheus or VictoriaMetrics. Only with a `[[metrics]]`. |
 | `secrets_search`, `secret_get` | Find and read an item in the organization's vault. Only with a `[[vault]]`; reading always asks you. |
@@ -141,7 +141,7 @@ deny  = ["reboot*", "* --force*"]                   # always ask, even if marked
 
 ## Its folder
 
-Every tab of an organization with a [servers file](/desk/servers/servers-file/) runs its Claude
+Every tab of an organization with a [servers file](/servers/servers-file/) runs its Claude
 in `<Org>/.desk/infra/`, for example `~/Work/Globex/.desk/infra/`. An `<Org>/Infra-Claude/`
 from an older desk moves there by itself the first time.
 
@@ -171,7 +171,7 @@ When /var fills up on a web server.
 
 - The first `# ` heading is its title (else the file name).
 - `{{name}}` is a parameter Claude asks you for; `{{name|default}}` has a default.
-- Run one from the [palette](/desk/servers/palette/#runbooks): Claude follows it, asks for
+- Run one from the [palette](/servers/palette/#runbooks): Claude follows it, asks for
   missing parameters, runs each `sh` step (writes still wait for you) and stops if a step fails.
 - Claude can write one with `save_runbook` when you ask it to keep a procedure. It never
   overwrites a file: a second "rotate-billing-logs" becomes `rotate-billing-logs-2.md`.
@@ -246,12 +246,12 @@ token_env = "VM_TOKEN"            # or user + a vault item, token, token_cmd
 - `type` is `prometheus` or `victoriametrics`. With `user`, it uses basic auth; otherwise the
   secret is a bearer token. `insecure_tls = true` skips certificate checks.
 - The secret comes from the same keys as the organization's accounts: `vault` + `item`
-  (+ `field`), `token`, `token_env` or `token_cmd`. See [Vaults](/desk/orgs/vaults/).
+  (+ `field`), `token`, `token_env` or `token_cmd`. See [Vaults](/orgs/vaults/).
 - desk itself doesn't draw metrics: they're for Claude.
 
 With a `[[nagios]]` table, Claude gets the `nagios` tool, and with `alerts = true` desk polls it
 every minute: new problems notify you, color the server's dot red, and show as
-**investigate …** items in the palette. See [Alerts](/desk/orgs/alerts/).
+**investigate …** items in the palette. See [Alerts](/orgs/alerts/).
 
 ## Model and account
 
