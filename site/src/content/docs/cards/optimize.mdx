@@ -29,14 +29,15 @@ organization's code and tickets and writes the card for you to look over. It's o
 <figcaption>Improve with Claude, in the dialog's footer.</figcaption>
 </figure>
 
-It needs an organization (it works in that organization's folder) and some text
-in What to do. Without them, a toast says what's missing.
+It needs an organization and some text in What to do. It works where the session will: in the
+Folder you picked, or in the organization's folder when there's none. Without them, a toast says what's missing.
 
 ## What it does
 
-The latest Haiku runs as Claude Code in the organization's folder, under the
-organization's Claude account. It reads the folder's `CLAUDE.md` files and its code,
-and changes nothing. It sees the skills, plugins, subagents and MCP tools the
+The latest Haiku runs as Claude Code in the session's folder (the Folder you picked, else the
+organization's), under the organization's Claude account. With a Folder picked, it reviews only
+what's in that folder, and the organization's own skills still load. It reads the `CLAUDE.md`
+files and the code, and changes nothing. Without a Folder, it may suggest one. It sees the skills, plugins, subagents and MCP tools the
 organization's sessions have, and has the session start with the ones that fit.
 
 Tickets and pull requests your request names are read first, through the

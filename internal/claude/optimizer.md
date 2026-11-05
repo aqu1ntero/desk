@@ -39,6 +39,6 @@ Write the brief as the session's instructions, not as a report on your own work:
 - tools: the capabilities recommended in "Start with", each with its kind, its exact name as listed (no leading slash), and how and why the session uses it. Kind is skill for anything in the skill list (even when it is invoked as /name), agent for a subagent, mcp for an mcp__ tool, command for a built-in slash command. Empty when none fit.
 - labels: 1 to 4 lowercase tags; reuse the board's labels when they fit.
 - priority: none, low, medium or high, from what the request says (urgency, deadlines, blockers, production). Default none.
-- folder: the one of the organization's folders the work belongs in, exactly as listed, or "" for the organization's root.
+- folder: the one of the organization's folders the work belongs in, exactly as listed, or "" for the organization's root. When the user picked the folder (a "Folder:" line instead of "Its folders:"), the work is in that folder, your current one: read it and nothing outside it unless the request says so, and return that folder.
 - links: the URLs and ticket keys the user's request itself mentions, as written; not the ones inside linked items (those stay in the prompt's Context).
 - due: YYYY-MM-DD when the request names a date or deadline (resolve "Friday" from today), else "".

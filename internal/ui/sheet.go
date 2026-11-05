@@ -37,6 +37,7 @@ type sheet struct {
 	opened                    bool           // focus the title on the first frame
 	dirsOf                    string         // the folder dirs lists
 	dirs                      []string       // its subfolders, for the browser
+	dirKey, dirAt, dirQ       string         // dirQuery's last answer, for org + "\x00" + the field's text
 	list                      layout.List    // the body's scroll
 	focus                     *widget.Editor // the field focused last frame
 	act                       func()         // a footer button's action, run after the frame's dialog
@@ -330,6 +331,14 @@ func (u *ui) sheet(gtx layout.Context) {
 					s.dir.SetText("")
 					continue
 				}
+				if e == &s.dir {
+					if dir, q, m := u.dirChoices(s, strings.TrimSpace(s.org.Text())); q != "" && len(m) > 0 {
+						t := path.Join(dir, m[0]) // enter in the folder filter takes its first match too
+						s.dir.SetText(t)
+						s.dir.SetCaret(len(t), len(t))
+						continue
+					}
+				}
 				u.commit()
 				if u.edit == nil {
 					return
@@ -444,6 +453,44 @@ func (u *ui) choice(gtx layout.Context, id string, names []string, cur int, tint
 	return kit.Wrap(gtx, 4, kids)
 }
 
+// dirChoices is the folder the picker is in, the filter typed, and the
+// subfolders it lists: the filter's matches, best first; none once a folder
+// is picked, until a "/" after it asks for them.
+func (u *ui) dirChoices(s *sheet, org string) (dir, q string, dirs []string) {
+	dir, q = u.dirQuery(s, org)
+	if at := orgs.Dir(u.root, org, dir); s.dirsOf != at { // read a folder once, not every frame
+		s.dirsOf, s.dirs = at, nil
+		ents, _ := os.ReadDir(at)
+		for _, e := range ents {
+			nest := slices.ContainsFunc(u.orgList, func(o string) bool { return orgs.Dir(u.root, o, "") == filepath.Join(at, e.Name()) })
+			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") && !nest { // a nested org is picked as itself
+				s.dirs = append(s.dirs, e.Name())
+			}
+		}
+	}
+	if dir != "" && q == "" && !strings.HasSuffix(strings.TrimSpace(s.dir.Text()), "/") {
+		return dir, q, nil
+	}
+	return dir, q, fzf.Sort(q, s.dirs, func(d string) string { return d })
+}
+
+// dirQuery splits the folder field: a folder inside org that exists is
+// itself with no query; otherwise its last part is a filter over its
+// parent's subfolders ("ca" finds car_platform, "web/ap" api inside web).
+// It stats the disk only when the field or the org changed, not every frame.
+func (u *ui) dirQuery(s *sheet, org string) (dir, q string) {
+	text := s.dir.Text()
+	if key := org + "\x00" + text; key != s.dirKey {
+		s.dirKey, s.dirAt, s.dirQ = key, strings.Trim(strings.TrimSpace(text), "/"), ""
+		if fi, err := os.Stat(orgs.Dir(u.root, org, s.dirAt)); s.dirAt != "" && (err != nil || !fi.IsDir()) {
+			if s.dirAt, s.dirQ = path.Dir(s.dirAt), path.Base(s.dirAt); s.dirAt == "." {
+				s.dirAt = ""
+			}
+		}
+	}
+	return s.dirAt, s.dirQ
+}
+
 // orgMatches is the organizations matching search q (fzf's), best first.
 func (u *ui) orgMatches(q string) []string {
 	return fzf.Sort(q, u.orgList, func(o string) string { return o })
@@ -481,17 +528,7 @@ func (u *ui) placePicker(gtx layout.Context, s *sheet) layout.Dimensions {
 		}
 		return layout.Inset{Top: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 4, ws) })
 	}
-	dir := strings.Trim(strings.TrimSpace(s.dir.Text()), "/")
-	if at := orgs.Dir(u.root, org, dir); s.dirsOf != at { // read a folder once, not every frame
-		s.dirsOf, s.dirs = at, nil
-		ents, _ := os.ReadDir(at)
-		for _, e := range ents {
-			nest := slices.ContainsFunc(u.orgList, func(o string) bool { return orgs.Dir(u.root, o, "") == filepath.Join(at, e.Name()) })
-			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") && !nest { // a nested org is picked as itself
-				s.dirs = append(s.dirs, e.Name())
-			}
-		}
-	}
+	dir, q, dirs := u.dirChoices(s, org)
 	var ws []layout.Widget
 	if dir != "" {
 		ws = append(ws, chip("dirUp", "↑ up", kit.CAccText, func() {
@@ -502,14 +539,23 @@ func (u *ui) placePicker(gtx layout.Context, s *sheet) layout.Dimensions {
 			}
 		}))
 	}
-	for n, d := range s.dirs {
+	for n, d := range dirs {
 		if n == 40 { // ponytail: a long folder is typed into the field rather than clicked
 			ws = append(ws, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: 3}.Layout(gtx, k.Lbl(fmt.Sprintf("+%d more: type the name", len(s.dirs)-40), 11, kit.CText3, kit.Sans))
+				return layout.Inset{Top: 3}.Layout(gtx, k.Lbl(fmt.Sprintf("+%d more: type the name", len(dirs)-40), 11, kit.CText3, kit.Sans))
 			})
 			break
 		}
-		ws = append(ws, chip("dir"+d, d+"/", kit.CText2, func() { s.dir.SetText(path.Join(dir, d)) }))
+		fg := kit.CText2
+		if n == 0 && q != "" {
+			fg = kit.CAccText // what enter takes
+		}
+		ws = append(ws, chip("dir"+d, d+"/", fg, func() { s.dir.SetText(path.Join(dir, d)) }))
+	}
+	if q != "" && len(dirs) == 0 {
+		ws = append(ws, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: 3}.Layout(gtx, k.Lbl("No folder like "+q+" here", 11, kit.CRed, kit.Sans))
+		})
 	}
 	where := strings.Replace(s.dirsOf, u.home, "~", 1)
 	return layout.Inset{Top: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

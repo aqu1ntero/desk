@@ -400,6 +400,18 @@ func TestOptimize(t *testing.T) {
 	if b, _ := os.ReadFile(args); strings.Contains(string(b), "Write the title and the prompt in") {
 		t.Fatalf("a language unasked: %s", b)
 	}
+	if b, _ := os.ReadFile(args); !strings.Contains(string(b), "\nIts folders: ") || strings.Contains(string(b), "--add-dir") {
+		t.Fatalf("no folder picked: %s", b)
+	}
+	root := t.TempDir()
+	a2 := a
+	a2.Root, a2.Dir, a2.Folder, a2.Folders = root, filepath.Join(root, "car_platform"), "car_platform", nil
+	os.Mkdir(a2.Dir, 0o755)
+	Optimize(context.Background(), a2, nil)
+	if b, _ := os.ReadFile(args); !strings.Contains(string(b), "Folder: car_platform (picked by the user") || strings.Contains(string(b), "\nIts folders:") ||
+		!strings.Contains(string(b), "--add-dir="+root+" ") {
+		t.Fatalf("a folder picked: %s", b)
+	}
 	a.Linked, a.Lang = []string{"ABC-123: login broken"}, "Spanish"
 	Optimize(context.Background(), a, nil)
 	if b, _ := os.ReadFile(args); !strings.Contains(string(b), "Linked items, as") || !strings.Contains(string(b), "ABC-123: login broken") || !strings.Contains(string(b), "the prompt in Spanish") {

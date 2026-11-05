@@ -51,10 +51,16 @@ func (u *ui) optimizeCard() {
 		return
 	}
 	var folders, labels []string
-	ents, _ := os.ReadDir(orgs.Dir(u.root, org, ""))
-	for _, e := range ents {
-		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
-			folders = append(folders, e.Name())
+	dir := strings.Trim(strings.TrimSpace(s.dir.Text()), "/")
+	if fi, err := os.Stat(orgs.Dir(u.root, org, dir)); dir != "" && (err != nil || !fi.IsDir()) {
+		dir = "" // not a folder (yet): Improve picks one
+	}
+	if dir == "" {
+		ents, _ := os.ReadDir(orgs.Dir(u.root, org, ""))
+		for _, e := range ents {
+			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+				folders = append(folders, e.Name())
+			}
 		}
 	}
 	for _, c := range u.boardCards() {
@@ -64,7 +70,7 @@ func (u *ui) optimizeCard() {
 			}
 		}
 	}
-	ask := claude.Ask{Home: u.home, Account: orgs.Account(u.root, org), Org: org, Dir: orgs.Dir(u.root, org, ""), Request: req,
+	ask := claude.Ask{Home: u.home, Account: orgs.Account(u.root, org), Org: org, Dir: orgs.Dir(u.root, org, dir), Root: orgs.Dir(u.root, org, ""), Folder: dir, Request: req,
 		Folders: folders, Labels: labels, Today: time.Now().Format(kanban.DateLayout), Lang: strings.TrimSpace(s.lang.Text())}
 	cfg := u.orgConfig(org)
 	var ls []kanban.Link

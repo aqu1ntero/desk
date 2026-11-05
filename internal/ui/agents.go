@@ -31,7 +31,7 @@ func (u *ui) agentsDir(org string, cfg orgs.Config) string {
 func (u *ui) agentArgs(c *kanban.Card) ([]string, error) {
 	var args []string
 	if strings.Contains(c.Notes, u.imagesDir()) { // outside where it works: Claude may read them
-		args = []string{"--add-dir", u.imagesDir()}
+		args = []string{"--add-dir=" + u.imagesDir()} // = form: one value, never the prompt after it
 	}
 	mcp, allow := infra.CardMCP(u.cardSock, c.ID)
 	if mcp != "" {

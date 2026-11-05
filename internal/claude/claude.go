@@ -326,7 +326,7 @@ func addRoot(dir, root string) []string {
 	if root == "" || filepath.Clean(dir) == filepath.Clean(root) {
 		return nil
 	}
-	return []string{"--add-dir", root}
+	return []string{"--add-dir=" + root} // = form: the flag is variadic and would swallow a prompt after it
 }
 
 // Options start a session.

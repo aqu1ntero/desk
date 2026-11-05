@@ -37,7 +37,9 @@ type Tool struct {
 // Ask is what Optimize works from.
 type Ask struct {
 	Home, Account string // whose Claude: its skills, plugins and MCP servers are what the session will have
-	Org, Dir      string // the organization and its folder, where Claude reads (CLAUDE.md, code)
+	Org, Dir      string // the organization and the folder the session starts in, where Claude reads (CLAUDE.md, code)
+	Root          string // the organization's folder, added with --add-dir when Dir is inside it (its skills)
+	Folder        string // the folder inside the org the user picked, "" none: then Folders are to pick from
 	Request       string
 	Folders       []string // the org's folders, to pick from
 	Labels        []string // labels already on the board, to reuse
@@ -78,17 +80,22 @@ type Progress struct {
 // read files and load skills' instructions: dontAsk denies the rest.
 // on, when not nil, hears its progress as it streams.
 func Optimize(ctx context.Context, a Ask, on func(Progress)) (Draft, error) {
-	in := fmt.Sprintf("Organization: %s\nToday: %s (%s)\nIts folders: %s\nLabels on the board: %s\n\nRequest:\n%s\n",
-		a.Org, a.Today, weekday(a.Today), strings.Join(a.Folders, ", "), strings.Join(a.Labels, ", "), a.Request)
+	where := "Its folders: " + strings.Join(a.Folders, ", ")
+	if a.Folder != "" { // the user's pick: the work is there, not in a folder elsewhere with a similar name
+		where = "Folder: " + a.Folder + " (picked by the user: the session runs in it, your current folder; the request is about what is in it)"
+	}
+	in := fmt.Sprintf("Organization: %s\nToday: %s (%s)\n%s\nLabels on the board: %s\n\nRequest:\n%s\n",
+		a.Org, a.Today, weekday(a.Today), where, strings.Join(a.Labels, ", "), a.Request)
 	if len(a.Linked) > 0 {
 		in += "\nLinked items, as their trackers say now:\n\n" + strings.Join(a.Linked, "\n\n---\n\n")
 	}
 	if a.Lang != "" {
 		in += "\nWrite the title and the prompt in " + a.Lang + ", whatever language the request is in.\n"
 	}
-	c, err := Command(a.Home, a.Account, "-p", "--model", "haiku", "--effort", "high", "--output-format", "stream-json", "--verbose",
+	args := append([]string{"-p", "--model", "haiku", "--effort", "high", "--output-format", "stream-json", "--verbose",
 		"--include-partial-messages", "--json-schema", draftSchema, "--permission-mode", "dontAsk", "--allowedTools", "Read,Glob,Grep,Skill",
-		"--no-session-persistence", "--append-system-prompt", optimizer, in)
+		"--no-session-persistence", "--append-system-prompt", optimizer}, addRoot(a.Dir, a.Root)...)
+	c, err := Command(a.Home, a.Account, append(args, in)...)
 	if err != nil {
 		return Draft{}, err
 	}

@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1528,6 +1529,7 @@ func TestCoverPlacePicker(t *testing.T) {
 		t.Fatalf("org %q", s.org.Text())
 	}
 	h.clickIn(sz, all, w, "dirapi")
+	s.dir.SetText("api/") // its subfolders, asked for
 	h.clickIn(sz, all, w, "dirv2")
 	if s.dir.Text() != "api/v2" {
 		t.Fatalf("dir %q", s.dir.Text())
@@ -1551,6 +1553,66 @@ func TestCoverPlacePicker(t *testing.T) {
 	h.draw(sz, w)
 	if len(s.dirs) != 41 {
 		t.Fatalf("%d folders", len(s.dirs))
+	}
+}
+
+// TestFolderFilter: the folder field filters its parent's subfolders by
+// what's typed after the last "/"; a picked folder lists nothing until a "/"
+// follows it (enter's first match: TestDialogTab).
+func TestFolderFilter(t *testing.T) {
+	h := newHarness(t)
+	for _, d := range []string{"car_platform/logs", "cache", "web/api", "web/app"} {
+		os.MkdirAll(filepath.Join(h.u.root, "Acme", d), 0o755)
+	}
+	h.u.newCard(0)
+	s := h.u.edit
+	s.org.SetText("Acme")
+	for text, want := range map[string]string{
+		"":              "api cache car_platform web",
+		"ca":            "cache car_platform",
+		"car":           "car_platform",
+		"car_platform":  "",
+		"car_platform/": "logs",
+		"web/ap":        "api app",
+		"/web/":         "api app",
+		"zz":            "",
+	} {
+		s.dir.SetText(text)
+		_, _, dirs := h.u.dirChoices(s, "Acme")
+		slices.Sort(dirs)
+		if got := strings.Join(dirs, " "); got != want {
+			t.Errorf("%q lists %q, want %q", text, got, want)
+		}
+	}
+	s.dir.SetText("web/ap")
+	if dir, q, _ := h.u.dirChoices(s, "Acme"); dir != "web" || q != "ap" {
+		t.Errorf("web/ap: in %q, filter %q", dir, q)
+	}
+}
+
+// TestOptimizeInFolder: Improve runs where the session will, in the folder
+// picked (with the org's folder for its skills), and offers the org's folders
+// only when none is picked or what's typed isn't one.
+func TestOptimizeInFolder(t *testing.T) {
+	h := newHarness(t)
+	asks := make(chan claude.Ask, 3)
+	optimize = func(_ context.Context, a claude.Ask, _ func(claude.Progress)) (claude.Draft, error) {
+		asks <- a
+		return claude.Draft{}, nil
+	}
+	h.u.newCard(0)
+	s := h.u.edit
+	s.org.SetText("Acme")
+	s.title.SetText("Review the web app")
+	root := orgs.Dir(h.u.root, "Acme", "")
+	for _, c := range []struct{ typed, folder, dir string }{{"api", "api", filepath.Join(root, "api")}, {"", "", root}, {"ap", "", root}} {
+		s.dir.SetText(c.typed)
+		h.u.optimizeCard()
+		a := <-asks
+		h.pumpUntil("the draft", func() bool { return s.optStop == nil })
+		if a.Folder != c.folder || a.Dir != c.dir || a.Root != root || (c.folder == "") != slices.Contains(a.Folders, "api") {
+			t.Errorf("folder %q: asked in %q (root %q) for %q, folders %v", c.typed, a.Dir, a.Root, a.Folder, a.Folders)
+		}
 	}
 }
 

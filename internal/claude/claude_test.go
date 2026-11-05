@@ -138,7 +138,7 @@ func TestExplanation(t *testing.T) {
 // TestAddRoot: a session in a folder inside its organization adds the
 // organization's folder, whose .claude/skills Claude Code wouldn't load.
 func TestAddRoot(t *testing.T) {
-	if a := addRoot("/w/Org/app", "/w/Org"); !slices.Equal(a, []string{"--add-dir", "/w/Org"}) {
+	if a := addRoot("/w/Org/app", "/w/Org"); !slices.Equal(a, []string{"--add-dir=/w/Org"}) {
 		t.Fatalf("subfolder: %q", a)
 	}
 	if a := addRoot("/w/Org/", "/w/Org"); a != nil {
@@ -148,7 +148,7 @@ func TestAddRoot(t *testing.T) {
 	os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\n"), 0o755)
 	t.Setenv("PATH", bin)
 	c, err := Interactive(t.TempDir(), "", "/w/Org/app", "/w/Org", "id1", "sys")
-	if err != nil || !strings.Contains(strings.Join(c.Args, " "), "--add-dir /w/Org") {
+	if err != nil || !strings.Contains(strings.Join(c.Args, " "), "--add-dir=/w/Org") {
 		t.Fatalf("%v %q", err, c.Args)
 	}
 }

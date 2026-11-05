@@ -399,7 +399,16 @@ func TestDialogTab(t *testing.T) {
 	if h.u.edit == nil || s.org.Text() != "Globex" {
 		t.Fatalf("enter in the filter: dialog open %v, org %q", h.u.edit != nil, s.org.Text())
 	}
-	h.clickButton("pillmore")                      // the other fields
+	h.clickButton("pillmore") // the other fields
+	s.org.SetText("Acme")
+	for n := 0; n < 20 && s.focus != &s.dir; n++ {
+		tab(1)
+	}
+	h.send(key.EditEvent{Text: "ap"})
+	h.send(press(key.NameReturn, 0))
+	if h.u.edit == nil || s.dir.Text() != "api" {
+		t.Fatalf("enter in the folder filter: dialog open %v, folder %q", h.u.edit != nil, s.dir.Text())
+	}
 	for n := 0; n < 20 && s.focus != &s.due; n++ { // on past the folder, its chips, links, labels
 		tab(1)
 	}
@@ -408,6 +417,14 @@ func TestDialogTab(t *testing.T) {
 	}
 	if p := s.list.Position; p.First == 0 && p.Offset == 0 {
 		t.Fatalf("the due date's section was not scrolled into view: %+v", p)
+	}
+	s.notes.SetText("Call the bank")
+	s.dir.SetText("") // no filter: enter saves, it doesn't pick the first folder
+	h.r.Source().Execute(key.FocusCmd{Tag: &s.dir})
+	h.frame()
+	h.send(press(key.NameReturn, 0))
+	if h.u.edit != nil || s.dir.Text() != "" {
+		t.Fatalf("enter in an empty folder field: dialog open %v, folder %q", h.u.edit != nil, s.dir.Text())
 	}
 }
 
@@ -1870,7 +1887,7 @@ func TestPasteImage(t *testing.T) {
 		t.Fatalf("optimized notes %q", n)
 	}
 	h.clickButton("shSave")
-	if len(h.claudes) != 1 || !slices.Contains(h.claudes[0].opts.Args, h.u.imagesDir()) || !strings.Contains(h.claudes[0].prompts[0], m[1]) {
+	if len(h.claudes) != 1 || !slices.Contains(h.claudes[0].opts.Args, "--add-dir="+h.u.imagesDir()) || !strings.Contains(h.claudes[0].prompts[0], m[1]) {
 		t.Fatalf("session args %q", h.claudes[0].opts.Args)
 	}
 	clipImage = func() ([]byte, string, error) { return nil, "", nil } // text: the editor's own paste, untouched
