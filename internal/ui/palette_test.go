@@ -3,8 +3,6 @@ package ui
 import (
 	"fmt"
 	"image"
-	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"testing"
@@ -333,9 +331,7 @@ func TestPaletteOpensHost(t *testing.T) {
 		t.Setenv(v, t.TempDir()) // never the user's infra session
 	}
 	h := newHarness(t)
-	g := filepath.Join(h.u.root, "Acme", "Infra-Claude", "web")
-	os.MkdirAll(g, 0o755)
-	os.WriteFile(filepath.Join(g, "hosts"), []byte("local\n"), 0o644)
+	localServer(t, h.u.root, "Acme")
 	h.u.infra = infra.New(h.u.root, func() {})
 	defer h.u.infra.Close()
 	for end := time.Now().Add(5 * time.Second); h.u.infraOrg("Acme") == nil && time.Now().Before(end); time.Sleep(20 * time.Millisecond) {

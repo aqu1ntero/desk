@@ -15,11 +15,11 @@ func write(t *testing.T, path, s string) {
 	}
 }
 
-// orgWith is a fresh org's Infra-Claude dir, its desk.toml holding toml.
+// orgWith is a fresh org's infra dir, its desk.toml holding toml.
 func orgWith(t *testing.T, toml string) string {
 	t.Helper()
 	infra := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(filepath.Dir(infra), "desk.toml"), toml)
+	write(t, filepath.Join(orgOfInfra(infra), "desk.toml"), toml)
 	return infra
 }
 
@@ -113,7 +113,7 @@ func TestServersTreeAndSSH(t *testing.T) {
 	t.Setenv("HOME", home)
 	root := filepath.Join(home, "Work")
 	org := filepath.Join(root, "Acme")
-	write(t, filepath.Join(root, "Globex", "Infra-Claude", "prod", "hosts"), "db1\n") // the old layout still reads
+	write(t, filepath.Join(root, "Globex", oldInfraDir, "prod", "hosts"), "db1\n") // the old layout: no servers
 	write(t, filepath.Join(org, "servers.conf"), `#@ vault pb
 #@ password "{host} / {user}"
 Host gw
@@ -143,11 +143,11 @@ Include ~/Work/Acme/.desk/servers-dynamic-lab.conf
 			t.Errorf("dir of %s: %s", n.host, n.dir)
 		}
 	}
-	if s := strings.Join(got, " "); s != "Acme >servers >>gw >eu/web >>web1 >eu/db >>db2 >lab >>pi Globex >prod >>db1" {
+	if s := strings.Join(got, " "); s != "Acme >servers >>gw >eu/web >>web1 >eu/db >>db2 >lab >>pi" {
 		t.Fatalf("tree: %s", s)
 	}
-	if !fileExists(infra) {
-		t.Error("Infra-Claude not created")
+	if !fileExists(infra) || fileExists(filepath.Join(root, "Globex", infraDir)) {
+		t.Error("the infra dir is made for orgs with a servers file only")
 	}
 	if tree[2].group != "servers" || !tree[6].pin || tree[6].desc != "primary" {
 		t.Errorf("nodes: %+v %+v", tree[2], tree[6])

@@ -552,7 +552,7 @@ func TestReloadOrgsAndBrokenConfigs(t *testing.T) {
 	os.MkdirAll(infra, 0o755)
 	toml := filepath.Join(root, "Acme", "desk.toml")
 	os.WriteFile(toml, []byte("[[vault]\n"), 0o644)
-	if _, err := orgAt(infra); err == nil || !strings.Contains(err.Error(), toml) {
+	if _, err := orgFor(infra); err == nil || !strings.Contains(err.Error(), toml) {
 		t.Fatalf("broken desk.toml: %v", err)
 	}
 	os.WriteFile(toml, []byte(`[[vault]]
@@ -566,7 +566,7 @@ name = "hv"
 kind = "hashicorp"
 mount = "kv"
 `), 0o644)
-	o, err := orgAt(infra)
+	o, err := orgFor(infra)
 	if err != nil {
 		t.Fatalf("a failed load must not be cached: %v", err)
 	}
@@ -574,18 +574,18 @@ mount = "kv"
 	if o.Vaults[0].desk != want || o.Vaults[0].Type != "passbolt" || o.Vaults[1].Type != "hashicorp" || o.Vaults[1].Mount != "kv" {
 		t.Errorf("vaults: %+v", o.Vaults)
 	}
-	if o2, _ := orgAt(infra); o2 != o {
+	if o2, _ := orgFor(infra); o2 != o {
 		t.Error("orgAt must cache")
 	}
 	reloadOrgs()
-	if o3, _ := orgAt(infra); o3 == o {
+	if o3, _ := orgFor(infra); o3 == o {
 		t.Error("reloadOrgs must drop the cache")
 	}
 
 	g := filepath.Join(root, "Globex", infraDir)
 	os.MkdirAll(g, 0o755)
 	os.WriteFile(filepath.Join(root, "Globex", "desk.toml"), []byte("record = [\n"), 0o644)
-	if _, err := orgAt(g); err == nil {
+	if _, err := orgFor(g); err == nil {
 		t.Error("a broken desk.toml must fail")
 	}
 	var nilOrg *orgConfig
@@ -808,29 +808,21 @@ func TestHostFileAndPasswordRef(t *testing.T) {
 	if r := passwordRef(infra, "ghost"); r != nil {
 		t.Errorf("unknown host has no ref: %+v", r)
 	}
-	g := filepath.Join(root, "Globex", infraDir, "eu")
-	write(t, filepath.Join(g, sshConfigFile), "Host a\n    #desk password pb item-a\nHost b\n")
-	if r := passwordRef(g, "a"); r == nil || r.Vault != "pb" || r.Item != "item-a" {
-		t.Errorf("old ref: %+v", r)
-	}
-	if passwordRef(g, "b") != nil || passwordRef(g, "zz") != nil {
-		t.Error("no password line, no ref")
-	}
-	if f := hostFile(g, "a"); f != filepath.Join(g, sshConfigFile) {
-		t.Errorf("old group: %s", f)
+	if passwordRef(filepath.Join(org, "src", "x"), "web1") != nil || passwordRef(filepath.Join(root, "Globex", infraDir), "web1") != nil {
+		t.Error("a dir that isn't an infra dir, or an org without a servers file: no ref")
 	}
 }
 
 func TestServerPasswordSources(t *testing.T) {
-	g := filepath.Join(t.TempDir(), "Acme", infraDir, "g")
-	if _, err := serverPassword(g, nil); err == nil || !strings.Contains(err.Error(), filepath.Join(g, sshConfigFile)) || !strings.Contains(err.Error(), "#@ password") {
+	g := filepath.Join(t.TempDir(), "Acme", infraDir)
+	if _, err := serverPassword(g, nil); err == nil || !strings.Contains(err.Error(), filepath.Join(orgOfInfra(g), serversFile)) || !strings.Contains(err.Error(), "#@ password") {
 		t.Errorf("nil ref: %v", err)
 	}
 	if pw, err := serverPassword(g, &SecretRef{Raw: "fake-raw"}); pw != "fake-raw" || err != nil {
 		t.Errorf("raw: %q %v", pw, err)
 	}
 	orgsMu.Lock()
-	orgs[filepath.Dir(g)] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
+	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
 		vaults: map[string]vault{"pb": fakeVault{"id1": {ID: "id1", Name: "srv", Password: "fake-s3cret"}}}}
 	orgsMu.Unlock()
 	if pw, err := serverPassword(g, &SecretRef{Vault: "pb", Item: "SRV", Field: "username"}); pw != "fake-s3cret" || err != nil {
@@ -843,16 +835,16 @@ func TestServerPasswordSources(t *testing.T) {
 		t.Error("missing item must fail")
 	}
 	bad := filepath.Join(t.TempDir(), "Globex", infraDir)
-	write(t, filepath.Join(filepath.Dir(bad), "desk.toml"), "[[nagios]\n")
-	if _, err := serverPassword(filepath.Join(bad, "g"), &SecretRef{Vault: "pb", Item: "x"}); err == nil {
+	write(t, filepath.Join(orgOfInfra(bad), "desk.toml"), "[[nagios]\n")
+	if _, err := serverPassword(bad, &SecretRef{Vault: "pb", Item: "x"}); err == nil {
 		t.Error("a broken org config must fail")
 	}
 }
 
 func TestAskpassSocketAndRemoteSh(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	dir := t.TempDir()
-	write(t, filepath.Join(dir, sshConfigFile), "Host web1\n    HostName 10.0.0.1\n    #desk password pb web1-item\n")
+	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
+	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web1\n    HostName 10.0.0.1\n    #@ vault pb\n    #@ password web1-item\n")
 	env, tgt := askpassEnv("web1", dir)
 	if askSock == "" || tgt == nil {
 		t.Skip("no askpass socket")
@@ -908,7 +900,7 @@ func TestAnswerAskPrompts(t *testing.T) {
 	askMu.Lock()
 	askTargets["lb-plain"] = &askTarget{name: "srv", dir: dir, term: tm}
 	askTargets["lb-raw"] = &askTarget{name: "srv", dir: dir, password: &SecretRef{Raw: "fake-raw"}}
-	askTargets["lb-vault"] = &askTarget{name: "srv", dir: filepath.Join(t.TempDir(), "Acme", infraDir, "g"), password: &SecretRef{Vault: "nope", Item: "x"}}
+	askTargets["lb-vault"] = &askTarget{name: "srv", dir: filepath.Join(t.TempDir(), "Acme", infraDir), password: &SecretRef{Vault: "nope", Item: "x"}}
 	askMu.Unlock()
 	t.Cleanup(func() {
 		askMu.Lock()
@@ -978,8 +970,8 @@ func TestPortForwardText(t *testing.T) {
 			t.Errorf("%q, want %q", s, want)
 		}
 	}
-	dir := t.TempDir()
-	write(t, filepath.Join(dir, sshConfigFile), "Host web1\n")
+	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
+	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web1\n")
 	a := portFwd{host: "web1", dir: dir, kind: "R", spec: "9000:localhost:3000"}.args("cancel")
 	tail := strings.Join(a[len(a)-5:], " ")
 	if tail != "-O cancel -R 9000:localhost:3000 web1" || strings.Count(strings.Join(a, " "), "web1") != 1 || a[len(a)-7] != "-F" {

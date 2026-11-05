@@ -95,32 +95,57 @@ type SecretRef struct {
 
 var (
 	orgsMu sync.Mutex
-	orgs   = map[string]*orgConfig{} // by Infra-Claude dir, shared by the org's tabs
+	orgs   = map[string]*orgConfig{} // by infra dir, shared by the org's tabs
 )
 
-// reloadOrgs drops the cached configs, so the next orgAt rereads them.
+// reloadOrgs drops the cached configs, so the next orgFor rereads them.
 func reloadOrgs() {
 	orgsMu.Lock()
 	orgs = map[string]*orgConfig{}
 	orgsMu.Unlock()
 }
 
-// orgFor loads (once) the config of the org owning a pane or tab dir: an old
-// group dir, or the org's Infra-Claude dir itself (every tab of an org with
-// a servers file works there). A missing file is an empty Org; a broken one
-// is an error.
-func orgFor(dir string) (*orgConfig, error) { return orgAt(infraOf(dir)) }
+// infraDir is where an org's infra lives inside its work folder, out of sight
+// beside the hosts-cmd cache: the dir of every tab and pane, the infra
+// Claude's working folder (its CLAUDE.md, runbooks). The org folder also
+// decides which Claude account runs (see claudeCmd).
+var infraDir = filepath.Join(".desk", "infra")
 
-// infraOf is the Infra-Claude dir of a pane or tab dir.
-func infraOf(dir string) string {
-	if filepath.Base(dir) == infraDir {
-		return dir
-	}
-	return filepath.Dir(dir)
+// oldInfraDir is where infraDir was before it moved (makeInfra, movedInfra).
+const oldInfraDir = "Infra-Claude"
+
+// orgOfInfra is the org folder of an infra dir.
+func orgOfInfra(dir string) string { return filepath.Dir(filepath.Dir(dir)) }
+
+// isInfraDir says dir is an org's infra dir.
+func isInfraDir(dir string) bool {
+	return filepath.Join(filepath.Base(filepath.Dir(dir)), filepath.Base(dir)) == infraDir
 }
 
-// orgAt is orgFor for the org's Infra-Claude dir itself.
-func orgAt(dir string) (*orgConfig, error) {
+// makeInfra creates org folder's infra dir and returns it. An old
+// <Org>/Infra-Claude moves there, once (its old group folders come along).
+func makeInfra(org string) string {
+	dir := filepath.Join(org, infraDir)
+	os.MkdirAll(filepath.Dir(dir), 0o755)
+	os.Rename(filepath.Join(org, oldInfraDir), dir) // changes nothing once dir exists (Go refuses an existing target) or without an old one
+	os.MkdirAll(dir, 0o755)
+	return dir
+}
+
+// movedInfra maps a dir saved before the move (<Org>/Infra-Claude or one of
+// its group dirs) to the org's infra dir; any other dir stays.
+func movedInfra(dir string) string {
+	for _, d := range []string{dir, filepath.Dir(dir)} {
+		if filepath.Base(d) == oldInfraDir {
+			return filepath.Join(filepath.Dir(d), infraDir)
+		}
+	}
+	return dir
+}
+
+// orgFor loads (once) the config of the org owning a pane or tab dir (the
+// org's infra dir). A missing file is an empty Org; a broken one is an error.
+func orgFor(dir string) (*orgConfig, error) {
 	orgsMu.Lock()
 	defer orgsMu.Unlock()
 	if o, ok := orgs[dir]; ok {
@@ -136,7 +161,7 @@ func orgAt(dir string) (*orgConfig, error) {
 
 // loadOrg reads the desk.toml next to dir (the org's work folder's).
 func loadOrg(dir string) (*orgConfig, error) {
-	work := filepath.Dir(dir)
+	work := orgOfInfra(dir)
 	c, err := deskorgs.Load(filepath.Dir(work), filepath.Base(work))
 	if err != nil {
 		return nil, err

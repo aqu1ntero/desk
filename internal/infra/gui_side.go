@@ -95,9 +95,6 @@ func (u *ui) openTab(n guiNode) int {
 // hostRow is host i's row: its status dot and what the right side says.
 func (u *ui) hostRow(i int, n guiNode) sideRow {
 	r := sideRow{i: i, kind: "host", label: n.Label, meta: n.Addr, dot: cIdle}
-	if r.meta == "" && n.Host != n.Label {
-		r.meta = n.Host // hosts files: the destination
-	}
 	if ti := u.openTab(n); ti >= 0 {
 		t := u.st.Tabs[ti]
 		r.open = true

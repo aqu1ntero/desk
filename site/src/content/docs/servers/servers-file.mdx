@@ -26,9 +26,9 @@ desk reads the file at start. To read it again after you edit it, click **Reload
 Organizations in the sidebar, or pick **reload config** in the
 [palette](/desk/servers/palette/). There is no file watcher.
 
-Every tab of an organization with a servers file works in `<Org>/Infra-Claude/`: that's its
+Every tab of an organization with a servers file works in `<Org>/.desk/infra/`: that's its
 Claude's working directory, where its `runbooks/` and `CLAUDE.md` live. desk makes the folder
-if it's missing. See [The infra Claude](/desk/servers/infra-claude/#its-folder).
+if it's missing (and moves an older `<Org>/Infra-Claude/` there, once). See [The infra Claude](/desk/servers/infra-claude/#its-folder).
 
 ## An annotated example
 
@@ -256,10 +256,9 @@ another terminal on the same shared connection.
 
 ## Without a servers file
 
-An organization with no servers file can still use the older layout: one folder per group in
-`<Org>/Infra-Claude/<group>/`, each with an `ssh_config` (with `#desk password <vault> <item>`
-and `#desk wol MAC [broadcast:port]` lines), a `hosts` file of `name destination` lines, or an
-executable `hosts.sh` that prints them. The servers file replaces it: prefer that.
+An organization with no servers file has no servers. The servers file is the only place desk
+reads them from: the older `<Org>/Infra-Claude/<group>/` folders (with their `ssh_config`,
+`hosts` or `hosts.sh`) are no longer read, so move their hosts into the servers file.
 
 Coming from Ásbrú Connection Manager? [Import its connections](/desk/servers/asbru/) into the
 file.

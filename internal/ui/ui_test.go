@@ -955,7 +955,17 @@ func TestAlertsView(t *testing.T) {
 	h.frame() // draws the rows
 }
 
-// TestServers: an org with Infra-Claude groups gets Servers under it, and a
+// localServer gives org under root a servers file with one host, "local"
+// (a local shell), in group web.
+func localServer(t *testing.T, root, org string) {
+	t.Helper()
+	os.MkdirAll(filepath.Join(root, org), 0o755)
+	if err := os.WriteFile(filepath.Join(root, org, "ssh_config"), []byte("#@ group web\nHost local\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestServers: an org with a servers file gets Servers under it, and a
 // host opens its pane in the workspace; the sidebar lists only connected
 // ones, a double click on
 // Servers picks among all; other views still open from there.
@@ -964,9 +974,7 @@ func TestServers(t *testing.T) {
 		t.Setenv(v, t.TempDir()) // never the user's infra session
 	}
 	h := newHarness(t)
-	g := filepath.Join(h.u.root, "Acme", "Infra-Claude", "web")
-	os.MkdirAll(g, 0o755)
-	os.WriteFile(filepath.Join(g, "hosts"), []byte("local\n"), 0o644)
+	localServer(t, h.u.root, "Acme")
 	h.u.infra = infra.New(h.u.root, func() {})
 	defer h.u.infra.Close()
 	h.frame()
@@ -2030,9 +2038,7 @@ func TestTicketSync(t *testing.T) {
 // the servers view has the way back to the card.
 func TestSplitWithServers(t *testing.T) {
 	h := newHarness(t)
-	g := filepath.Join(h.u.root, "Acme", "Infra-Claude", "web")
-	os.MkdirAll(g, 0o755)
-	os.WriteFile(filepath.Join(g, "hosts"), []byte("local\n"), 0o644)
+	localServer(t, h.u.root, "Acme")
 	h.u.infra = infra.New(h.u.root, func() {})
 	defer h.u.infra.Close()
 	c := h.u.b.Add(h.u.b.Column("In progress"), kanban.Card{Title: "Check web", Org: "Acme"})

@@ -19,7 +19,7 @@ import (
 const alertEvery = time.Minute
 
 type nagiosAlert struct {
-	Org, Dir      string // the org and its Infra-Claude dir (to open its tab)
+	Org, Dir      string // the org and its infra dir (to open its tab)
 	Host, Service string // Service "": the host itself
 	State, Output string
 	Since         time.Time
@@ -48,7 +48,7 @@ func startAlerts(tree []node) {
 		if n.depth != 0 || n.dir == "" {
 			continue
 		}
-		o, err := orgAt(n.dir)
+		o, err := orgFor(n.dir)
 		if err != nil {
 			continue
 		}
@@ -228,7 +228,7 @@ func (m *model) dueHealth(now time.Time) []node {
 		if n.depth != 0 || n.dir == "" {
 			continue
 		}
-		o, err := orgAt(n.dir)
+		o, err := orgFor(n.dir)
 		if err != nil || o.Schedule.Health == "" {
 			continue
 		}

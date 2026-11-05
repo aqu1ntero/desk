@@ -397,7 +397,7 @@ func profileHomeC(t *testing.T, progs ...string) (home, bin string) {
 
 func TestClaudeCmdNixBwrapC(t *testing.T) {
 	home, _ := profileHomeC(t, "claude")
-	dir := filepath.Join(home, "Work", "Acme", "Infra-Claude")
+	dir := filepath.Join(home, "Work", "Acme", infraDir)
 	store := t.TempDir()
 	bw := filepath.Join(store, "abc-bubblewrap-0.11", "bin", "bwrap")
 	write(t, bw, "#!/bin/sh\n")
@@ -419,7 +419,7 @@ func TestClaudeCmdSeedUnwritableC(t *testing.T) {
 	profiles := filepath.Join(home, "Secure", "Claudes")
 	os.Chmod(profiles, 0o500)
 	t.Cleanup(func() { os.Chmod(profiles, 0o755) })
-	if _, err := claudeCmd(filepath.Join(home, "Work", "Acme", "Infra-Claude")); err == nil {
+	if _, err := claudeCmd(filepath.Join(home, "Work", "Acme", infraDir)); err == nil {
 		t.Error("an unwritable profiles dir must fail")
 	}
 }
@@ -434,7 +434,7 @@ func TestStartClaudeFailuresC(t *testing.T) {
 	}
 	runtimeA(t)
 	home, _ := profileHomeC(t) // a profile, and no claude on PATH
-	dir := filepath.Join(home, "Work", "Acme", "Infra-Claude")
+	dir := filepath.Join(home, "Work", "Acme", infraDir)
 	if c, err := StartClaude(dir, "", func(claudeMsg) {}, tab); err == nil || c != nil || !strings.Contains(err.Error(), "claude") {
 		t.Errorf("no claude: %v", err)
 	}
@@ -477,7 +477,7 @@ func TestServersParseErrorsC(t *testing.T) {
 	org := filepath.Join(t.TempDir(), "Acme")
 	infra := filepath.Join(org, infraDir)
 	os.MkdirAll(infra, 0o755)
-	if hs, ok := serverHosts(infra); ok || hs != nil {
+	if hs := serverHosts(infra); hs != nil {
 		t.Error("an org without a servers file has no server hosts")
 	}
 	self := filepath.Join(org, "loop.conf")
@@ -1185,16 +1185,8 @@ func palPickC(t *testing.T, m *model, q, label string) tea.Cmd {
 }
 
 func TestLoadTreeEdgesC(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	root := t.TempDir()
-	if tree := loadTree(root); len(tree) != 3 || tree[2].host != "local" || tree[2].dir != home {
+	if tree := loadTree(t.TempDir()); len(tree) != 0 {
 		t.Errorf("no orgs: %+v", tree)
-	}
-	write(t, filepath.Join(root, "Acme", infraDir, "README"), "not a group")
-	write(t, filepath.Join(root, "Acme", infraDir, "g", "hosts"), "web1\n")
-	if tree := loadTree(root); len(tree) != 3 || tree[1].label != "g" || tree[2].host != "web1" {
-		t.Errorf("a file among groups: %+v", tree)
 	}
 	m := &model{tree: []node{{depth: 1, label: "g"}, {depth: 1, label: "h"}}}
 	if m.groupDir(0) != "" {
@@ -1352,7 +1344,8 @@ func TestFixLegacyKeyC(t *testing.T) {
 		}
 		sshQMu.Unlock()
 	}()
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
+	os.MkdirAll(dir, 0o755) // the pane's shell starts in it
 	failed, _ := fakeTermA(t, "web1")
 	failed.b, failed.exited, failed.code = nil, true, 255
 	failed.emu.WriteString("Unable to negotiate with 192.0.2.1 port 22: no matching host key type found. Their offer: ssh-rsa")
@@ -1364,11 +1357,11 @@ func TestFixLegacyKeyC(t *testing.T) {
 	if m = r.(model); !strings.Contains(m.errText, "no such file") || p.term != failed {
 		t.Errorf("no ssh_config: %q", m.errText)
 	}
-	write(t, filepath.Join(dir, sshConfigFile), "Host web1\n    HostName 192.0.2.1\n")
+	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web1\n    HostName 192.0.2.1\n")
 	m.errText = ""
 	r, _ = m.key(keyA("f"))
 	m = r.(model)
-	b, _ := os.ReadFile(filepath.Join(dir, sshConfigFile))
+	b, _ := os.ReadFile(filepath.Join(orgOfInfra(dir), serversFile))
 	if m.errText != "" || !strings.Contains(string(b), "HostKeyAlgorithms +ssh-rsa") || p.term == failed {
 		t.Errorf("fixed and reconnected: %q\n%s", m.errText, b)
 	}
@@ -1378,7 +1371,7 @@ func TestPaletteActionsC(t *testing.T) {
 	st := stateC(t)
 	t.Setenv("HOME", t.TempDir())
 	args := fakeSSHC(t, `case "$*" in *cancel*7777*|*forward*7777*) echo "refused" >&2; exit 255;; esac`+"\n")
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
 	term, _ := fakeTermA(t, "web1")
 	term.reached = true
 	tab := &Tab{org: "Acme", name: "web1", term: term, dir: dir, panes: []*Pane{{id: 1, term: term, dir: dir, name: "web1"}},
@@ -1476,7 +1469,7 @@ func TestPaletteActionsC(t *testing.T) {
 	if m.flash == "" || !strings.Contains(m.flash, "claude") {
 		t.Errorf("postmortem without claude: %q", m.flash)
 	}
-	write(t, filepath.Join(dir, sshConfigFile), "Host web2\n")
+	write(t, filepath.Join(orgOfInfra(dir), serversFile), "Host web2\n")
 	m.tree = []node{{depth: 0, org: "Acme", label: "Acme", dir: dir}, {depth: 1, label: "g"}, {depth: 2, org: "Acme", group: "g", host: "web2", label: "web2", dir: dir}}
 	palPickC(t, m, "Acme › g › web2", "Acme › g › web2")
 	if len(m.tabs) != 1 || m.group != "" {
@@ -1507,14 +1500,14 @@ func TestApproveBlockedRunsC(t *testing.T) {
 func TestNewTabAndReloadErrorsC(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	bad := filepath.Join(t.TempDir(), "Bad", infraDir)
-	write(t, filepath.Join(filepath.Dir(bad), "desk.toml"), "[[[ broken")
+	write(t, filepath.Join(orgOfInfra(bad), "desk.toml"), "[[[ broken")
 	m := &model{}
 	tab := m.newTab("Bad", "", bad, "Bad")
 	if m.errText == "" || tab.orgCfg == nil {
 		t.Errorf("a broken config: %q", m.errText)
 	}
 	root := t.TempDir()
-	write(t, filepath.Join(root, "Acme", infraDir, "g", "hosts"), "web1\n")
+	write(t, filepath.Join(root, "Acme", serversFile), "#@ group g\nHost web1\n")
 	m.errText, m.root, m.cursor = "", root, 99
 	m.reloadConfig()
 	if len(m.tree) != 3 || m.cursor != 2 || m.errText == "" {
@@ -1636,7 +1629,7 @@ func TestWorkspaceAPIC(t *testing.T) {
 	}
 	fakeSSHC(t, "sleep 30\n")
 	root := t.TempDir()
-	write(t, filepath.Join(root, "Acme", infraDir, "g", "hosts"), "web1\n")
+	write(t, filepath.Join(root, "Acme", serversFile), "#@ group g\nHost web1\n")
 	write(t, filepath.Join(root, "Acme", "desk.toml"), "record = false\n")
 	write(t, uiPath(), `{"Theme":"`+themeName+`"}`)
 	defer func() { dispatch, repaint, guiReplies = nil, nil, false }()
@@ -1707,9 +1700,13 @@ func TestWorkspaceAPIC(t *testing.T) {
 	if w.ActiveOrg() != "" {
 		t.Error("nothing open: no org")
 	}
-	w.u.d.state.Store(&guiState{Tree: []guiNode{{Depth: 2, Host: "stray"}, {Depth: 0, Label: "(no orgs)"}, {Depth: 2, Host: "x"}}})
-	if tr := w.Tree(); len(tr) != 1 || tr[0].Name != "(no orgs)" || len(tr[0].Groups) != 0 {
-		t.Errorf("placeholder tree: %+v", tr)
+	w.u.d.state.Store(&guiState{Tree: []guiNode{{Depth: 2, Host: "stray"}}})
+	if tr := w.Tree(); len(tr) != 0 {
+		t.Errorf("rows under no org are no org: %+v", tr)
+	}
+	w.u.d.state.Store(&guiState{})
+	if tr := w.Tree(); len(tr) != 0 {
+		t.Errorf("an empty tree has no orgs: %+v", tr)
 	}
 }
 
@@ -1741,9 +1738,9 @@ func TestDeskVaultUnlockedC(t *testing.T) {
 	if _, err := v.get(ctx, "c9"); err == nil || err.Error() != `no item "c9"` {
 		t.Errorf("missing: %v", err)
 	}
-	g := filepath.Join(t.TempDir(), "Acme", "Infra-Claude", "g")
+	g := filepath.Join(t.TempDir(), "Acme", infraDir)
 	orgsMu.Lock()
-	orgs[filepath.Dir(g)] = o
+	orgs[g] = o
 	orgsMu.Unlock()
 	if u, err := serverPassword(g, &SecretRef{Vault: "bw", Item: "web1 root", Field: "username"}); err != nil || u != "root" {
 		t.Errorf("a field of the item: %q %v", u, err)

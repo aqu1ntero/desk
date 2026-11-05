@@ -72,8 +72,8 @@ type serverHost struct {
 	pin, hidden              bool
 }
 
-// serversPath is org folder's servers file, "" when it has none (it then
-// keeps the old Infra-Claude/<group>/ folders).
+// serversPath is org folder's servers file, "" when it has none (the org
+// then has no servers).
 func serversPath(org string) string {
 	if p := serversTarget(org); fileExists(p) {
 		return p
@@ -99,17 +99,18 @@ func serversTarget(org string) string {
 }
 
 // serverHosts is the hosts of the servers file a pane or tab dir runs with:
-// ok only for an org's Infra-Claude dir whose org has one.
-func serverHosts(dir string) ([]serverHost, bool) {
-	if filepath.Base(dir) != infraDir {
-		return nil, false
+// nil unless dir is an org's infra dir whose org has one.
+func serverHosts(dir string) []serverHost {
+	if !isInfraDir(dir) {
+		return nil
 	}
-	f := serversPath(filepath.Dir(dir))
+	org := orgOfInfra(dir)
+	f := serversPath(org)
 	if f == "" {
-		return nil, false
+		return nil
 	}
-	hs, _ := parseServers(f, filepath.Dir(dir), false)
-	return hs, true
+	hs, _ := parseServers(f, org, false)
+	return hs
 }
 
 type serverParse struct {
@@ -446,7 +447,7 @@ func unquote(s string) string {
 // serverTree is the sidebar rows of an org with a servers file: groups in
 // the order they first appear, hidden hosts left out.
 func serverTree(org, infra, file string) []node {
-	hs, err := parseServers(file, filepath.Dir(infra), true)
+	hs, err := parseServers(file, orgOfInfra(infra), true)
 	out := []node{{depth: 0, label: org, org: org, dir: infra}}
 	if err != nil { // shown in the sidebar: a GUI can't print
 		out = append(out, node{depth: 1, label: "(" + filepath.Base(file) + ": " + firstLine(err.Error(), 50) + ")"})

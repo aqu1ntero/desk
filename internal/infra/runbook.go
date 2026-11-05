@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Runbooks: markdown files in the org's Infra-Claude/runbooks/, with steps in
+// Runbooks: markdown files in the org's .desk/infra/runbooks/, with steps in
 // sh fences and {{parameters}}. The palette lists them for the current tab;
 // picking one hands it to Claude, which asks for the parameters and runs the
 // steps with its tools (writes still wait for approval). Claude writes new
@@ -17,8 +17,8 @@ import (
 
 type runbook struct{ title, path string }
 
-// runbookDir is the runbooks folder in the org's Infra-Claude dir.
-func runbookDir(t *Tab) string { return filepath.Join(infraOf(t.dir), "runbooks") }
+// runbookDir is the runbooks folder in the org's infra dir.
+func runbookDir(t *Tab) string { return filepath.Join(t.dir, "runbooks") }
 
 // runbookCache is each runbooks folder's list as of its mtime: the palette
 // asks on every snapshot while it is open. Model goroutine only.

@@ -396,7 +396,7 @@ func (u *ui) sudoBar(gtx layout.Context, p guiPane, user string, area image.Rect
 	boxed(cPanel, cOrange, rCtl, layout.Inset{Top: 4, Bottom: 4, Left: 10, Right: 4}, func(gtx layout.Context) layout.Dimensions {
 		if !p.Password {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-				layout.Flexed(1, u.lblFill("Asks for "+who+" password · no #desk password for this server", 12, cOrange, fSemi(sansFont))))
+				layout.Flexed(1, u.lblFill("Asks for "+who+" password · no #@ password for this server", 12, cOrange, fSemi(sansFont))))
 		}
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 			layout.Flexed(1, u.lblFill("Asks for "+who+" password", 12, cOrange, fSemi(sansFont))),

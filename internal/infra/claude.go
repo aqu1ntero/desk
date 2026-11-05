@@ -202,7 +202,7 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 	if err != nil {
 		return fail(err)
 	}
-	cmd.Dir = dir // the org's Infra-Claude dir (an old group's own): its CLAUDE.md is picked up
+	cmd.Dir = dir // the org's infra dir: its CLAUDE.md is picked up
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return fail(err)

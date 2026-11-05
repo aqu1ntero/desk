@@ -51,7 +51,7 @@ func srvClaude() {
 // srvStart opens Globex's workspace with the scripted infra Claude.
 func srvStart(s *shooter) {
 	srvClaude()
-	rb := filepath.Join(s.u.root, "Globex", "Infra-Claude", "runbooks")
+	rb := filepath.Join(s.u.root, "Globex", ".desk", "infra", "runbooks")
 	os.MkdirAll(rb, 0o755)
 	os.WriteFile(filepath.Join(rb, "rotate-billing-logs.md"), []byte("# Rotate the billing logs\n\nWhen /var fills up on a web server.\n\n"+
 		"1. See how full it is:\n   ```sh\n   df -h /var\n   ```\n2. Rotate:\n   ```sh\n   sudo logrotate -f /etc/logrotate.d/{{service|billing}}\n   ```\n"), 0o644)

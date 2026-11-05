@@ -142,7 +142,8 @@ deny  = ["reboot*", "* --force*"]                   # always ask, even if marked
 ## Its folder
 
 Every tab of an organization with a [servers file](/desk/servers/servers-file/) runs its Claude
-in `<Org>/Infra-Claude/`, for example `~/Work/Globex/Infra-Claude/`.
+in `<Org>/.desk/infra/`, for example `~/Work/Globex/.desk/infra/`. An `<Org>/Infra-Claude/`
+from an older desk moves there by itself the first time.
 
 - **`CLAUDE.md`** there is read by Claude Code as usual: put what every infra Claude of the
   organization should know (who owns what, maintenance windows, what never to touch).
@@ -150,7 +151,7 @@ in `<Org>/Infra-Claude/`, for example `~/Work/Globex/Infra-Claude/`.
 
 ### Runbooks
 
-A runbook is a Markdown file in `<Org>/Infra-Claude/runbooks/`: a procedure Claude follows step
+A runbook is a Markdown file in `<Org>/.desk/infra/runbooks/`: a procedure Claude follows step
 by step.
 
 ~~~md

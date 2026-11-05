@@ -352,7 +352,7 @@ func TestClaudeCmdProfileA(t *testing.T) {
 	cfg := filepath.Join(home, "Secure", "Claudes", "Acme")
 	write(t, filepath.Join(cfg, ".claude.json"), `{"seed":1}`)
 	os.MkdirAll(filepath.Join(home, "Secure", "Claudes", "Globex"), 0o755)
-	cmd, err := claudeCmd(filepath.Join(home, "Work", "Acme", "Infra-Claude"), "-p", "x")
+	cmd, err := claudeCmd(filepath.Join(home, "Work", "Acme", infraDir), "-p", "x")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +366,7 @@ func TestClaudeCmdProfileA(t *testing.T) {
 	if b, _ := os.ReadFile(js); string(b) != `{"seed":1}` {
 		t.Errorf("seeded from the profile's .claude.json: %q", b)
 	}
-	if _, err := claudeCmd(filepath.Join(home, "Work", "Globex", "Infra-Claude")); err != nil {
+	if _, err := claudeCmd(filepath.Join(home, "Work", "Globex", infraDir)); err != nil {
 		t.Fatal(err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(home, "Secure", "Claudes", "claude-globex.json")); string(b) != "{}" {
@@ -377,7 +377,7 @@ func TestClaudeCmdProfileA(t *testing.T) {
 		t.Errorf("no profile runs claude as is: %s", cmd.Path)
 	}
 	t.Setenv("PATH", t.TempDir())
-	if _, err := claudeCmd(filepath.Join(home, "Work", "Acme", "Infra-Claude")); err == nil {
+	if _, err := claudeCmd(filepath.Join(home, "Work", "Acme", infraDir)); err == nil {
 		t.Error("a profile without claude on PATH must fail")
 	}
 }
@@ -564,7 +564,7 @@ func TestCallToolHostsA(t *testing.T) {
 }
 
 func TestCallToolConnectAndRunbookA(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "Acme", "Infra-Claude")
+	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
 	tab := &Tab{org: "Acme", dir: dir, hosts: []node{{group: "a", label: "web1", addr: "192.0.2.1"}, {group: "b", label: "web1"}}}
 	if r := tab.callTool(toolCall{Name: "connect", Args: json.RawMessage(`{"host":"web1"}`)}); !r.IsError || r.Text != `"web1" is a/web1 or b/web1: pass group/name` {
 		t.Errorf("ambiguous: %+v", r)
@@ -1507,7 +1507,7 @@ func labelsA(items []palItem) map[string]palItem {
 }
 
 func TestPalItemsA(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "Acme", "Infra-Claude")
+	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
 	write(t, filepath.Join(dir, "runbooks", "nginx.md"), "intro\n# Restart nginx\n")
 	term, _ := fakeTermA(t, "web1")
 	org := &Tab{org: "Acme", dir: dir, orgOnly: true, pending: []*approval{{}}}
@@ -1545,7 +1545,7 @@ func TestPalItemsA(t *testing.T) {
 
 func TestPalKeyA(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	dir := filepath.Join(t.TempDir(), "Acme", "Infra-Claude")
+	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
 	write(t, filepath.Join(dir, "runbooks", "nginx.md"), "# Restart nginx\n```sh\nsystemctl restart {{svc|nginx}}\n```\n")
 	c, rec := claudeA(t)
 	org := &Tab{org: "Acme", dir: dir, orgOnly: true, claude: c, pinned: map[int]bool{}}

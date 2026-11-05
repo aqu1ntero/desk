@@ -1,7 +1,6 @@
 package infra
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -9,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -20,96 +18,14 @@ import (
 	deskvault "github.com/lfdominguez/desk/internal/vault"
 )
 
-// The group format, for orgs without a servers file (servers.go): a group's
-// servers can live in Infra-Claude/<group>/ssh_config: one Host block per
-// server, any OpenSSH option inside. desk runs ssh -F with it. One extra line,
-// a comment so ssh ignores it, says where the server's password is:
-//
-//	Host webproxy-1
-//	    HostName 192.0.2.10
-//	    User deploy
-//	    #desk password passbolt 3f2a…   (vault, then item id or name)
-//	    #desk wol 52:54:00:12:34:56     (Wake-on-LAN before connecting; optional broadcast addr:port after it)
-//
-// End the file with "Match all" + "Include ~/.ssh/config" to keep your own
-// defaults (-F skips ~/.ssh/config otherwise).
-const sshConfigFile = "ssh_config"
-
-type sshHost struct {
-	name, addr string
-	password   *SecretRef
-	wol        string // "#desk wol": MAC [broadcast:port]
-}
-
-var (
-	passwordLine = regexp.MustCompile(`^#\s*desk\s+password\s+(\S+)\s+(.+)$`)
-	wolLine      = regexp.MustCompile(`^#\s*desk\s+wol\s+(.+)$`)
-)
-
-// parseSSHConfig lists the concrete Host aliases (no wildcards) in order.
-func parseSSHConfig(path string) ([]sshHost, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var hosts []sshHost
-	var cur []int // indexes of the hosts the current block applies to
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if m := passwordLine.FindStringSubmatch(line); m != nil {
-			for _, i := range cur {
-				hosts[i].password = &SecretRef{Vault: m[1], Item: strings.TrimSpace(m[2])}
-			}
-			continue
-		}
-		if m := wolLine.FindStringSubmatch(line); m != nil {
-			for _, i := range cur {
-				hosts[i].wol = strings.TrimSpace(m[1])
-			}
-			continue
-		}
-		fs := strings.Fields(line)
-		if len(fs) < 2 || strings.HasPrefix(fs[0], "#") {
-			continue
-		}
-		switch strings.ToLower(strings.TrimSuffix(fs[0], "=")) {
-		case "host":
-			cur = nil
-			for _, p := range fs[1:] {
-				if !strings.ContainsAny(p, "*?!") {
-					cur = append(cur, len(hosts))
-					hosts = append(hosts, sshHost{name: p})
-				}
-			}
-		case "match":
-			cur = nil
-		case "hostname":
-			for _, i := range cur {
-				hosts[i].addr = fs[1]
-			}
-		}
-	}
-	return hosts, sc.Err()
-}
-
-// sshConfigFor is the ssh_config a pane's dir runs ssh with: the org's
-// servers file for its Infra-Claude dir, else the old group dir's own.
-func sshConfigFor(dir string) string {
-	if filepath.Base(dir) == infraDir {
-		if f := serversPath(filepath.Dir(dir)); f != "" {
-			return f
-		}
-	}
-	return filepath.Join(dir, sshConfigFile)
-}
+// sshConfigFor is the ssh_config a pane's dir (its org's infra dir) runs ssh
+// with: the org's servers file.
+func sshConfigFor(dir string) string { return serversTarget(orgOfInfra(dir)) }
 
 // hostFile is the file holding host's Host block (applyFixes edits it): the
-// servers file or the Include that has it, or the old group's ssh_config.
+// servers file or the Include that has it.
 func hostFile(dir, host string) string {
-	hs, _ := serverHosts(dir)
-	for _, h := range hs {
+	for _, h := range serverHosts(dir) {
 		if h.alias == host {
 			return h.file
 		}
@@ -284,19 +200,10 @@ func answerAsk(r askReq) askRes {
 func vaultPassword(t *askTarget) (string, error) { return serverPassword(t.dir, t.password) }
 
 // passwordRef is where a host's password is (its #@ password in the servers
-// file, or "#desk password" in its group's ssh_config), or nil.
+// file), or nil.
 func passwordRef(dir, host string) *SecretRef {
-	if hs, ok := serverHosts(dir); ok {
-		for _, h := range hs {
-			if h.alias == host {
-				return h.password
-			}
-		}
-		return nil
-	}
-	hs, _ := parseSSHConfig(filepath.Join(dir, sshConfigFile))
-	for _, h := range hs {
-		if h.name == host {
+	for _, h := range serverHosts(dir) {
+		if h.alias == host {
 			return h.password
 		}
 	}
@@ -472,7 +379,7 @@ func applyFixes(path, host string, fixes []legacyFix) error {
 // port reaches the server side), "R" (a server port reaches this machine) or
 // "D" (a local SOCKS proxy through the server).
 type portFwd struct {
-	host, dir, name string // the server (ssh alias, group dir, sidebar name)
+	host, dir, name string // the server (ssh alias, infra dir, sidebar name)
 	kind, spec      string // ssh -L/-R/-D and its spec: port[:host:port]
 }
 

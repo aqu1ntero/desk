@@ -1,13 +1,10 @@
 package infra
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -34,8 +31,8 @@ type node struct {
 	pin               bool   // "#@ pin": always in the pinned section
 }
 
-// groupKey names a group for the group view: an old group's dir is its own,
-// a servers file's groups share the org's Infra-Claude dir.
+// groupKey names a group for the group view: a servers file's groups share
+// the org's infra dir.
 func groupKey(dir, group string) string { return dir + "\x00" + group }
 
 type chatEntry struct {
@@ -55,7 +52,7 @@ type Pane struct {
 	id         int
 	term       *Term
 	claude     bool   // Claude opened it (and may close it)
-	dir        string // the server's group dir (its ssh_config)
+	dir        string // the org's infra dir (its servers file: sshConfigFor)
 	name, addr string // the server's name in the sidebar, its address if known
 	password   *SecretRef
 	waitUntil  time.Time // connect deadline: after it, the timeout notice
@@ -206,7 +203,7 @@ type model struct {
 	active  int
 	input   string // the group view's broadcast question
 	errText string
-	group   string // group view: the group dir whose sessions are shown as cards
+	group   string // group view: the groupKey whose sessions are shown as cards
 	pal     bool   // the palette is picking (palItems' query is palQ)
 	palQ    string
 	palSel  int
@@ -275,83 +272,18 @@ func notify() {
 	}
 }
 
-// infraDir is where an org's infra lives inside its work folder; the folder also
-// decides which Claude account runs (see claudeCmd).
-const infraDir = "Infra-Claude"
-
 // loadTree reads each org's servers file (<root>/<org>/ssh_config, see
-// servers.go), creating its Infra-Claude dir, where all its tabs work. An org
-// without one keeps the old layout, <root>/<org>/Infra-Claude/<group>/ with
-// an ssh_config, or a hosts file: one host per line, "name destination" or
-// just "destination" (an ssh alias, user@ip, ssh://user@ip:port), "#" starts
-// a comment; instead of hosts, an executable hosts.sh can print the same
-// lines (it runs at start and on "reload config"). Orgs with neither are
-// skipped.
+// servers.go), creating its infra dir, where all its tabs work. Orgs without
+// one are skipped.
 func loadTree(root string) []node {
 	var tree []node
 	for _, org := range deskorgs.List(root) { // desk's organizations, in all its folders
 		odir := deskorgs.Dir(root, org, "")
-		infra := filepath.Join(odir, infraDir)
 		if f := serversPath(odir); f != "" {
-			os.MkdirAll(infra, 0o755)
-			tree = append(tree, serverTree(org, infra, f)...)
-			continue
+			tree = append(tree, serverTree(org, makeInfra(odir), f)...)
 		}
-		groups, err := os.ReadDir(infra)
-		if err != nil {
-			continue
-		}
-		tree = append(tree, node{depth: 0, label: org, org: org, dir: infra})
-		for _, g := range groups {
-			dir := filepath.Join(infra, g.Name())
-			if !g.IsDir() {
-				continue
-			}
-			if hs, err := parseSSHConfig(filepath.Join(dir, sshConfigFile)); err == nil {
-				tree = append(tree, node{depth: 1, label: g.Name()})
-				for _, h := range hs {
-					tree = append(tree, node{depth: 2, label: h.name, org: org, group: g.Name(), dir: dir, host: h.name, addr: h.addr, wol: h.wol})
-				}
-				continue
-			}
-			data, err := os.ReadFile(filepath.Join(dir, "hosts"))
-			if err != nil {
-				if data, err = hostsScript(dir); errors.Is(err, os.ErrNotExist) {
-					continue
-				} else if err != nil { // shown in the sidebar: a TUI can't print
-					tree = append(tree, node{depth: 1, label: g.Name() + " (hosts.sh failed: " + firstLine(err.Error(), 40) + ")"})
-					continue
-				}
-			}
-			tree = append(tree, node{depth: 1, label: g.Name()})
-			for _, h := range strings.Split(string(data), "\n") {
-				h, _, _ = strings.Cut(h, "#")
-				if f := strings.Fields(h); len(f) > 0 { // "name destination" or just "destination"
-					tree = append(tree, node{depth: 2, label: f[0], org: org, group: g.Name(), dir: dir, host: f[min(1, len(f)-1)]})
-				}
-			}
-		}
-	}
-	if len(tree) == 0 {
-		home, _ := os.UserHomeDir()
-		tree = []node{{depth: 0, label: "(no " + root + "/*/" + infraDir + ")"}, {depth: 1, label: "local"},
-			{depth: 2, label: "local", org: "local", group: "local", dir: home, host: "local"}}
 	}
 	return tree
-}
-
-// hostsScript runs dir/hosts.sh, if it's there and executable, for the
-// group's host lines.
-func hostsScript(dir string) ([]byte, error) {
-	p := filepath.Join(dir, "hosts.sh")
-	if fi, err := os.Stat(p); err != nil || fi.Mode()&0o111 == 0 {
-		return nil, os.ErrNotExist
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, p)
-	cmd.Dir = dir
-	return cmd.Output()
 }
 
 func (m *model) tab() *Tab {
@@ -1303,8 +1235,8 @@ func (m *model) usePassword(msg passwordMsg) tea.Cmd {
 	return tea.SetClipboard(msg.pw)
 }
 
-// newTab adds an empty session of org working in dir (an old group dir, or
-// the org's Infra-Claude dir) and makes it active.
+// newTab adds an empty session of org working in dir (the org's infra dir)
+// and makes it active.
 func (m *model) newTab(org, group, dir, name string) *Tab {
 	cfg, err := orgFor(dir)
 	if err != nil {

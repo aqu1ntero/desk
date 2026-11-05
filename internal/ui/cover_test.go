@@ -2226,9 +2226,7 @@ func TestCoverServersInfra(t *testing.T) {
 	fakeBin(t, "ssh", "exec cat")
 	h := newHarness(t)
 	for _, org := range []string{"Acme", "Globex"} {
-		g := filepath.Join(h.u.root, org, "Infra-Claude", "web")
-		os.MkdirAll(g, 0o755)
-		os.WriteFile(filepath.Join(g, "hosts"), []byte("local\n"), 0o644)
+		localServer(t, h.u.root, org)
 	}
 	h.u.infra = infra.New(h.u.root, func() {})
 	defer h.u.infra.Close()

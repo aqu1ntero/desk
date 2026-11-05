@@ -150,7 +150,7 @@ func (m *model) restore() {
 		return
 	}
 	for _, st := range ss.Tabs {
-		t := m.newTab(st.Org, st.Group, st.Dir, st.Name)
+		t := m.newTab(st.Org, st.Group, movedInfra(st.Dir), st.Name)
 		t.orgOnly, t.card, t.session, t.model = st.OrgOnly, st.Card, st.Claude, st.Model
 		t.ctxTokens, t.ctxWindow = st.Ctx, st.CtxWindow
 		if !st.Opened.IsZero() {
@@ -171,14 +171,14 @@ func (m *model) restore() {
 				ps.Text = strings.TrimRight(restoredLine.ReplaceAllString(ps.Text, ""), "\n") // nothing ran since the last restore: one line, not a stack
 				ps.Text += "\n\n── restored from " + ss.Saved.Format("Jan 2 15:04") + " ──"
 			}
-			m.addPaneFrom(t, node{host: p.Host, dir: p.Dir, label: p.Label, addr: p.Addr, org: st.Org, group: st.Group}, false, ps)
+			m.addPaneFrom(t, node{host: p.Host, dir: movedInfra(p.Dir), label: p.Label, addr: p.Addr, org: st.Org, group: st.Group}, false, ps)
 		}
 		if len(t.panes) == 0 && !t.orgOnly { // its server is gone from the tree, or won't start
 			t.orgOnly = true
 		}
 	}
 	for _, f := range ss.Forwards { // added once a pane on the server is up (keepForwards)
-		m.forwards = append(m.forwards, portFwd{f.Host, f.Dir, f.Name, f.Kind, f.Spec})
+		m.forwards = append(m.forwards, portFwd{f.Host, movedInfra(f.Dir), f.Name, f.Kind, f.Spec})
 	}
 	if len(m.tabs) > 0 {
 		m.active = max(0, min(ss.Active, len(m.tabs)-1))

@@ -1150,11 +1150,7 @@ func TestGMHostRows(t *testing.T) {
 	if r := u.hostRow(9, tr[9]); r.dot != cIdle || r.meta != "10.1.0.1" {
 		t.Errorf("app1 %+v", r)
 	}
-	n := guiNode{Label: "x", Host: "x.example.com"}
-	if r := u.hostRow(0, n); r.meta != "x.example.com" {
-		t.Errorf("destination as meta %+v", r)
-	}
-	n.Host = "x"
+	n := guiNode{Label: "x", Host: "x"}
 	if r := u.hostRow(0, n); r.meta != "" {
 		t.Errorf("no meta %+v", r)
 	}
@@ -2489,7 +2485,7 @@ func TestGMSudoBar(t *testing.T) {
 	gmOut(ts[0], "[sudo] password for deploy: ")
 	h.draw(w)
 	if u.clicks["sudoPw"] != nil {
-		t.Error("no #desk password: no button")
+		t.Error("no #@ password: no button")
 	}
 	tb.Panes[0].Password = true
 	h.draw(w)

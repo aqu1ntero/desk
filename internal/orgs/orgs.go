@@ -175,7 +175,7 @@ type Schedule struct {
 
 // Servers is where the infra workspace's servers are: File, an OpenSSH config
 // relative to the organization's folder (default ssh_config). Without that
-// file the old Infra-Claude/<group>/ folders are read.
+// file the organization has no servers.
 type Servers struct {
 	File string `toml:"file"`
 }

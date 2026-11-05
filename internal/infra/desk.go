@@ -13,8 +13,7 @@ import (
 
 // Workspace is desk's infrastructure workspace: the shared SSH
 // terminals, the infra Claude of each tab, approvals, the palette and the
-// directory split, for every organization with a servers file (servers.go)
-// or old Infra-Claude/<group>/ folders.
+// directory split, for every organization with a servers file (servers.go).
 //
 // Threading: one model goroutine owns the sessions (the model loop); the window
 // side (Tree, Layout, Shortcut, Open*, TogglePin, ActiveOrg) runs on desk's
@@ -50,9 +49,8 @@ type Org struct {
 }
 
 // Group is a group of the org's servers file (Name its full path, "eu/web";
-// "servers" for hosts outside any), or an old Infra-Claude folder: its hosts.
-// A hosts.sh or servers file that failed shows as a group named after the
-// error, with no hosts.
+// "servers" for hosts outside any): its hosts. A servers file that failed
+// shows as a group named after the error, with no hosts.
 type Group struct {
 	Name  string
 	Hosts []Host
@@ -104,9 +102,6 @@ func (w *Workspace) tree() []Org {
 		switch {
 		case n.Depth == 0:
 			o := Org{Name: n.Org, State: Idle}
-			if o.Name == "" {
-				o.Name = n.Label // the "(no …/Infra-Claude)" placeholder
-			}
 			for _, t := range u.st.Tabs {
 				o.Claude = o.Claude || t.OrgOnly && t.Org == n.Org
 			}

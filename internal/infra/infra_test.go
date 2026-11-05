@@ -66,25 +66,74 @@ func TestBlocksFromOSC133(t *testing.T) {
 	}
 }
 
-func TestLoadTree(t *testing.T) {
+// TestLoadTreeEmpty: orgs without a servers file have no servers, the old
+// Infra-Claude/<group>/ folders included.
+func TestLoadTreeEmpty(t *testing.T) {
 	root := t.TempDir()
-	for _, p := range []string{"Company/Infra-Claude/prod", "Personal/Infra-Claude/home", "Other/src", "Company/Infra-Claude/empty"} {
-		os.MkdirAll(filepath.Join(root, p), 0o755)
+	os.MkdirAll(filepath.Join(root, "Other", "src"), 0o755)
+	os.MkdirAll(filepath.Join(root, "Acme", oldInfraDir, "prod"), 0o755)
+	os.WriteFile(filepath.Join(root, "Acme", oldInfraDir, "prod", "hosts"), []byte("db1\n"), 0o644)
+	if tr := loadTree(root); len(tr) != 0 {
+		t.Errorf("tree: %+v", tr)
 	}
-	os.WriteFile(filepath.Join(root, "Company/Infra-Claude/prod/hosts"), []byte("# lb\ncompany-lb1\n\ncompany-db1\ndb2   ssh://deploy@10.0.0.2:2222   # passbolt abc\n"), 0o644)
-	os.WriteFile(filepath.Join(root, "Personal/Infra-Claude/home/hosts"), []byte("nas\n"), 0o644)
-	var got []string
-	for _, n := range loadTree(root) {
-		got = append(got, strings.Repeat(">", n.depth)+n.label)
-		if n.host == "company-db1" && n.dir != filepath.Join(root, "Company/Infra-Claude/prod") {
-			t.Errorf("dir: %s", n.dir)
-		}
-		if n.label == "db2" && n.host != "ssh://deploy@10.0.0.2:2222" {
-			t.Errorf("named host: %+v", n)
+	if !fileExists(filepath.Join(root, "Acme", oldInfraDir)) {
+		t.Error("an org without a servers file keeps its old folder")
+	}
+}
+
+// TestInfraMoves: an org's old Infra-Claude folder moves to .desk/infra once,
+// with what it holds; an existing .desk/infra is left alone.
+func TestInfraMoves(t *testing.T) {
+	org := filepath.Join(t.TempDir(), "Acme")
+	write(t, filepath.Join(org, oldInfraDir, "CLAUDE.md"), "notes")
+	write(t, filepath.Join(org, "ssh_config"), "Host web1\n")
+	dir := makeInfra(org)
+	if dir != filepath.Join(org, ".desk", "infra") || !isInfraDir(dir) || orgOfInfra(dir) != org {
+		t.Fatalf("infra dir %s", dir)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "CLAUDE.md")); string(b) != "notes" || fileExists(filepath.Join(org, oldInfraDir)) {
+		t.Errorf("not moved: %q", b)
+	}
+	write(t, filepath.Join(org, oldInfraDir, "CLAUDE.md"), "again")
+	makeInfra(org)
+	if b, _ := os.ReadFile(filepath.Join(dir, "CLAUDE.md")); string(b) != "notes" || !fileExists(filepath.Join(org, oldInfraDir)) {
+		t.Errorf("moved over the new one: %q", b)
+	}
+	other := filepath.Join(t.TempDir(), "Globex")
+	os.MkdirAll(filepath.Join(other, infraDir), 0o755) // made already, still empty
+	os.MkdirAll(filepath.Join(other, oldInfraDir), 0o755)
+	makeInfra(other)
+	if !fileExists(filepath.Join(other, oldInfraDir)) {
+		t.Error("an existing infra dir, even empty, takes no move")
+	}
+	if isInfraDir(filepath.Join(org, "infra")) || isInfraDir(filepath.Join(org, ".desk")) {
+		t.Error("only .desk/infra is an infra dir")
+	}
+	for old, want := range map[string]string{
+		filepath.Join(org, oldInfraDir):       dir,
+		filepath.Join(org, oldInfraDir, "eu"): dir,
+		dir:                                   dir,
+		filepath.Join(org, "src", oldInfraDir+"x"): filepath.Join(org, "src", oldInfraDir+"x"),
+	} {
+		if got := movedInfra(old); got != want {
+			t.Errorf("movedInfra(%s) = %s, want %s", old, got, want)
 		}
 	}
-	if s := strings.Join(got, " "); s != "Company >prod >>company-lb1 >>company-db1 >>db2 Personal >home >>nas" {
-		t.Errorf("tree: %s", s)
+}
+
+// TestRestoreOldInfraDirs: a session saved with Infra-Claude dirs comes back
+// in the org's infra dir.
+func TestRestoreOldInfraDirs(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	org := filepath.Join(t.TempDir(), "Acme")
+	b, _ := json.Marshal(savedSession{Tabs: []savedTab{{Org: "Acme", Dir: filepath.Join(org, oldInfraDir, "eu"), OrgOnly: true}},
+		Forwards: []savedFwd{{Host: "web1", Dir: filepath.Join(org, oldInfraDir), Kind: "L", Spec: "1:localhost:1"}}})
+	write(t, sessionPath(), string(b))
+	m := model{}
+	m.restore()
+	want := filepath.Join(org, infraDir)
+	if len(m.tabs) != 1 || m.tabs[0].dir != want || len(m.forwards) != 1 || m.forwards[0].dir != want {
+		t.Fatalf("restored: %d tabs, %+v", len(m.tabs), m.forwards)
 	}
 }
 
@@ -94,11 +143,11 @@ func TestProfileFor(t *testing.T) {
 	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))
 	os.MkdirAll(filepath.Join(home, "Secure/Claudes/Company"), 0o755)
 	for dir, want := range map[string]string{
-		"Work/Company/Infra-Claude/prod":  "Company",
-		"Work/Company":                    "Company",
-		"Work/Personal/Infra-Claude/home": "",
-		"Work/Companyish/Infra-Claude/x":  "",
-		"Other/Company":                   "",
+		"Work/Company/.desk/infra":    "Company",
+		"Work/Company":                "Company",
+		"Work/Personal/.desk/infra":   "",
+		"Work/Companyish/.desk/infra": "",
+		"Other/Company":               "",
 	} {
 		name, cfg, js := profileFor(home, filepath.Join(home, dir))
 		if name != want {
@@ -501,7 +550,7 @@ func TestCompoundNeedsExplain(t *testing.T) {
 
 func TestOrgConfig(t *testing.T) {
 	root := t.TempDir()
-	group := filepath.Join(root, "Company", "Infra-Claude", "lsp")
+	group := filepath.Join(root, "Company", infraDir)
 	os.MkdirAll(group, 0o755)
 	os.WriteFile(filepath.Join(root, "Company", "desk.toml"), []byte(`
 [[vault]]
@@ -536,10 +585,10 @@ token_env = "VM_TOKEN"
 	if d := o.describe(); !strings.Contains(d, "nagios1") || !strings.Contains(d, "vm (victoriametrics)") {
 		t.Errorf("describe: %s", d)
 	}
-	if o2, _ := orgFor(filepath.Join(root, "Company", "Infra-Claude", "other")); o2 != o {
+	if o2, _ := orgFor(group); o2 != o {
 		t.Error("tabs of one org must share its Org (one passbolt login)")
 	}
-	if e, err := orgFor(filepath.Join(t.TempDir(), "x", "Infra-Claude", "g")); err != nil || len(e.toolGroups()) != 0 {
+	if e, err := orgFor(filepath.Join(t.TempDir(), "x", infraDir)); err != nil || len(e.toolGroups()) != 0 {
 		t.Error("no desk.toml is an empty org")
 	}
 }
@@ -584,35 +633,6 @@ func TestNagiosAndMetrics(t *testing.T) {
 	}
 }
 
-func TestSSHConfigTree(t *testing.T) {
-	root := t.TempDir()
-	g := filepath.Join(root, "Company", "Infra-Claude", "eu-west")
-	os.MkdirAll(g, 0o755)
-	os.WriteFile(filepath.Join(g, "ssh_config"), []byte(`
-Host webproxy-1 webproxy-alias
-    HostName 192.0.2.10
-    User deploy
-    #desk password passbolt 3f2a
-Host *.internal
-    User x
-Host ledger
-    HostName 10.0.51.201
-Match all
-    Include ~/.ssh/config
-`), 0o644)
-	hs, err := parseSSHConfig(filepath.Join(g, "ssh_config"))
-	if err != nil || len(hs) != 3 || hs[0].addr != "192.0.2.10" || hs[1].password == nil || hs[1].password.Item != "3f2a" ||
-		hs[2].name != "ledger" || hs[2].password != nil {
-		t.Fatalf("%+v %v", hs, err)
-	}
-	if a := sshArgs("ledger", g); a[len(a)-3] != "-F" || a[len(a)-1] != "ledger" {
-		t.Errorf("args %v", a)
-	}
-	if tree := loadTree(root); len(tree) != 5 || tree[2].addr != "192.0.2.10" {
-		t.Fatalf("tree %+v", tree)
-	}
-}
-
 type fakeVault map[string]vaultItem
 
 func (f fakeVault) search(context.Context, string) ([]vaultItem, error) {
@@ -625,9 +645,9 @@ func (f fakeVault) search(context.Context, string) ([]vaultItem, error) {
 func (f fakeVault) get(_ context.Context, id string) (vaultItem, error) { return f[id], nil }
 
 func TestAskpassFromVault(t *testing.T) {
-	g := filepath.Join(t.TempDir(), "Company", "Infra-Claude", "g")
+	g := filepath.Join(t.TempDir(), "Company", infraDir)
 	orgsMu.Lock()
-	orgs[filepath.Dir(g)] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
+	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
 		vaults: map[string]vault{"pb": fakeVault{"id1": {ID: "id1", Name: "srv", Password: "s3cret"}}}}
 	orgsMu.Unlock()
 	askMu.Lock()
@@ -869,9 +889,9 @@ func TestSudoPrompt(t *testing.T) {
 // TestSudoFill runs a real sudo-like prompt (read -s) and checks that the
 // vault password is typed only while it waits.
 func TestSudoFill(t *testing.T) {
-	g := filepath.Join(t.TempDir(), "Org", "Infra-Claude", "g")
+	g := filepath.Join(t.TempDir(), "Org", infraDir)
 	orgsMu.Lock()
-	orgs[filepath.Dir(g)] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
+	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
 		vaults: map[string]vault{"pb": fakeVault{"id9": {ID: "id9", Password: "hunter2"}}}}
 	orgsMu.Unlock()
 	term, err := startTerm("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
@@ -1425,7 +1445,7 @@ func TestServerNotes(t *testing.T) {
 
 func TestRunbooks(t *testing.T) {
 	org := t.TempDir()
-	tab := &Tab{dir: filepath.Join(org, "web"), group: "web"}
+	tab := &Tab{dir: org, group: "web"}
 	p, err := saveRunbook(tab, "Restart PHP-FPM!", "# Restart php-fpm\n\n1. Restart\n```sh\nsudo systemctl restart php{{version|8.2}}-fpm on {{host}}\n```\n")
 	if err != nil || p != filepath.Join(org, "runbooks", "restart-php-fpm.md") {
 		t.Fatalf("saved %q, %v", p, err)
@@ -1567,12 +1587,13 @@ func TestChmodRemote(t *testing.T) {
 	}
 }
 
-// TestWakeOnLAN: "#desk wol" reaches the host and the packet is the standard
+// TestWakeOnLAN: "#@ wol" reaches the host and the packet is the standard
 // magic one.
 func TestWakeOnLAN(t *testing.T) {
-	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, sshConfigFile), []byte("Host nas\n    HostName 10.0.0.9\n    #desk wol 52:54:00:12:34:56 127.0.0.1:0\n    ServerAliveInterval 60\n"), 0o644)
-	hs, _ := parseSSHConfig(filepath.Join(dir, sshConfigFile))
+	org := filepath.Join(t.TempDir(), "Acme")
+	dir := filepath.Join(org, infraDir)
+	write(t, filepath.Join(org, serversFile), "Host nas\n    HostName 10.0.0.9\n    #@ wol 52:54:00:12:34:56 127.0.0.1:0\n    ServerAliveInterval 60\n")
+	hs := serverHosts(dir)
 	if len(hs) != 1 || hs[0].wol != "52:54:00:12:34:56 127.0.0.1:0" {
 		t.Fatalf("hosts %+v", hs)
 	}
@@ -1640,24 +1661,6 @@ func TestFindInScrollback(t *testing.T) {
 	}
 	if newest, older := term.ScrollFor(hits[2]), term.ScrollFor(hits[1]); older <= newest {
 		t.Fatalf("an older match scrolls further: %d vs %d", older, newest)
-	}
-}
-
-func TestHostsScript(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "Acme", infraDir, "cloud")
-	os.MkdirAll(dir, 0o755)
-	os.WriteFile(filepath.Join(dir, "hosts.sh"), []byte("#!/bin/sh\necho 'web-1 admin@10.0.0.1'\necho 'web-2'\n"), 0o755)
-	broken := filepath.Join(root, "Acme", infraDir, "broken")
-	os.MkdirAll(broken, 0o755)
-	os.WriteFile(filepath.Join(broken, "hosts.sh"), []byte("#!/bin/sh\nexit 3\n"), 0o755)
-	var got []string
-	for _, n := range loadTree(root) {
-		got = append(got, fmt.Sprintf("%d:%s:%s", n.depth, n.label, n.host))
-	}
-	want := "0:Acme: 1:broken (hosts.sh failed: exit status 3): 1:cloud: 2:web-1:admin@10.0.0.1 2:web-2:web-2"
-	if strings.Join(got, " ") != want {
-		t.Fatalf("tree:\n%s\nwant\n%s", strings.Join(got, " "), want)
 	}
 }
 
@@ -1747,8 +1750,8 @@ func TestPruneRecordings(t *testing.T) {
 func TestRecordingDefault(t *testing.T) {
 	for toml, want := range map[string]bool{"": true, "record = true\n": true, "record = false\n": false} {
 		dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-		write(t, filepath.Join(filepath.Dir(dir), "desk.toml"), toml)
-		if o, err := orgAt(dir); err != nil || o.records() != want {
+		write(t, filepath.Join(orgOfInfra(dir), "desk.toml"), toml)
+		if o, err := orgFor(dir); err != nil || o.records() != want {
 			t.Errorf("%q: records() = %v, want %v (%v)", toml, o.records(), want, err)
 		}
 	}
@@ -1760,7 +1763,7 @@ func TestRecordingDefault(t *testing.T) {
 func TestDailyHealthDue(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(filepath.Dir(dir), "desk.toml"), "[schedule]\nhealth = \"08:30\"\n")
+	write(t, filepath.Join(orgOfInfra(dir), "desk.toml"), "[schedule]\nhealth = \"08:30\"\n")
 	m := model{tree: []node{{depth: 0, label: "Acme", org: "Acme", dir: dir}}}
 	day := time.Date(2026, 10, 26, 0, 0, 0, 0, time.Local)
 	if len(m.dueHealth(day.Add(8*time.Hour))) != 0 {
@@ -1802,7 +1805,7 @@ allow = ["uptime"]
 [schedule]
 health = "08:30"
 `), 0o644)
-	o, err := orgAt(infra)
+	o, err := orgFor(infra)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1926,8 +1929,7 @@ func TestWorkspace(t *testing.T) {
 		t.Setenv(v, t.TempDir())
 	}
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, "Acme", infraDir, "g"), 0o755)
-	os.WriteFile(filepath.Join(root, "Acme", infraDir, "g", "hosts"), []byte("local\n"), 0o644)
+	write(t, filepath.Join(root, "Acme", serversFile), "#@ group g\nHost local\n")
 	os.WriteFile(filepath.Join(root, "Acme", "desk.toml"), []byte("record = false\n"), 0o644)
 	defer func() { dispatch, repaint, guiReplies = nil, nil, false }() // other tests run without a loop
 	var frames atomic.Int32
