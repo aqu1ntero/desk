@@ -407,6 +407,9 @@ last argument). Ásbrú writes that file when it closes cleanly, so close it bef
 - The descriptions become `#@ desc`.
 - Its ssh options (`-X`, `-A`, `-C`, `-o Key=Value`, `-L`/`-R`/`-D` forwards, `-p`, `-i`, `-l`, `-J`)
   become their config keywords. Anything else stays as a comment in the host's block.
+- Algorithms your `ssh` doesn't support (`ssh -Q`; OpenSSH 10 has no `ssh-dss`) are left out of
+  `HostKeyAlgorithms`, `KexAlgorithms`, `Ciphers`… with a comment, since one unknown name makes ssh
+  refuse the whole file.
 - Passwords stay behind: an ssh_config can't hold them. Point `#@ password` at your vault instead.
 - Connections that aren't SSH (RDP, VNC, Telnet…) are skipped, and so are hosts written with Ásbrú's
   variables (`<GV:…>`, `<ENV:…>`). The toast and the shell say which ones.
