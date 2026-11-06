@@ -189,8 +189,8 @@ Include ~/Work/Acme/.desk/servers-dynamic-lab.conf
 	if tree[2].group != "servers" || !tree[6].pin || tree[6].desc != "primary" {
 		t.Errorf("nodes: %+v %+v", tree[2], tree[6])
 	}
-	if a := sshArgs("web1", infra); a[len(a)-3] != "-F" || a[len(a)-2] != filepath.Join(org, "servers.conf") {
-		t.Errorf("args %v", a)
+	if o := sshOpts("web1", infra); o.File != filepath.Join(org, "servers.conf") {
+		t.Errorf("config %q", o.File)
 	}
 	if r := passwordRef(infra, "web1"); r == nil || *r != (SecretRef{Vault: "pb", Item: "web1 / deploy"}) {
 		t.Errorf("template: %+v", r)

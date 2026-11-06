@@ -16,6 +16,7 @@ import (
 
 	"github.com/lfdominguez/desk/internal/claude"
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/sshc"
 )
 
 // node is one row of the sidebar tree: org, group or host.
@@ -475,7 +476,7 @@ func (m model) View() tea.View { return tea.View{} }
 const connectWait = 10 * time.Second
 
 // connState is "" once the pane's connection is up, "timeout" while it hasn't
-// answered past waitUntil, "failed" when ssh ended without ever connecting.
+// answered past waitUntil, "failed" when it ended without ever connecting.
 func (p *Pane) connState() string {
 	c := p.term
 	_, exited := c.State()
@@ -532,8 +533,8 @@ func (m *model) redialPane(t *Tab, p *Pane) {
 	p.waitUntil = time.Now().Add(connectWait)
 }
 
-// Dropped links come back on their own: ServerAliveInterval (sshArgs) makes
-// ssh notice a dead one, and redial starts it again, backing off from 2s to
+// Dropped links come back on their own: ServerAliveInterval (sshOpts) makes
+// the client notice a dead one, and redial starts it again, backing off from 2s to
 // 30s, for up to redialFor. Then the failure box takes over.
 const redialFor = 5 * time.Minute
 
@@ -794,15 +795,15 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.reconnect(t)
 			}
 		case "a":
-			if c := parseHostKeyChange(t.term.Unwrapped()); c != nil && t.connState() == "failed" {
-				if err := acceptHostKey(t.term.Host, c); err != nil {
+			if c := hostKeyChangeOf(t.term.Err()); c != nil && t.connState() == "failed" {
+				if err := sshc.AcceptNewKey(t.term.Err()); err != nil {
 					m.errText = "accepting the new host key: " + err.Error()
 				} else {
 					m.reconnect(t)
 				}
 			}
 		case "f":
-			if fixes, _ := legacyFixes(t.term.Unwrapped()); len(fixes) > 0 && t.connState() == "failed" {
+			if fixes := legacyFixes(t.term.Err()); len(fixes) > 0 && t.connState() == "failed" {
 				if err := applyFixes(hostFile(t.focused().dir, t.term.Host), t.term.Host, fixes); err != nil {
 					m.errText = err.Error()
 				} else {
@@ -981,7 +982,7 @@ func (m *model) palItems() []palItem {
 	}
 	if len(m.tabs) > 0 {
 		all = append(all, palItem{kind: "actions", label: "copy server password", hint: "alt+p"},
-			palItem{kind: "actions", label: "copy ssh command", hint: "this server, on desk's shared connection, for another terminal"},
+			palItem{kind: "actions", label: "copy ssh command", hint: "this server, as desk reaches it, for another terminal"},
 			palItem{kind: "actions", label: "broadcast typing to all panes", hint: "on/off for this tab"},
 			palItem{kind: "actions", label: "draft a postmortem with Claude", hint: "from this session"},
 			palItem{kind: "actions", label: "export session report", hint: "markdown: conversation, commands, approvals"})

@@ -3,6 +3,7 @@ package sshc
 import (
 	"bufio"
 	"context"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"io"
 	"os"
 	"strings"
@@ -13,7 +14,7 @@ import (
 )
 
 // pwClient is a client of a fresh password server, with extra config lines.
-func pwClient(t *testing.T, extra string, o srvOpts) (*Client, *server, *world) {
+func pwClient(t *testing.T, extra string, o sshtest.Opts) (*Client, *server, *world) {
 	w := newWorld(t)
 	s := pwServer(t, w, o)
 	w.ans = []string{"pw"}
@@ -47,7 +48,7 @@ func expect(t *testing.T, r *bufio.Reader, want string) {
 }
 
 func TestShellPTY(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	s, err := c.Shell("xterm-256color", 80, 24, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +69,7 @@ func TestShellPTY(t *testing.T) {
 }
 
 func TestShellSignal(t *testing.T) {
-	c, srv, _ := pwClient(t, "  RemoteCommand sleep\n", srvOpts{})
+	c, srv, _ := pwClient(t, "  RemoteCommand sleep\n", sshtest.Opts{})
 	s, err := c.Shell("xterm", 80, 24, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -80,10 +81,8 @@ func TestShellSignal(t *testing.T) {
 	if code, err := s.Wait(); code != -1 || err == nil {
 		t.Fatalf("exit %d %v", code, err)
 	}
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	if srv.sig != "TERM" {
-		t.Fatalf("signal %q", srv.sig)
+	if sig := srv.Signal(); sig != "TERM" {
+		t.Fatalf("signal %q", sig)
 	}
 }
 
@@ -93,7 +92,7 @@ func TestRemoteCommandNoPTY(t *testing.T) {
 		"  RemoteCommand pty\n  RequestTTY yes\n":   "pty xterm 80x24",
 		"  RemoteCommand pty\n  RequestTTY force\n": "pty xterm 80x24",
 	} {
-		c, _, _ := pwClient(t, extra, srvOpts{})
+		c, _, _ := pwClient(t, extra, sshtest.Opts{})
 		s, err := c.Shell("xterm", 80, 24, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -104,7 +103,7 @@ func TestRemoteCommandNoPTY(t *testing.T) {
 }
 
 func TestRequestTTYNo(t *testing.T) {
-	c, _, _ := pwClient(t, "  RequestTTY no\n", srvOpts{})
+	c, _, _ := pwClient(t, "  RequestTTY no\n", sshtest.Opts{})
 	s, err := c.Shell("xterm", 80, 24, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +118,7 @@ func TestRequestTTYNo(t *testing.T) {
 }
 
 func TestShellStderr(t *testing.T) {
-	c, _, _ := pwClient(t, "  RemoteCommand stderr oops\n", srvOpts{})
+	c, _, _ := pwClient(t, "  RemoteCommand stderr oops\n", sshtest.Opts{})
 	s, err := c.Shell("xterm", 80, 24, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -128,24 +127,24 @@ func TestShellStderr(t *testing.T) {
 }
 
 func TestSessionType(t *testing.T) {
-	c, _, _ := pwClient(t, "  SessionType none\n", srvOpts{})
+	c, _, _ := pwClient(t, "  SessionType none\n", sshtest.Opts{})
 	if _, err := c.Shell("xterm", 80, 24, nil); err == nil {
 		t.Fatal("session opened")
 	}
-	c, _, _ = pwClient(t, "  SessionType subsystem\n  RemoteCommand echo\n", srvOpts{})
+	c, _, _ = pwClient(t, "  SessionType subsystem\n  RemoteCommand echo\n", sshtest.Opts{})
 	s, err := c.Shell("xterm", 80, 24, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	expect(t, bufio.NewReader(s.Stdout), "subsystem echo")
-	c, _, _ = pwClient(t, "  SessionType subsystem\n  RemoteCommand nosuch\n", srvOpts{})
+	c, _, _ = pwClient(t, "  SessionType subsystem\n  RemoteCommand nosuch\n", sshtest.Opts{})
 	if _, err := c.Shell("xterm", 80, 24, nil); err == nil {
 		t.Fatal("unknown subsystem opened")
 	}
 }
 
 func TestStdinNull(t *testing.T) {
-	c, _, _ := pwClient(t, "  StdinNull yes\n  RemoteCommand cat\n", srvOpts{})
+	c, _, _ := pwClient(t, "  StdinNull yes\n  RemoteCommand cat\n", sshtest.Opts{})
 	s, err := c.Shell("xterm", 80, 24, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -163,7 +162,7 @@ func TestStdinNull(t *testing.T) {
 }
 
 func TestShellOnDeadClient(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	c.Close()
 	if _, err := c.Shell("xterm", 80, 24, nil); err == nil {
 		t.Fatal("shell on a closed client")
@@ -174,7 +173,7 @@ func TestShellOnDeadClient(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	ctx := context.Background()
 	out, errOut, code, err := c.Run(ctx, "echo hi", nil)
 	if string(out) != "hi\n" || len(errOut) != 0 || code != 0 || err != nil {
@@ -201,7 +200,7 @@ func TestEnv(t *testing.T) {
 	t.Setenv("LC_DESK", "fr")
 	t.Setenv("LC_OTHER", "de")
 	t.Setenv("DESK_X", "local")
-	c, _, _ := pwClient(t, "  SendEnv LC_* DESK_X\n  SetEnv DESK_X=set DESK_Y=${LC_DESK}\n", srvOpts{})
+	c, _, _ := pwClient(t, "  SendEnv LC_* DESK_X\n  SetEnv DESK_X=set DESK_Y=${LC_DESK}\n", sshtest.Opts{})
 	s, err := c.Shell("xterm", 80, 24, map[string]string{"DESK_Z": "given", "DESK_Y": "given"})
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +216,7 @@ func TestEnv(t *testing.T) {
 }
 
 func TestEnvRefusedLogged(t *testing.T) {
-	c, _, w := pwClient(t, "  SetEnv A=1\n", srvOpts{config: func(*ssh.ServerConfig) {}})
+	c, _, w := pwClient(t, "  SetEnv A=1\n", sshtest.Opts{Config: func(*ssh.ServerConfig) {}})
 	s, err := c.NewSession()
 	if err != nil {
 		t.Fatal(err)
@@ -233,23 +232,23 @@ func TestForwardAgent(t *testing.T) {
 	raw, _ := genRaw(t)
 	sock, _ := agentSock(t, raw)
 	for _, fwd := range []string{"yes", sock} {
-		c, srv, _ := pwClient(t, "  ForwardAgent "+fwd+"\n  IdentityAgent "+sock+"\n", srvOpts{})
+		c, srv, _ := pwClient(t, "  ForwardAgent "+fwd+"\n  IdentityAgent "+sock+"\n", sshtest.Opts{})
 		for range 2 { // the agent is offered on every session
 			out, _, _, err := c.Run(context.Background(), "agent", nil)
 			if err != nil || string(out) != "agent keys 1 <nil>\n" {
 				t.Fatalf("%s: %q %v", fwd, out, err)
 			}
 		}
-		if !srv.forwarded() {
+		if !srv.Forwarded() {
 			t.Fatal("no agent request")
 		}
 	}
-	c, srv, _ := pwClient(t, "  ForwardAgent no\n", srvOpts{})
+	c, srv, _ := pwClient(t, "  ForwardAgent no\n", sshtest.Opts{})
 	c.Run(context.Background(), "echo", nil)
-	if srv.forwarded() {
+	if srv.Forwarded() {
 		t.Fatal("agent forwarded")
 	}
-	c, _, w := pwClient(t, "  ForwardAgent %HOME/none\n", srvOpts{})
+	c, _, w := pwClient(t, "  ForwardAgent %HOME/none\n", sshtest.Opts{})
 	c.Run(context.Background(), "echo", nil)
 	if !w.logged("Agent forwarding:") {
 		t.Fatalf("logs %q", w.logs)
@@ -259,17 +258,17 @@ func TestForwardAgent(t *testing.T) {
 func TestForwardAgentUnsafe(t *testing.T) {
 	w, s, _ := changedWorld(t)
 	k := writeKey(t, w.path("id"), "")
-	s.with(func(o *srvOpts) { o.keys = []ssh.PublicKey{k.PublicKey()} })
+	s.With(func(o *sshtest.Opts) { o.Keys = []ssh.PublicKey{k.PublicKey()} })
 	c := mustDial(t, w.opts(base("  StrictHostKeyChecking no\n  ForwardAgent yes\n"), s))
 	c.Run(context.Background(), "echo", nil)
-	if s.forwarded() || !w.logged("Agent forwarding is disabled") {
+	if s.Forwarded() || !w.logged("Agent forwarding is disabled") {
 		t.Fatalf("agent forwarded, logs %q", w.logs)
 	}
 }
 
 func TestLocalCommand(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	t.Setenv("DESK_LC", "env")
 	mustDial(t, w.opts(base("  PermitLocalCommand yes\n  LocalCommand echo %n %T '${DESK_LC}' > %HOME/lc; echo done\n"), s))
@@ -295,7 +294,7 @@ func TestLocalCommand(t *testing.T) {
 
 func TestSFTP(t *testing.T) {
 	dir := t.TempDir()
-	c, _, _ := pwClient(t, "", srvOpts{dir: dir})
+	c, _, _ := pwClient(t, "", sshtest.Opts{Dir: dir})
 	sc, err := c.SFTP()
 	if err != nil {
 		t.Fatal(err)

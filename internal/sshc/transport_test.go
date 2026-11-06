@@ -3,6 +3,7 @@ package sshc
 import (
 	"context"
 	"errors"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"net"
 	"os"
 	"strconv"
@@ -18,14 +19,14 @@ const common = "Host *\n  HostName 127.0.0.1\n  User me\n  UserKnownHostsFile %H
 
 func TestProxyJumpOneHop(t *testing.T) {
 	w := newWorld(t)
-	jump, target := pwServer(t, w, srvOpts{}), pwServer(t, w, srvOpts{})
+	jump, target := pwServer(t, w, sshtest.Opts{}), pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw", "pw"}
 	c, err := Dial(context.Background(), "target", w.opts("Host target\n  Port %PORT1\n  ProxyJump jump\nHost jump\n  Port %PORT0\n"+common, jump, target))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.jump == nil || jump.count() != 1 || target.count() != 1 || !strings.Contains(w.asks[0], "@127.0.0.1's password") {
-		t.Fatalf("jump %v, conns %d %d", c.jump, jump.count(), target.count())
+	if c.jump == nil || jump.Count() != 1 || target.Count() != 1 || !strings.Contains(w.asks[0], "@127.0.0.1's password") {
+		t.Fatalf("jump %v, conns %d %d", c.jump, jump.Count(), target.Count())
 	}
 	// Through a jump there is no address to check.
 	if c.hc.shown != "<no hostip for proxy command>" {
@@ -41,7 +42,7 @@ func TestProxyJumpOneHop(t *testing.T) {
 
 func TestProxyJumpTwoHops(t *testing.T) {
 	w := newWorld(t)
-	j1, j2, target := pwServer(t, w, srvOpts{}), pwServer(t, w, srvOpts{}), pwServer(t, w, srvOpts{})
+	j1, j2, target := pwServer(t, w, sshtest.Opts{}), pwServer(t, w, sshtest.Opts{}), pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw", "pw", "pw"}
 	// The second hop is named with its user and port, the first by its block.
 	c, err := Dial(context.Background(), "target", w.opts("Host target\n  Port %PORT2\n  ProxyJump j1,me@127.0.0.1:%PORT1\nHost j1\n  Port %PORT0\n"+common, j1, j2, target))
@@ -49,14 +50,14 @@ func TestProxyJumpTwoHops(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if j1.count() != 1 || j2.count() != 1 || target.count() != 1 || c.jump.jump == nil {
-		t.Fatalf("conns %d %d %d", j1.count(), j2.count(), target.count())
+	if j1.Count() != 1 || j2.Count() != 1 || target.Count() != 1 || c.jump.jump == nil {
+		t.Fatalf("conns %d %d %d", j1.Count(), j2.Count(), target.Count())
 	}
 }
 
 func TestProxyJumpFails(t *testing.T) {
 	w := newWorld(t)
-	jump := pwServer(t, w, srvOpts{})
+	jump := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	_, err := Dial(context.Background(), "target", w.opts("Host target\n  Port 1\n  ProxyJump jump\nHost jump\n  Port %PORT0\n"+common, jump))
 	if err == nil || !strings.Contains(err.Error(), "jump host 127.0.0.1: channel to 127.0.0.1:1") {
@@ -83,7 +84,7 @@ func TestHopString(t *testing.T) {
 
 func TestProxyCommand(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	bin, _ := os.Executable()
 	w.ans = []string{"pw"}
 	c := mustDial(t, w.opts(base("  ProxyCommand "+bin+" sshc-bridge %h %p\n"), s))
@@ -99,7 +100,7 @@ func TestProxyCommand(t *testing.T) {
 
 func TestProxyCommandFails(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	if _, err := dialT(t, w.opts(base("  ProxyCommand exit 1\n"), s)); err == nil {
 		t.Fatal("dead command connected")
 	}
@@ -125,7 +126,7 @@ func TestShellCommandDefaultShell(t *testing.T) {
 
 func TestUnsupportedTransports(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	for _, extra := range []string{"  ProxyCommand nc %h %p\n  ProxyUseFdpass yes\n", "  ProxyCommand -\n"} {
 		if _, err := dialT(t, w.opts(base(extra), s)); err == nil || !strings.Contains(err.Error(), "isn't supported by desk") {
 			t.Fatalf("%q: err %v", extra, err)
@@ -135,7 +136,7 @@ func TestUnsupportedTransports(t *testing.T) {
 
 func TestIgnoredOptionsLogged(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  ForwardX11 yes\n  Compression yes\n  Tunnel yes\n  VerifyHostKeyDNS yes\n  UseRoaming no\n"), s))
 	for _, l := range []string{"X11 forwarding isn't supported", "Compression isn't", "Tunnel isn't", "VerifyHostKeyDNS isn't", "useroaming"} {
@@ -174,7 +175,7 @@ func TestConnectionAttempts(t *testing.T) {
 
 func TestDialOptions(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	for _, extra := range []string{"  BindAddress 127.0.0.1\n", "  BindAddress localhost\n  AddressFamily inet\n", "  BindInterface lo\n  AddressFamily inet\n", "  TCPKeepAlive no\n", "  BindInterface lo\n"} {
 		w.ans = []string{"pw"}
 		if _, err := dialT(t, w.opts(base(extra), s)); err != nil {
@@ -208,9 +209,9 @@ func TestDialer(t *testing.T) {
 func TestProxyCommandNoEnv(t *testing.T) {
 	// ProxyCommand takes % tokens only: ${…} is the shell's.
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	bin, _ := os.Executable()
-	t.Setenv("DESK_PORT", strconv.Itoa(s.port))
+	t.Setenv("DESK_PORT", strconv.Itoa(s.Port))
 	w.ans = []string{"pw"}
 	if _, err := dialT(t, w.opts(base("  ProxyCommand "+bin+" sshc-bridge %h '${DESK_PORT}'\n"), s)); err == nil {
 		t.Fatal("${} expanded")
@@ -257,7 +258,7 @@ func TestConnectTimeout(t *testing.T) {
 
 func TestDialCancelled(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	ctx, cancel := context.WithCancel(context.Background())
 	o := w.opts(base(""), s)
 	o.Prompt = func(string, bool) (string, error) {

@@ -30,7 +30,7 @@ func fakeTermA(t *testing.T, host string) (*Term, *os.File) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.Close(); w.Close() })
-	return &Term{Host: host, emu: vt.NewEmulator(40, 6), pty: w, proc: doneProcA(t), b: &pos{}}, r
+	return &Term{Host: host, emu: vt.NewEmulator(40, 6), pty: ptyProc{w, doneProcA(t)}, b: &pos{}}, r
 }
 
 func readPipeA(r *os.File) string {
@@ -1884,7 +1884,7 @@ func TestRedialGiveUpA(t *testing.T) {
 	dir := t.TempDir()
 	lost, _ := fakeTermA(t, "local")
 	lost.emu.WriteString("before the drop")
-	lost.exited, lost.code, lost.reached, lost.b = true, 255, true, nil
+	lost.exited, lost.code, lost.dropped, lost.reached, lost.b = true, 255, true, true, nil
 	p := &Pane{id: 1, term: lost, name: "local", dir: dir}
 	tab := &Tab{term: lost, panes: []*Pane{p}}
 	mine, other := portFwd{host: "local", dir: dir, kind: "L", spec: "1:localhost:1"}, portFwd{host: "web2", dir: dir, kind: "L", spec: "1:localhost:1"}

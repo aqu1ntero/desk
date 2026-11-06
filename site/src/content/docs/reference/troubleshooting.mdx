@@ -70,12 +70,29 @@ When a token comes from a Bitwarden, Vaultwarden or Passbolt vault, desk asks fo
 
 ## A server's host key changed
 
-A reinstalled server, or one whose keys were rotated, sends a key ssh doesn't know, and ssh refuses to connect. The pane's box then says **\<server\>'s host key changed** and shows the key the server sent next to the one in your `known_hosts`, by fingerprint.
+A reinstalled server, or one whose keys were rotated, sends a key your `known_hosts` doesn't have for it, and desk refuses to connect. The pane's box then says **\<server\>'s host key changed** and shows the key the server sent next to the one in your `known_hosts`, by fingerprint.
 
-- If you expected it, **Accept new key** (<kbd>A</kbd>). desk drops that line from `known_hosts` and reconnects, and ssh saves the new key. It does nothing if the line no longer holds that key for that host.
+- If you expected it, **Accept new key** (<kbd>A</kbd>). desk drops that line from `known_hosts`, saves the key shown and reconnects. It does nothing if the line no longer holds that key for that host.
 - If you didn't expect it, don't accept. Someone may be in between. **Close pane** (<kbd>C</kbd>).
 
 More in [Host keys](/servers/host-keys/).
+
+## A server pane says "isn't supported by desk" or "which desk doesn't support"
+
+desk connects with its own SSH client, not the `ssh` program, and a few things ssh does it
+doesn't: GSSAPI (Kerberos) and host-based authentication, `PKCS11Provider` smart cards, FIDO
+(`sk-…`) keys outside an agent, X11 forwarding, compression, `Tunnel`, `ProxyUseFdpass`. An
+option it can do without prints "… isn't supported by desk; ignored" in the pane and the
+connection goes on; a login that needs one fails, naming it. Use an agent for FIDO keys (`ssh-add`
+them, `IdentityAgent` or `SSH_AUTH_SOCK`), or a password or key for the others. The full list:
+[How desk connects](/servers/servers-file/#how-desk-connects).
+
+## "Unable to negotiate: no matching … found"
+
+The server offers only old algorithms desk leaves off unless asked. The pane's box has **Fix
+algorithms** (<kbd>F</kbd>), which adds the needed `KexAlgorithms +…`, `HostKeyAlgorithms +…`,
+`Ciphers +…` or `MACs +…` line to that host's block in the servers file and reconnects. Without
+the button, the server offers nothing desk has (DSA host keys only, for one).
 
 ## desk peer says desk is not running
 

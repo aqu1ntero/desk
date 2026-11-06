@@ -2285,7 +2285,6 @@ func TestCoverServersInfra(t *testing.T) {
 		t.Setenv(v, t.TempDir())
 	}
 	fakeBin(t, "claude", "exec cat")
-	fakeBin(t, "ssh", "exec cat")
 	h := newHarness(t)
 	for _, org := range []string{"Acme", "Globex"} {
 		localServer(t, h.u.root, org)

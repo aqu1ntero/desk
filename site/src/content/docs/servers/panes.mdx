@@ -3,8 +3,9 @@ title: Panes
 description: Each pane is a live SSH terminal whose commands become numbered blocks you can point Claude at.
 ---
 
-A pane is a real terminal running `ssh` to one server. You type in it, and so does the tab's
-infra Claude. The output stays: every command becomes a numbered block.
+A pane is a real terminal: a shell on one server, over desk's own SSH client (no `ssh` program
+runs; see [How desk connects](/servers/servers-file/#how-desk-connects)). You type in it, and so
+does the tab's infra Claude. The output stays: every command becomes a numbered block.
 
 ![A pane on web-02 with four command blocks Claude ran, and the Claude panel beside it](../../../assets/shots/srv-turn1.png)
 
@@ -35,8 +36,9 @@ on the focused pane's server, in the same tab. Panes stack top to bottom.
 
 ![Two panes on web-02 in one tab, one above the other](../../../assets/shots/srv-split.png)
 
-- All panes of a server share one SSH connection (OpenSSH's ControlMaster), so a new pane opens
-  at once, with no second login.
+- All panes of a server share one SSH connection (the files split, Claude's `changes` tool and
+  port forwards use it too), so a new pane opens at once, with no second login. It stays a
+  minute after the last of them closes.
 - Click a pane to focus it. With more than one, the focused pane has an accent outline.
 - <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> closes the focused pane. On a tab's last pane it
   closes the tab.
@@ -137,20 +139,23 @@ If the server hasn't answered after 10 seconds:
 
 ### Couldn't connect
 
-When ssh ends before the server answered:
+When the connection ends before the shell started:
 
 <figure class="cut">
 
-![Couldn't connect to db-01, with ssh's error "ssh: connect to host 192.0.2.21 port 22: No route to host", Close pane C and Reconnect R](../../../assets/shots/srv-failed-box.png)
+![Couldn't connect to db-01, with the error "ssh: connect to host 192.0.2.21 port 22: No route to host", Close pane C and Reconnect R](../../../assets/shots/srv-failed-box.png)
 
-<figcaption>ssh's last line, and what to try.</figcaption>
+<figcaption>Why it failed, and what to try.</figcaption>
 </figure>
 
-- The box shows ssh's last line and "Tried N times" when desk retried.
+- The box shows why (the error is printed in the pane too) and "Tried N times" when desk retried.
 - **Reconnect** (<kbd>R</kbd>) tries again. The scrollback stays as it was.
 - **Close pane** (<kbd>C</kbd>) closes it.
-- **Fix algorithms** (<kbd>F</kbd>) shows up when the server offers only algorithms modern ssh
-  turned off. It adds them to that host in its ssh_config and reconnects.
+- **Fix algorithms** (<kbd>F</kbd>) shows up when the server offers only algorithms modern SSH
+  turns off ("Unable to negotiate: no matching KexAlgorithms found. Their offer: …"). It adds
+  them to that host in its ssh_config (`KexAlgorithms +diffie-hellman-group1-sha1`,
+  `HostKeyAlgorithms +ssh-rsa`…) and reconnects. Algorithms desk doesn't have at all (`ssh-dss`
+  keys on a server that offers nothing else) can't be fixed this way.
 - When the server's host key changed, the box shows both keys instead.
   See [A changed host key](/servers/host-keys/).
 
@@ -167,10 +172,12 @@ A link that drops after it was up (a laptop asleep, a VPN down) comes back on it
 
 ### Passwords for ssh
 
-desk is ssh's password helper (`SSH_ASKPASS`). On the first password prompt it answers from the
-vault when the server has a [`#@ password`](/servers/servers-file/#vault-password-and-password-raw).
-Otherwise, or for any other question ssh asks, a box asks you: "ssh web-01 asks", with "Sent to
-this ssh session only, not stored." Your answer goes to that ssh only.
+On the first password the server asks for, desk answers from the vault when the server has a
+[`#@ password`](/servers/servers-file/#vault-password-and-password-raw). Otherwise, or for
+anything else the connection asks (a key's passphrase, a keyboard-interactive question, a new
+host's "yes/no"), a box asks you: "ssh web-01 asks", with "Sent to this ssh session only, not
+stored." Your answer goes to that connection only, and Claude never sees it. A vault password the
+server rejected is said so with the next question ("(the vault password was rejected)").
 
 If the vault is locked, desk asks for its password first ("Unlock …"). That password is kept in
 memory only.
@@ -189,7 +196,7 @@ prompt reads "Asks for deploy's password" with **Type server password**
 ## Wake-on-LAN
 
 A server with [`#@ wol`](/servers/servers-file/#wol) gets a magic packet each time a pane
-opens on it, just before ssh starts. desk doesn't wait for it to boot: if the pane says the
+opens on it, just before desk connects. desk doesn't wait for it to boot: if the pane says the
 server isn't answering yet, **Keep waiting**.
 
 ## Recordings

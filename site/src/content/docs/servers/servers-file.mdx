@@ -4,9 +4,9 @@ description: An organization's servers are one OpenSSH config, with desk's own s
 ---
 
 An organization's servers live in one real OpenSSH config file. desk lists its hosts under the
-organization, connects to them with `ssh -F` and that file, and reads its own settings from
-comment lines that start with `#@`. ssh skips those lines, so the same file works from any
-terminal:
+organization, connects to them with that file as `ssh -F` would (desk's own SSH client reads
+it, see [How desk connects](#how-desk-connects)), and reads its own settings from comment lines
+that start with `#@`. ssh skips those lines, so the same file works from any terminal:
 
 ```sh
 ssh -F ~/Work/Globex/.desk/ssh_config web-01
@@ -141,8 +141,8 @@ so it can pick the right one when you say "the proxy":
 
 ### `vault`, `password` and `password-raw`
 
-These give desk the server's password. desk types it into ssh's password prompt, and into a
-`sudo` prompt when you ask (see [Panes](/servers/panes/#sudo-passwords)).
+These give desk the server's password. desk logs in with it, and types it into a `sudo` prompt
+when you ask (see [Panes](/servers/panes/#sudo-passwords)).
 
 - `#@ vault NAME` picks which of the organization's [vaults](/orgs/vaults/) to use: the
   `name` of one of its `[[vault]]` tables in `desk.toml`. Without one, desk uses the first
@@ -158,12 +158,13 @@ These give desk the server's password. desk types it into ssh's password prompt,
 - For `password` and `password-raw`, the nearest level that has either one wins. A host's
   `password-raw` beats the file's `password`.
 
-When the vault can't give the password, ssh's prompt shows why ("(vault: …)") and asks you.
+When the vault can't give the password, the password question shows why ("(vault: …)") and
+asks you.
 
 ### `wol`
 
 `#@ wol 52:54:00:12:34:56 10.0.0.255:9` sends a Wake-on-LAN packet to that MAC address every
-time a pane opens on the host, just before ssh connects. The broadcast address and port are
+time a pane opens on the host, just before desk connects. The broadcast address and port are
 optional: the default is `255.255.255.255:9`. desk doesn't wait for the machine to boot; if it
 isn't up yet, the pane's [connection box](/servers/panes/#the-connection-box) lets you
 keep waiting or reconnect.
@@ -229,31 +230,49 @@ write full or `~/` paths for files in the organization's folder.
 - Files **inside the organization's folder** count: their hosts are the organization's servers,
   and their `#@` lines work. An included file starts in the group of the line that includes it.
 - Files **outside it**, like `~/.ssh/config`, are ssh's alone. desk doesn't list their hosts, so
-  your personal hosts never show as the organization's servers. ssh still reads them, so put
+  your personal hosts never show as the organization's servers. desk still reads them when it
+  connects, as ssh does, so put
   `Match all` and `Include ~/.ssh/config` last to keep your own defaults (ssh keeps the first
   value it finds).
 - Includes nest up to 8 deep.
 
-## The ssh command
+## How desk connects
 
-For each pane desk runs:
+desk has its own SSH client: no `ssh` program runs. It reads the servers file the way
+OpenSSH 10.5's `ssh -F <file> <alias>` would (every keyword, `Host` and `Match` with all their
+criteria, `Include`, tokens like `%h` and `%d`, first value wins), then connects as ssh would
+with that: `ProxyJump` and `ProxyCommand`, `IdentityFile` and certificates, the agent
+(`IdentityAgent`, `SSH_AUTH_SOCK`), `AddKeysToAgent`, `PreferredAuthentications`, passwords and
+keyboard-interactive, `known_hosts` with `StrictHostKeyChecking`, `HostKeyAlias`,
+`KnownHostsCommand` and `@cert-authority`, the algorithm lists, `LocalForward`/`RemoteForward`/
+`DynamicForward`, `SendEnv`/`SetEnv`, `ForwardAgent`, `RequestTTY`, `RemoteCommand`…
+
+- **One connection per server**: every pane of a server shares it, so a second pane opens at
+  once, and the [directory split](/servers/palette/#files), Claude's `changes` tool and port
+  forwards ride on it. It stays a minute after the last of them is done.
+- **Keepalives**: desk notices a dead link within about 45 seconds (`ServerAliveInterval 15`,
+  `ServerAliveCountMax 3`) and [reconnects](/servers/panes/#reconnecting). A file that sets
+  `ServerAliveInterval` for the host keeps its own.
+- **Questions** (passwords, passphrases, a new host's yes/no) come to desk's ask box, never to
+  the terminal: see [Passwords for ssh](/servers/panes/#passwords-for-ssh).
+
+What it doesn't do, and how you hear of it:
+
+| Not supported | What desk says |
+|---|---|
+| GSSAPI (Kerberos) and host-based authentication | When nothing else logs in: "…which desk doesn't support". |
+| `PKCS11Provider` (smart cards) | The same, naming `PKCS11Provider keys`. |
+| FIDO keys (`sk-…`) from a file | Use them through an agent; a file's is named in the error. |
+| `ForwardX11`, `Compression`, `VerifyHostKeyDNS`, `Tunnel` | A line in the pane ("… isn't supported by desk; ignored"); the connection goes on. |
+| `ProxyUseFdpass`, `ProxyCommand -` | The connection fails, saying so. |
+| `ControlMaster`, `ControlPath`, `ControlPersist` | Nothing: desk shares connections itself. |
+
+The palette's **copy ssh command** gives you the equivalent `ssh` command for the focused
+server, to run in another terminal (it makes its own connection):
 
 ```sh
-ssh -o ControlMaster=auto -o ControlPath=$XDG_RUNTIME_DIR/desk/ssh-%C -o ControlPersist=60 \
-    -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-    -F ~/Work/Globex/.desk/ssh_config web-01
+ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -F ~/Work/Globex/.desk/ssh_config web-01
 ```
-
-- **ControlMaster**: every pane of a server shares one connection, so a second pane opens at
-  once, and the [directory split](/servers/palette/#files) and port forwards ride on it.
-- **ServerAliveInterval**: ssh notices a dead link within about 45 seconds, and desk
-  [reconnects](/servers/panes/#reconnecting). desk leaves it out when your file mentions
-  `ServerAliveInterval` anywhere.
-- After you [accept a changed host key](/servers/host-keys/), the next connection adds
-  `-o StrictHostKeyChecking=accept-new`, once.
-
-The palette's **copy ssh command** gives you this command for the focused server, to run in
-another terminal on the same shared connection.
 
 ## Without a servers file
 

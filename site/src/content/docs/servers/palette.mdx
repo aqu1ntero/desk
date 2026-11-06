@@ -56,7 +56,7 @@ Actions show once you type a few letters of them.
 |---|---|
 | **reload config** | Reads the organizations' `desk.toml` files and servers files again. |
 | **copy server password** | Copies the focused server's password (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> types it into a waiting sudo prompt instead). |
-| **copy ssh command** | The `ssh` command for the focused server, on desk's shared connection, for another terminal. |
+| **copy ssh command** | The `ssh` command that reaches the focused server as desk does, for another terminal. |
 | **broadcast typing to all panes** | Turns [broadcast](/servers/panes/#broadcast) on or off for the tab. |
 | **New directory split (files)** | The [directory split](#files) for the focused server. |
 | **forward …**, **rforward …**, **socks …** | [Port forwards](#port-forwards). |
@@ -103,7 +103,8 @@ Claude is busy, desk says so: start it when Claude is done, or stop it. How to w
 ## Port forwards
 
 Type a forward and pick it. It's added to the focused server's shared SSH connection, so no new
-login, and it comes back after a reconnect or a restart.
+login, and it comes back after a reconnect or a restart. It lives as long as that connection:
+closing the server's last pane ends it a minute later.
 
 <figure class="cut">
 
@@ -127,9 +128,10 @@ hints. Each active forward is listed as **stop forward …**, to remove it.
 
 **New directory split (files)**, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> or the toolbar's
 folder button opens a two-panel file manager under the panes: the focused pane's server on the
-left (in the shell's current directory), this machine on the right. It works over the server's
-shared SSH connection, with `sh`, `ls`/`find`, `cat` and `tar`, so the server needs nothing
-installed. One split per tab.
+left (in the shell's current directory), this machine on the right. It works over SFTP on the
+server's shared SSH connection, so no new login. A server without the sftp subsystem still
+works: desk then runs `sh`, `ls`/`find`, `cat` and `tar` there, so the server needs nothing
+installed. Copies keep each file's permissions. One split per tab.
 
 | Key | What it does |
 |---|---|

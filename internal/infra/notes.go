@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -88,7 +89,9 @@ func (t *Tab) changes(p *Pane, hours int) toolResult {
 	hours = max(1, min(720, hours))
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	out, err := remoteSh(ctx, p.term.Host, p.dir, "sh -c "+shQuote(changesScript)+" changes "+fmt.Sprint(hours)).CombinedOutput()
+	var b bytes.Buffer
+	err := remoteSh(ctx, p.term.Host, p.dir, "sh -c "+shQuote(changesScript)+" changes "+fmt.Sprint(hours), nil, &b)
+	out := b.Bytes()
 	audit(auditEntry{Org: t.org, Group: t.group, Host: p.name, Event: "command", By: "claude", Cmd: fmt.Sprintf("(changes tool, last %dh)", hours)})
 	if err != nil && len(out) == 0 {
 		return toolResult{"changes: " + err.Error(), true}

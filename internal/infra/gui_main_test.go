@@ -32,6 +32,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/vt"
 	"golang.org/x/image/math/fixed"
+
+	"github.com/lfdominguez/desk/internal/sshc"
 )
 
 // --- helpers (prefix gm: this file's) ---
@@ -192,7 +194,7 @@ func gmTerm(t *testing.T, host string, w, h int) (*Term, *gmSink) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	term := &Term{Host: host, emu: vt.NewEmulator(w, h), pty: wp, proc: doneProcA(t)}
+	term := &Term{Host: host, emu: vt.NewEmulator(w, h), pty: ptyProc{wp, doneProcA(t)}}
 	term.emu.RegisterOscHandler(133, term.osc133)
 	sink := &gmSink{}
 	go io.Copy(sink, term.emu)
@@ -415,24 +417,11 @@ func TestGMSnapshot(t *testing.T) {
 	}
 }
 
-// TestGMSnapshotConn: a failed pane carries ssh's last line and whether Fix
-// can help, a dropped one when it dropped and its redials, a waiting one
-// since when it waits.
+// TestGMSnapshotConn: a failed pane carries its last line (its connection's
+// error when it has one) and whether Fix can help, a dropped one when it
+// dropped and its redials, a waiting one since when it waits.
 func TestGMSnapshotConn(t *testing.T) {
 	gmEnv(t)
-	sshQMu.Lock()
-	old, had := sshQ["key"]
-	sshQ["key"] = map[string]bool{"ssh-rsa": true}
-	sshQMu.Unlock()
-	t.Cleanup(func() {
-		sshQMu.Lock()
-		if had {
-			sshQ["key"] = old
-		} else {
-			delete(sshQ, "key")
-		}
-		sshQMu.Unlock()
-	})
 	failed, _ := gmTerm(t, "web1", 100, 6)
 	gmOut(failed, "ssh: connect to host 10.0.0.9 port 22: Connection timed out\r\n")
 	failed.exited = true
@@ -456,9 +445,14 @@ func TestGMSnapshotConn(t *testing.T) {
 	if w.Conn != "timeout" || !w.Since.Equal(at.Add(-connectWait)) || w.Err != "" {
 		t.Errorf("timeout %+v", w)
 	}
-	gmOut(failed, "Unable to negotiate with 10.0.0.9 port 22: no matching host key type found. Their offer: ssh-rsa\r\n")
-	if f := snap()[0]; !f.CanFix || !strings.HasPrefix(f.Err, "Unable to negotiate") {
+	failed.err = &sshc.NegotiationError{What: "HostKeyAlgorithms", Theirs: []string{"ssh-rsa"}}
+	if f := snap()[0]; !f.CanFix || f.Err != "Unable to negotiate: no matching HostKeyAlgorithms found. Their offer: ssh-rsa" || f.KeyChange != nil {
 		t.Errorf("old algorithms %+v", f)
+	}
+	failed.err = &sshc.HostKeyChangedError{Host: "web1", Type: "ED25519", Fingerprint: "SHA256:new",
+		Known: []sshc.KnownLine{{File: "/home/me/.ssh/known_hosts", Line: 3, Type: "ED25519", Fingerprint: "SHA256:old"}}}
+	if f := snap()[0]; f.CanFix || f.KeyChange == nil || f.KeyChange.Remote != "SHA256:new" || len(f.KeyChange.Old) != 1 || f.KeyChange.Old[0] != (oldKey{"/home/me/.ssh/known_hosts", 3, "ED25519", "SHA256:old"}) {
+		t.Errorf("changed key %+v", f)
 	}
 }
 
@@ -475,9 +469,9 @@ func TestConnText(t *testing.T) {
 		{guiPane{Name: "db1", Conn: "reconnecting", Since: now.Add(-4 * time.Second)}, "Reconnecting to db1…", "The connection dropped 4s ago", ""},
 		{guiPane{Name: "db1", Conn: "reconnecting", Since: now.Add(-4 * time.Second), Tries: 2, Retry: now.Add(8 * time.Second)},
 			"Reconnecting to db1…", "The connection dropped 4s ago · tried 2 times, next in 8s", ""},
-		{guiPane{Name: "db1", Conn: "failed"}, "Couldn't connect to db1", "", "ssh ended before the server answered. If it's up, check the VPN; the scrollback stays as it was."},
+		{guiPane{Name: "db1", Conn: "failed"}, "Couldn't connect to db1", "", "The connection ended before the shell started. If the server is up, check the VPN; the scrollback stays as it was."},
 		{guiPane{Name: "db1", Conn: "failed", Tries: 5, CanFix: true}, "Couldn't connect to db1", "Tried 5 times",
-			"The server offers only algorithms this ssh turned off. Fix adds them to its ssh_config and reconnects."},
+			"The server offers only algorithms modern SSH turns off. Fix adds them to its ssh_config and reconnects."},
 	} {
 		c.p.Retry = c.p.Retry.Add(500 * time.Millisecond) // whole seconds read the same a moment later
 		c.p.Since = c.p.Since.Add(-500 * time.Millisecond)
