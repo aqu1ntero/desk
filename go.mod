@@ -20,6 +20,7 @@ require (
 	github.com/nyactl/go-adf v0.2.0
 	github.com/oligo/gvcode v0.8.2
 	github.com/passbolt/go-passbolt v0.8.3
+	github.com/pkg/sftp v1.13.12
 	github.com/yuin/goldmark v1.8.6
 	golang.org/x/crypto v0.58.0
 	golang.org/x/image v0.47.0
@@ -54,6 +55,7 @@ require (
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741 // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
