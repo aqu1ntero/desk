@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"io"
 	"net"
 	"os"
@@ -63,7 +64,7 @@ func to(ln net.Listener) sshconfig.Forward {
 }
 
 func TestLocalForward(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	f := to(echo(t, "tcp", "127.0.0.1:0"))
 	f.ListenHost, f.ListenHostSet = "127.0.0.1", true
 	addr, stop, err := c.Forward('L', f)
@@ -92,7 +93,7 @@ func TestLocalForwardBind(t *testing.T) {
 		{"", sshconfig.Forward{ListenHost: "*", ListenHostSet: true}, true},
 		{"", sshconfig.Forward{ListenHost: "localhost", ListenHostSet: true}, false},
 	} {
-		c, _, _ := pwClient(t, tc.extra, srvOpts{})
+		c, _, _ := pwClient(t, tc.extra, sshtest.Opts{})
 		ln, err := c.listenLocal(tc.f)
 		if err != nil {
 			t.Fatal(err)
@@ -106,7 +107,7 @@ func TestLocalForwardBind(t *testing.T) {
 }
 
 func TestLocalForwardUnix(t *testing.T) {
-	c, _, _ := pwClient(t, "  StreamLocalBindMask 0077\n", srvOpts{})
+	c, _, _ := pwClient(t, "  StreamLocalBindMask 0077\n", sshtest.Opts{})
 	sock := filepath.Join(t.TempDir(), "l")
 	f := to(echo(t, "tcp", "127.0.0.1:0"))
 	f.ListenPath, f.ListenPort = sock, sshconfig.StreamLocal
@@ -121,14 +122,14 @@ func TestLocalForwardUnix(t *testing.T) {
 	if _, _, err := c.Forward('L', f); err == nil {
 		t.Fatal("listened twice")
 	}
-	c2, _, _ := pwClient(t, "  StreamLocalBindUnlink yes\n", srvOpts{})
+	c2, _, _ := pwClient(t, "  StreamLocalBindUnlink yes\n", sshtest.Opts{})
 	if _, _, err := c2.Forward('L', f); err != nil || !ping(t, "unix", sock) {
 		t.Fatalf("unlink: %v", err)
 	}
 }
 
 func TestLocalForwardToUnixAndFailures(t *testing.T) {
-	c, _, w := pwClient(t, "", srvOpts{})
+	c, _, w := pwClient(t, "", sshtest.Opts{})
 	sock := filepath.Join(t.TempDir(), "far")
 	echo(t, "unix", sock)
 	addr, _, err := c.Forward('L', sshconfig.Forward{ConnectPath: sock, ConnectPort: sshconfig.StreamLocal})
@@ -152,7 +153,7 @@ func TestLocalForwardToUnixAndFailures(t *testing.T) {
 }
 
 func TestRemoteForward(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	addr, stop, err := c.Forward('R', to(echo(t, "tcp", "127.0.0.1:0")))
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +165,7 @@ func TestRemoteForward(t *testing.T) {
 }
 
 func TestRemoteForwardUnix(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	sock := filepath.Join(t.TempDir(), "r")
 	f := to(echo(t, "tcp", "127.0.0.1:0"))
 	f.ListenPath = sock
@@ -177,7 +178,7 @@ func TestRemoteForwardUnix(t *testing.T) {
 }
 
 func TestRemoteForwardRefused(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	_, _, err := c.Forward('R', sshconfig.Forward{ListenHost: "192.0.2.1", ListenHostSet: true, ListenPort: 1})
 	if err == nil || !strings.Contains(err.Error(), "remote port forwarding failed for listen 192.0.2.1:1") {
 		t.Fatalf("err %v", err)
@@ -227,7 +228,7 @@ func socks5(t *testing.T, proxy, host string, port int) (net.Conn, byte) {
 
 func TestRemoteForwardToHostNamedSocks(t *testing.T) {
 	// Only a forward to "socks" with no port is a SOCKS proxy.
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	addr, _, err := c.Forward('R', sshconfig.Forward{ConnectHost: "socks.invalid", ConnectPort: 1})
 	if err != nil {
 		t.Fatal(err)
@@ -242,7 +243,7 @@ func TestRemoteForwardToHostNamedSocks(t *testing.T) {
 }
 
 func TestDynamicForward(t *testing.T) {
-	c, _, _ := pwClient(t, "", srvOpts{})
+	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	target := portOf(echo(t, "tcp", "127.0.0.1:0").Addr())
 	addr, _, err := c.Forward('D', sshconfig.Forward{})
 	if err != nil {
@@ -342,7 +343,7 @@ func TestRemoteDynamicForward(t *testing.T) {
 		{"  PermitRemoteOpen 192.0.2.1:*\n", false},
 		{"  PermitRemoteOpen 127.0.0.1:1\n", false},
 	} {
-		c, _, _ := pwClient(t, tc.permit, srvOpts{})
+		c, _, _ := pwClient(t, tc.permit, sshtest.Opts{})
 		addr, _, err := c.Forward('R', sshconfig.Forward{ConnectHost: "socks"})
 		if err != nil {
 			t.Fatal(err)
@@ -367,7 +368,7 @@ func freePort(t *testing.T) int {
 func TestConfigForwards(t *testing.T) {
 	e := portOf(echo(t, "tcp", "127.0.0.1:0").Addr())
 	l, d := freePort(t), freePort(t)
-	c, _, w := pwClient(t, fmt.Sprintf("  LocalForward 127.0.0.1:%d 127.0.0.1:%d\n  DynamicForward 127.0.0.1:%d\n  RemoteForward 0 127.0.0.1:%d\n  ExitOnForwardFailure yes\n", l, e, d, e), srvOpts{})
+	c, _, w := pwClient(t, fmt.Sprintf("  LocalForward 127.0.0.1:%d 127.0.0.1:%d\n  DynamicForward 127.0.0.1:%d\n  RemoteForward 0 127.0.0.1:%d\n  ExitOnForwardFailure yes\n", l, e, d, e), sshtest.Opts{})
 	if w.logged("disabled") {
 		t.Fatalf("logs %q", w.logs)
 	}
@@ -391,12 +392,12 @@ func TestConfigForwards(t *testing.T) {
 func TestForwardFailureOnConnect(t *testing.T) {
 	taken := echo(t, "tcp", "127.0.0.1:0")
 	spec := fmt.Sprintf("  LocalForward 127.0.0.1:%d 127.0.0.1:1\n", portOf(taken.Addr()))
-	_, _, w := pwClient(t, spec, srvOpts{})
+	_, _, w := pwClient(t, spec, sshtest.Opts{})
 	if !w.logged("Warning: forwarding failed") {
 		t.Fatalf("logs %q", w.logs)
 	}
 	w = newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	if _, err := dialT(t, w.opts(base(spec+"  ExitOnForwardFailure yes\n"), s)); err == nil || !strings.Contains(err.Error(), "forwarding failed") {
 		t.Fatalf("err %v", err)

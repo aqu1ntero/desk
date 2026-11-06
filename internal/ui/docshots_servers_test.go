@@ -3,6 +3,7 @@ package ui
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"fmt"
 	"image"
 	"os"
 	"os/exec"
@@ -18,6 +19,7 @@ import (
 	"gioui.org/io/pointer"
 
 	"github.com/lfdominguez/desk/internal/infra"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 )
 
 // The Servers section's scenes: Globex's infra workspace over the demo's
@@ -119,9 +121,9 @@ func srvFake(host, sh string, when func() bool) {
 	}
 }
 
-// srvHostKey has db-02 refuse as ssh does when its host key changed: its
-// known_hosts line holds another key than the one it sends, until desk drops
-// that line.
+// srvHostKey has db-02 refuse its host key as a changed one: db-02 is an
+// in-process SSH server here (not the demo's faked shell), and known_hosts
+// holds another key for it, until Accept new key replaces it.
 func srvHostKey(s *shooter) {
 	home := os.Getenv("HOME")
 	key := func() string {
@@ -129,34 +131,24 @@ func srvHostKey(s *shooter) {
 		k, _ := ssh.NewPublicKey(pub)
 		return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(k)))
 	}
-	old, sent := key(), func() ssh.PublicKey {
-		pub, _, _ := ed25519.GenerateKey(rand.Reader)
-		k, _ := ssh.NewPublicKey(pub)
-		return k
-	}()
+	id := filepath.Join(home, "db-02.key")
+	signer := sshtest.WriteKey(s.t, id, "")
+	srv := sshtest.New(s.t, sshtest.Opts{Real: true, Dir: s.t.TempDir(), Keys: []ssh.PublicKey{signer.PublicKey()},
+		Shell: []string{"bash", "--rcfile", filepath.Join(filepath.Dir(home), "host.rc"), "-i"}})
 	kh := filepath.Join(home, ".ssh", "known_hosts")
 	os.MkdirAll(filepath.Dir(kh), 0o700)
-	os.WriteFile(kh, []byte("192.0.2.11 "+key()+"\n192.0.2.12 "+key()+"\n192.0.2.22 "+old+"\n"), 0o600)
-	banner := `@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
-Someone could be eavesdropping on you right now (man-in-the-middle attack)!
-It is also possible that a host key has just been changed.
-The fingerprint for the ED25519 key sent by the remote host is
-` + ssh.FingerprintSHA256(sent) + `.
-Please contact your system administrator.
-Add correct host key in ` + kh + ` to remove this message.
-Offending ED25519 key in ` + kh + `:3
-Host key for 192.0.2.22 has changed and you have requested strict checking.
-Host key verification failed.
-`
-	bf := filepath.Join(home, "banner.txt")
-	os.WriteFile(bf, []byte(banner), 0o644)
-	srvFake("db-02", "cat '"+bf+"'; exit 255", func() bool {
-		b, _ := os.ReadFile(kh)
-		return strings.Contains(string(b), old)
-	})
+	os.WriteFile(kh, []byte("192.0.2.11 "+key()+"\n192.0.2.12 "+key()+"\ndb-02 "+key()+"\n"), 0o600)
+	file := filepath.Join(s.u.root, "Globex", ".desk", "ssh_config")
+	servers, _ := os.ReadFile(file)
+	os.WriteFile(file, []byte(fmt.Sprintf("Match originalhost db-02\n    HostName 127.0.0.1\n    Port %d\n    HostKeyAlias db-02\n"+
+		"    IdentityFile %s\n    IdentityAgent none\n    SetEnv DESK_DEMO_HOST=db-02\n", srv.Port, id)+string(servers)), 0o644)
+	old := infra.HostCmd
+	infra.HostCmd = func(h string) *exec.Cmd {
+		if h == "db-02" {
+			return nil // SSH, to the server above
+		}
+		return old(h)
+	}
 }
 
 // srvCard is DESK-5, Globex's card in progress.

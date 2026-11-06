@@ -20,7 +20,7 @@ import (
 // UI goroutine only, reading the model's latest snapshot. invalidate is
 // called from any goroutine (terminal output, model changes) and must only
 // ask the window for a frame (app.Window.Invalidate). There is one
-// Workspace per process: the model loop, peers and askpass are global.
+// Workspace per process: the model loop, peers and SSH connections are global.
 type Workspace struct {
 	u    *ui
 	sock string // the peer socket, removed by Close
@@ -305,13 +305,5 @@ func MCPMain(args []string) {
 // work to the running desk; it returns the exit code.
 func PeerMain(args []string) int { return peerMain(args) }
 
-// AskpassMain answers ssh when desk runs as its SSH_ASKPASS (DESK_ASKPASS
-// set, the prompt as the one argument; args is os.Args): it prints the
-// answer from the workspace and exits. Without those it returns false.
-func AskpassMain(args []string) bool {
-	if os.Getenv("DESK_ASKPASS") == "" || len(args) != 2 {
-		return false
-	}
-	askpassMain(args[1])
-	return true
-}
+// osExit ends the process (a variable so tests can catch it).
+var osExit = os.Exit

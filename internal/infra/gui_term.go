@@ -1025,17 +1025,17 @@ func connText(p guiPane, now time.Time) (title, sub, guide string) {
 	secs := func(d time.Duration) string { return fmt.Sprintf("%ds", max(0, int(d.Seconds()))) }
 	switch p.Conn {
 	case "failed":
-		title, guide = "Couldn't connect to "+p.Name, "ssh ended before the server answered. If it's up, check the VPN; the scrollback stays as it was."
+		title, guide = "Couldn't connect to "+p.Name, "The connection ended before the shell started. If the server is up, check the VPN; the scrollback stays as it was."
 		if p.Tries > 0 {
 			sub = fmt.Sprintf("Tried %d times", p.Tries)
 		}
 		if p.CanFix {
-			guide = "The server offers only algorithms this ssh turned off. Fix adds them to its ssh_config and reconnects."
+			guide = "The server offers only algorithms modern SSH turns off. Fix adds them to its ssh_config and reconnects."
 		}
 		if p.KeyChange != nil {
 			title = p.Name + "'s host key changed"
 			guide = "It sent another key than the one you have for it. If it was reinstalled or its keys rotated, accept the new one: " +
-				"desk drops the old line from known_hosts and connects, saving the key it sends. Not expecting a change? Don't: someone may be in between."
+				"desk drops the old line from known_hosts, saves the key it sent and connects. Not expecting a change? Don't: someone may be in between."
 		}
 	case "timeout":
 		title, sub = p.Name+" isn't answering yet", secs(now.Sub(p.Since))+" and counting. A VPN may be down."

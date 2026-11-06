@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"net"
 	"os"
 	"slices"
@@ -21,17 +22,17 @@ func hostLine(names string, k ssh.PublicKey) string {
 	return names + " " + string(ssh.MarshalAuthorizedKey(k))
 }
 
-func (s *server) name() string { return "[127.0.0.1]:" + strconv.Itoa(s.port) }
+func (s *server) name() string { return "[127.0.0.1]:" + strconv.Itoa(s.Port) }
 
 // pwServer is a server taking password pw, the world answering with it last.
-func pwServer(t *testing.T, w *world, o srvOpts) *server {
-	o.password = "pw"
+func pwServer(t *testing.T, w *world, o sshtest.Opts) *server {
+	o.Password = "pw"
 	return newServer(t, o)
 }
 
 func TestUnknownHostStrict(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	_, err := dialT(t, w.opts(base("  StrictHostKeyChecking yes\n"), s))
 	if !errors.Is(err, ErrHostKey) || !strings.Contains(err.Error(), "No ED25519 host key is known for "+s.name()+" and you have requested strict checking.") {
 		t.Fatalf("err %v", err)
@@ -55,8 +56,8 @@ func TestUnknownHostAsk(t *testing.T) {
 		{"cancelled", nil, false},
 	} {
 		w := newWorld(t)
-		s := pwServer(t, w, srvOpts{})
-		fp = ssh.FingerprintSHA256(s.host.PublicKey())
+		s := pwServer(t, w, sshtest.Opts{})
+		fp = ssh.FingerprintSHA256(s.Host.PublicKey())
 		for i, a := range tc.ans {
 			if a == "FP" {
 				tc.ans[i] = fp
@@ -78,7 +79,7 @@ func TestUnknownHostAsk(t *testing.T) {
 		if tc.name == "yes" && w.asks[1] != "Please type 'yes', 'no' or the fingerprint: " {
 			t.Fatalf("asked again %q", w.asks[1])
 		}
-		if got := read(t, w.known()); tc.ok != (got == hostLine(s.name(), s.host.PublicKey())) {
+		if got := read(t, w.known()); tc.ok != (got == hostLine(s.name(), s.Host.PublicKey())) {
 			t.Fatalf("%s: known_hosts %q", tc.name, got)
 		}
 	}
@@ -86,10 +87,10 @@ func TestUnknownHostAsk(t *testing.T) {
 
 func TestAcceptNewWrites(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base(""), s))
-	if got := read(t, w.known()); got != hostLine(s.name(), s.host.PublicKey()) {
+	if got := read(t, w.known()); got != hostLine(s.name(), s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 	if !w.logged("Warning: Permanently added '" + s.name() + "' (ED25519) to the list of known hosts.") {
@@ -98,24 +99,24 @@ func TestAcceptNewWrites(t *testing.T) {
 	// Known now: strict checking passes, nothing more is written.
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  StrictHostKeyChecking yes\n"), s))
-	if got := read(t, w.known()); got != hostLine(s.name(), s.host.PublicKey()) {
+	if got := read(t, w.known()); got != hostLine(s.name(), s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 }
 
 func TestStrictOffWrites(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  StrictHostKeyChecking no\n"), s))
-	if got := read(t, w.known()); got != hostLine(s.name(), s.host.PublicKey()) {
+	if got := read(t, w.known()); got != hostLine(s.name(), s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 }
 
 func TestAcceptNewHashed(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	write(t, w.known(), "# no newline at the end")
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  HashKnownHosts yes\n"), s))
@@ -127,8 +128,8 @@ func TestAcceptNewHashed(t *testing.T) {
 
 func TestKnownWithoutPort(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
-	write(t, w.known(), hostLine("127.0.0.1", s.host.PublicKey()))
+	s := pwServer(t, w, sshtest.Opts{})
+	write(t, w.known(), hostLine("127.0.0.1", s.Host.PublicKey()))
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  StrictHostKeyChecking yes\n"), s))
 	// An alias is looked up as it is.
@@ -140,15 +141,15 @@ func TestKnownWithoutPort(t *testing.T) {
 
 func TestGlobalKnownHosts(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
-	write(t, w.path("global"), hostLine(s.name(), s.host.PublicKey()))
+	s := pwServer(t, w, sshtest.Opts{})
+	write(t, w.path("global"), hostLine(s.name(), s.Host.PublicKey()))
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  StrictHostKeyChecking yes\n  GlobalKnownHostsFile %HOME/global\n"), s))
 }
 
 func TestNoUserKnownHostsFile(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	_, err := dialT(t, w.opts(base("  UserKnownHostsFile none\n"), s))
 	if !errors.Is(err, ErrHostKey) || !strings.Contains(err.Error(), "can't be recorded") {
 		t.Fatalf("err %v", err)
@@ -157,17 +158,17 @@ func TestNoUserKnownHostsFile(t *testing.T) {
 
 func TestHostKeyAlias(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  HostKeyAlias Box.example.com\n"), s))
-	if got := read(t, w.known()); got != hostLine("box.example.com", s.host.PublicKey()) {
+	if got := read(t, w.known()); got != hostLine("box.example.com", s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 }
 
 func changedWorld(t *testing.T) (*world, *server, ssh.PublicKey) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	old := newSigner(t).PublicKey()
 	write(t, w.known(), hostLine("other.example.com", old)+hostLine(s.name(), old))
 	return w, s, old
@@ -183,7 +184,7 @@ func TestChangedKey(t *testing.T) {
 	want := KnownLine{File: w.known(), Line: 2, Name: s.name(), Type: "ED25519", Fingerprint: ssh.FingerprintSHA256(old)}
 	got := e.Known[0]
 	got.key = nil
-	if e.Host != s.name() || e.Type != "ED25519" || e.Fingerprint != ssh.FingerprintSHA256(s.host.PublicKey()) || len(e.Known) != 1 || got != want {
+	if e.Host != s.name() || e.Type != "ED25519" || e.Fingerprint != ssh.FingerprintSHA256(s.Host.PublicKey()) || len(e.Known) != 1 || got != want {
 		t.Fatalf("error %+v", e)
 	}
 	if !strings.Contains(e.Error(), "HAS CHANGED") || !strings.Contains(e.Error(), "Offending ED25519 key in "+w.known()+":2") {
@@ -192,7 +193,7 @@ func TestChangedKey(t *testing.T) {
 	if err := AcceptNewKey(err); err != nil {
 		t.Fatal(err)
 	}
-	if got := read(t, w.known()); got != hostLine("other.example.com", old)+hostLine(s.name(), s.host.PublicKey()) {
+	if got := read(t, w.known()); got != hostLine("other.example.com", old)+hostLine(s.name(), s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 	w.ans = []string{"pw"}
@@ -225,7 +226,7 @@ func TestAcceptNewKeyRefuses(t *testing.T) {
 func TestChangedKeyStrictOff(t *testing.T) {
 	w, s, _ := changedWorld(t)
 	k := writeKey(t, w.path("id"), "")
-	s.with(func(o *srvOpts) { o.keys = []ssh.PublicKey{k.PublicKey()} })
+	s.With(func(o *sshtest.Opts) { o.Keys = []ssh.PublicKey{k.PublicKey()} })
 	w.ans = []string{"pw", "pw", "pw"}
 	// Passwords are off then: the key logs in, nothing is asked.
 	// The forward is never started (port 2 would need root).
@@ -242,7 +243,7 @@ func TestChangedKeyStrictOff(t *testing.T) {
 func TestChangedKeyStrictOffNoPassword(t *testing.T) {
 	for _, m := range []string{"password", "keyboard-interactive"} {
 		w, s, _ := changedWorld(t)
-		s.with(func(o *srvOpts) { o.kbd = []string{"pw"} })
+		s.With(func(o *sshtest.Opts) { o.Kbd = []string{"pw"} })
 		w.ans = []string{"pw"}
 		_, err := dialT(t, w.opts(base("  StrictHostKeyChecking no\n  PreferredAuthentications "+m+"\n"), s))
 		if err == nil || !strings.Contains(err.Error(), "disabled to avoid man-in-the-middle attacks") || len(w.asks) != 0 {
@@ -264,11 +265,11 @@ func ipBase(extra string) string {
 func TestCheckHostIPRecords(t *testing.T) {
 	remote(t)
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(ipBase(""), s))
-	p := strconv.Itoa(s.port)
-	if got := read(t, w.known()); got != hostLine("[localhost]:"+p+",[127.0.0.1]:"+p, s.host.PublicKey()) {
+	p := strconv.Itoa(s.Port)
+	if got := read(t, w.known()); got != hostLine("[localhost]:"+p+",[127.0.0.1]:"+p, s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 	// Hashed: a line per name.
@@ -283,12 +284,12 @@ func TestCheckHostIPRecords(t *testing.T) {
 func TestCheckHostIPAddsAddress(t *testing.T) {
 	remote(t)
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
-	p := strconv.Itoa(s.port)
-	write(t, w.known(), hostLine("[localhost]:"+p, s.host.PublicKey()))
+	s := pwServer(t, w, sshtest.Opts{})
+	p := strconv.Itoa(s.Port)
+	write(t, w.known(), hostLine("[localhost]:"+p, s.Host.PublicKey()))
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(ipBase("  StrictHostKeyChecking yes\n"), s))
-	if got := read(t, w.known()); !strings.HasSuffix(got, hostLine("[127.0.0.1]:"+p, s.host.PublicKey())) || !w.logged("for IP address") {
+	if got := read(t, w.known()); !strings.HasSuffix(got, hostLine("[127.0.0.1]:"+p, s.Host.PublicKey())) || !w.logged("for IP address") {
 		t.Fatalf("known_hosts %q", got)
 	}
 }
@@ -296,10 +297,10 @@ func TestCheckHostIPAddsAddress(t *testing.T) {
 func TestCheckHostIPOffForLiteralAddress(t *testing.T) {
 	remote(t)
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  CheckHostIP yes\n"), s))
-	if got := read(t, w.known()); got != hostLine(s.name(), s.host.PublicKey()) {
+	if got := read(t, w.known()); got != hostLine(s.name(), s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 }
@@ -312,9 +313,9 @@ func TestCheckHostIPDiffers(t *testing.T) {
 		ok     bool
 	}{{"yes", nil, false}, {"ask", []string{"yes", "pw"}, true}, {"ask", []string{"no"}, false}, {"no", []string{"pw"}, true}} {
 		w := newWorld(t)
-		s := pwServer(t, w, srvOpts{})
-		p := strconv.Itoa(s.port)
-		write(t, w.known(), hostLine("[localhost]:"+p, s.host.PublicKey())+hostLine("[127.0.0.1]:"+p, newSigner(t).PublicKey()))
+		s := pwServer(t, w, sshtest.Opts{})
+		p := strconv.Itoa(s.Port)
+		write(t, w.known(), hostLine("[localhost]:"+p, s.Host.PublicKey())+hostLine("[127.0.0.1]:"+p, newSigner(t).PublicKey()))
 		w.ans = tc.ans
 		_, err := dialT(t, w.opts(ipBase("  StrictHostKeyChecking "+tc.strict+"\n"), s))
 		if (err == nil) != tc.ok || err != nil && !strings.Contains(err.Error(), "differs from the key for the IP address") && !strings.Contains(err.Error(), "not accepted") {
@@ -329,8 +330,8 @@ func TestCheckHostIPDiffers(t *testing.T) {
 func TestCheckHostIPBothChanged(t *testing.T) {
 	remote(t)
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
-	p := strconv.Itoa(s.port)
+	s := pwServer(t, w, sshtest.Opts{})
+	p := strconv.Itoa(s.Port)
 	old := newSigner(t).PublicKey()
 	write(t, w.known(), hostLine("[localhost]:"+p, old)+hostLine("[127.0.0.1]:"+p, old))
 	_, err := dialT(t, w.opts(ipBase(""), s))
@@ -341,7 +342,7 @@ func TestCheckHostIPBothChanged(t *testing.T) {
 	if err := AcceptNewKey(err); err != nil {
 		t.Fatal(err)
 	}
-	if got := read(t, w.known()); got != hostLine("[localhost]:"+p+",[127.0.0.1]:"+p, s.host.PublicKey()) {
+	if got := read(t, w.known()); got != hostLine("[localhost]:"+p+",[127.0.0.1]:"+p, s.Host.PublicKey()) {
 		t.Fatalf("known_hosts %q", got)
 	}
 }
@@ -351,9 +352,9 @@ func TestCheckHostIPAddressStillKnown(t *testing.T) {
 	// line goes, and the new key is recorded for the host alone.
 	remote(t)
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
-	p := strconv.Itoa(s.port)
-	write(t, w.known(), hostLine("[localhost]:"+p, newSigner(t).PublicKey())+hostLine("[127.0.0.1]:"+p, s.host.PublicKey()))
+	s := pwServer(t, w, sshtest.Opts{})
+	p := strconv.Itoa(s.Port)
+	write(t, w.known(), hostLine("[localhost]:"+p, newSigner(t).PublicKey())+hostLine("[127.0.0.1]:"+p, s.Host.PublicKey()))
 	_, err := dialT(t, w.opts(ipBase(""), s))
 	var e *HostKeyChangedError
 	if !errors.As(err, &e) || len(e.Known) != 1 || !slices.Equal(e.names, []string{"[localhost]:" + p}) {
@@ -368,7 +369,7 @@ func hostCertServer(t *testing.T, w *world, ca ssh.Signer, principals ...string)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return pwServer(t, w, srvOpts{hostKeys: []ssh.Signer{cs, k}})
+	return pwServer(t, w, sshtest.Opts{HostKeys: []ssh.Signer{cs, k}})
 }
 
 func TestCertAuthority(t *testing.T) {
@@ -420,7 +421,7 @@ func TestCertAuthorityUserCert(t *testing.T) {
 	ca := newSigner(t)
 	k := newSigner(t)
 	cs, _ := ssh.NewCertSigner(cert(t, ca, k.PublicKey(), ssh.UserCert, "127.0.0.1"), k)
-	s := pwServer(t, w, srvOpts{hostKeys: []ssh.Signer{cs}})
+	s := pwServer(t, w, sshtest.Opts{HostKeys: []ssh.Signer{cs}})
 	write(t, w.known(), "@cert-authority "+hostLine("*", ca.PublicKey()))
 	if _, err := dialT(t, w.opts(base("  StrictHostKeyChecking yes\n"), s)); err == nil || !w.logged("not a host certificate") {
 		t.Fatalf("err %v", err)
@@ -429,8 +430,8 @@ func TestCertAuthorityUserCert(t *testing.T) {
 
 func TestRevokedHostKey(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
-	write(t, w.known(), "@revoked "+hostLine("*", s.host.PublicKey()))
+	s := pwServer(t, w, sshtest.Opts{})
+	write(t, w.known(), "@revoked "+hostLine("*", s.Host.PublicKey()))
 	_, err := dialT(t, w.opts(base(""), s))
 	if !errors.Is(err, ErrHostKey) || !strings.Contains(err.Error(), "is marked as revoked") {
 		t.Fatalf("err %v", err)
@@ -478,13 +479,13 @@ func TestRevokedHostKeysFile(t *testing.T) {
 
 func TestKnownHostsCommand(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	bin, _ := os.Executable()
-	write(t, w.path("cmd-known"), hostLine(s.name(), s.host.PublicKey()))
+	write(t, w.path("cmd-known"), hostLine(s.name(), s.Host.PublicKey()))
 	w.ans = []string{"pw"}
 	t.Setenv("DESK_KH", "env")
 	mustDial(t, w.opts(base("  StrictHostKeyChecking yes\n  KnownHostsCommand "+bin+" sshc-known %HOME/cmd-known %HOME/cmd-log %H %I %t \"%f x\" ${DESK_KH}\n"), s))
-	want := s.name() + " HOSTNAME ssh-ed25519 " + ssh.FingerprintSHA256(s.host.PublicKey()) + " x env\n"
+	want := s.name() + " HOSTNAME ssh-ed25519 " + ssh.FingerprintSHA256(s.Host.PublicKey()) + " x env\n"
 	if got := read(t, w.path("cmd-log")); got != want {
 		t.Fatalf("command got %q", got)
 	}
@@ -503,7 +504,7 @@ func TestKnownHostsCommandFails(t *testing.T) {
 		{"/bin/x %Z", "KnownHostsCommand: "},
 	} {
 		w := newWorld(t)
-		s := pwServer(t, w, srvOpts{})
+		s := pwServer(t, w, sshtest.Opts{})
 		if _, err := dialT(t, w.opts(base("  StrictHostKeyChecking yes\n  KnownHostsCommand "+tc.cmd+"\n"), s)); err == nil || !w.logged(tc.log) {
 			t.Fatalf("%s: err %v, logs %q", tc.cmd, err, w.logs)
 		}
@@ -512,7 +513,7 @@ func TestKnownHostsCommandFails(t *testing.T) {
 
 func TestNoHostAuthenticationForLocalhost(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  StrictHostKeyChecking yes\n  NoHostAuthenticationForLocalhost yes\n"), s))
 	// Not with an alias, nor for a remote address.
@@ -696,8 +697,8 @@ func TestForgetChecksEachLine(t *testing.T) {
 func TestForgetTwoFiles(t *testing.T) {
 	remote(t)
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
-	p := strconv.Itoa(s.port)
+	s := pwServer(t, w, sshtest.Opts{})
+	p := strconv.Itoa(s.Port)
 	old := newSigner(t).PublicKey()
 	write(t, w.known(), hostLine("[localhost]:"+p, old))
 	write(t, w.path("global"), hostLine("[127.0.0.1]:"+p, old))
@@ -705,7 +706,7 @@ func TestForgetTwoFiles(t *testing.T) {
 	if err := AcceptNewKey(err); err != nil {
 		t.Fatal(err)
 	}
-	if read(t, w.path("global")) != "" || read(t, w.known()) != hostLine("[localhost]:"+p+",[127.0.0.1]:"+p, s.host.PublicKey()) {
+	if read(t, w.path("global")) != "" || read(t, w.known()) != hostLine("[localhost]:"+p+",[127.0.0.1]:"+p, s.Host.PublicKey()) {
 		t.Fatalf("known %q, global %q", read(t, w.known()), read(t, w.path("global")))
 	}
 }

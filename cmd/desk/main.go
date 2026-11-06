@@ -79,11 +79,8 @@ func run(args []string) int {
 		fmt.Println("desk", ui.Version)
 		return 0
 	}
-	// desk runs itself for the infra workspace: as ssh's askpass, as a tab
-	// Claude's MCP server, and as the peer CLI other Claude sessions use.
-	if infra.AskpassMain(args) {
-		return 0
-	}
+	// desk runs itself for the infra workspace: as a tab Claude's MCP server,
+	// and as the peer CLI other Claude sessions use.
 	if len(args) >= 2 {
 		switch args[1] {
 		case "mcp":

@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"net"
 	"os"
 	"path/filepath"
@@ -39,15 +40,11 @@ func mustDial(t *testing.T, o Options) *Client {
 	return c
 }
 
-func (s *server) authLog() []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return slices.Clone(s.auths)
-}
+func (s *server) authLog() []string { return s.Auths() }
 
 func TestPasswordPrompted(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{password: "hunter2"})
+	s := newServer(t, sshtest.Opts{Password: "hunter2"})
 	w.ans = []string{"wrong", "hunter2"}
 	mustDial(t, w.opts(base("  NumberOfPasswordPrompts 2\n"), s))
 	if len(w.asks) != 2 || w.asks[0] != "me@127.0.0.1's password: " || w.echos[0] {
@@ -62,7 +59,7 @@ func TestPasswordPrompted(t *testing.T) {
 func TestUnreadableKeysLogged(t *testing.T) {
 	w := newWorld(t)
 	write(t, w.path("id"), "not a key")
-	s := newServer(t, srvOpts{password: "pw", keys: []ssh.PublicKey{newSigner(t).PublicKey()}})
+	s := newServer(t, sshtest.Opts{Password: "pw", Keys: []ssh.PublicKey{newSigner(t).PublicKey()}})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base(""), s))
 	if !w.logged("Load key \"" + w.path("id") + "\"") {
@@ -87,7 +84,7 @@ func TestLegacyEncryptedKey(t *testing.T) {
 	}
 	write(t, w.path("id"), string(pem.EncodeToMemory(b)))
 	pub, _ := ssh.NewPublicKey(&ek.PublicKey)
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{pub}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{pub}})
 	// No public half anywhere: the passphrase is asked up front.
 	w.ans = []string{"secret"}
 	mustDial(t, w.opts(base(""), s))
@@ -102,7 +99,7 @@ func TestLegacyEncryptedKey(t *testing.T) {
 
 func TestPasswordPromptsRunOut(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{password: "hunter2"})
+	s := newServer(t, sshtest.Opts{Password: "hunter2"})
 	w.ans = []string{"wrong", "hunter2"}
 	if _, err := dialT(t, w.opts(base("  NumberOfPasswordPrompts 1\n"), s)); err == nil {
 		t.Fatal("logged in with one wrong try")
@@ -111,7 +108,7 @@ func TestPasswordPromptsRunOut(t *testing.T) {
 
 func TestPasswordHookFirst(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{password: "vault"})
+	s := newServer(t, sshtest.Opts{Password: "vault"})
 	o := w.opts(base(""), s)
 	o.Password = func() (string, bool) { return "vault", true }
 	mustDial(t, o)
@@ -122,7 +119,7 @@ func TestPasswordHookFirst(t *testing.T) {
 
 func TestPasswordHookThenPrompt(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{password: "typed"})
+	s := newServer(t, sshtest.Opts{Password: "typed"})
 	o := w.opts(base("  NumberOfPasswordPrompts 1\n"), s)
 	o.Password = func() (string, bool) { return "stale", true }
 	w.ans = []string{"typed"}
@@ -134,7 +131,7 @@ func TestPasswordHookThenPrompt(t *testing.T) {
 
 func TestPasswordOff(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{password: "x"})
+	s := newServer(t, sshtest.Opts{Password: "x"})
 	w.ans = []string{"x"}
 	if _, err := dialT(t, w.opts(base("  PasswordAuthentication no\n"), s)); err == nil {
 		t.Fatal("password used while off")
@@ -146,7 +143,7 @@ func TestPasswordOff(t *testing.T) {
 
 func TestBatchModeAsksNothing(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{password: "x"})
+	s := newServer(t, sshtest.Opts{Password: "x"})
 	w.ans = []string{"x"}
 	if _, err := dialT(t, w.opts(base("  BatchMode yes\n"), s)); err == nil || len(w.asks) != 0 {
 		t.Fatalf("err %v, asked %q", err, w.asks)
@@ -155,7 +152,7 @@ func TestBatchModeAsksNothing(t *testing.T) {
 
 func TestKeyboardInteractive(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{kbd: []string{"one", "two"}})
+	s := newServer(t, sshtest.Opts{Kbd: []string{"one", "two"}})
 	w.ans = []string{"one", "two"}
 	o := w.opts(base(""), s)
 	o.Password = func() (string, bool) { return "vault", true } // not for two questions
@@ -168,7 +165,7 @@ func TestKeyboardInteractive(t *testing.T) {
 func TestKeyboardInteractiveOneTry(t *testing.T) {
 	// Without a Password hook, the lone question is asked straight away.
 	w := newWorld(t)
-	s := newServer(t, srvOpts{kbd: []string{"one"}})
+	s := newServer(t, sshtest.Opts{Kbd: []string{"one"}})
 	w.ans = []string{"one"}
 	mustDial(t, w.opts(base(""), s))
 	if l := s.authLog(); !slices.Equal(l, []string{"keyboard-interactive:ok"}) {
@@ -178,7 +175,7 @@ func TestKeyboardInteractiveOneTry(t *testing.T) {
 
 func TestKeyboardInteractiveTakesPassword(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{kbd: []string{"vault"}})
+	s := newServer(t, sshtest.Opts{Kbd: []string{"vault"}})
 	o := w.opts(base(""), s)
 	o.Password = func() (string, bool) { return "vault", true }
 	mustDial(t, o)
@@ -189,7 +186,7 @@ func TestKeyboardInteractiveTakesPassword(t *testing.T) {
 
 func TestKeyboardInteractiveOff(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{kbd: []string{"one"}})
+	s := newServer(t, sshtest.Opts{Kbd: []string{"one"}})
 	w.ans = []string{"one"}
 	if _, err := dialT(t, w.opts(base("  KbdInteractiveAuthentication no\n"), s)); err == nil {
 		t.Fatal("keyboard-interactive used while off")
@@ -199,7 +196,7 @@ func TestKeyboardInteractiveOff(t *testing.T) {
 func TestPubkeyFile(t *testing.T) {
 	w := newWorld(t)
 	k := writeKey(t, w.path("id"), "")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	mustDial(t, w.opts(base(""), s))
 	if l := s.authLog(); !slices.Equal(l, []string{"publickey:ok"}) {
 		t.Fatalf("auths %q", l)
@@ -209,7 +206,7 @@ func TestPubkeyFile(t *testing.T) {
 func TestPubkeyOff(t *testing.T) {
 	w := newWorld(t)
 	k := writeKey(t, w.path("id"), "")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	if _, err := dialT(t, w.opts(base("  PubkeyAuthentication no\n"), s)); err == nil {
 		t.Fatal("key used while off")
 	}
@@ -218,7 +215,7 @@ func TestPubkeyOff(t *testing.T) {
 func TestPassphraseKey(t *testing.T) {
 	w := newWorld(t)
 	k := writeKey(t, w.path("id"), "secret")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	w.ans = []string{"bad", "secret"}
 	mustDial(t, w.opts(base("  NumberOfPasswordPrompts 2\n"), s))
 	if len(w.asks) != 2 || w.asks[0] != "Enter passphrase for key '"+w.path("id")+"': " || w.echos[0] {
@@ -229,7 +226,7 @@ func TestPassphraseKey(t *testing.T) {
 func TestPassphraseNotAskedForUnwantedKey(t *testing.T) {
 	w := newWorld(t)
 	writeKey(t, w.path("id"), "secret")
-	s := newServer(t, srvOpts{password: "pw"})
+	s := newServer(t, sshtest.Opts{Password: "pw"})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base(""), s))
 	if len(w.asks) != 1 || !strings.HasSuffix(w.asks[0], "password: ") {
@@ -240,7 +237,7 @@ func TestPassphraseNotAskedForUnwantedKey(t *testing.T) {
 func TestPassphraseEmptyGivesUp(t *testing.T) {
 	w := newWorld(t)
 	k := writeKey(t, w.path("id"), "secret")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	w.ans = []string{""}
 	if _, err := dialT(t, w.opts(base(""), s)); err == nil || !strings.Contains(err.Error(), "no passphrase") {
 		t.Fatalf("err %v", err)
@@ -253,10 +250,10 @@ func TestEncryptedKeyWithoutPub(t *testing.T) {
 	// An encrypted key's public half is in the file (openssh format), so
 	// a missing .pub costs no question until the server takes it.
 	write(t, w.path("id.pub"), "garbage")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	w.ans = []string{"secret"}
 	mustDial(t, w.opts(base(""), s))
-	s = newServer(t, srvOpts{password: "pw"})
+	s = newServer(t, sshtest.Opts{Password: "pw"})
 	w.asks, w.ans = nil, []string{"pw"}
 	mustDial(t, w.opts(base(""), s))
 	if len(w.asks) != 1 || !strings.HasSuffix(w.asks[0], "password: ") {
@@ -325,7 +322,7 @@ func TestAgentKey(t *testing.T) {
 	w := newWorld(t)
 	raw, pub := genRaw(t)
 	sock, _ := agentSock(t, raw)
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{pub}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{pub}})
 	mustDial(t, w.opts(base("  IdentityAgent "+sock+"\n"), s))
 	if w.logged("Error reading") {
 		t.Fatalf("logs %q", w.logs)
@@ -337,13 +334,13 @@ func TestAgentFromEnv(t *testing.T) {
 	raw, pub := genRaw(t)
 	sock, _ := agentSock(t, raw)
 	t.Setenv("SSH_AUTH_SOCK", sock)
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{pub}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{pub}})
 	mustDial(t, w.opts(strings.Replace(base(""), "  IdentityAgent none\n", "", 1), s))
 }
 
 func TestAgentUnreachable(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{password: "pw"})
+	s := newServer(t, sshtest.Opts{Password: "pw"})
 	w.ans = []string{"pw"}
 	mustDial(t, w.opts(base("  IdentityAgent %HOME/nothing\n"), s))
 	if !w.logged("Error connecting to agent") {
@@ -356,7 +353,7 @@ func TestIdentitiesOnly(t *testing.T) {
 	raw, pub := genRaw(t)
 	sock, _ := agentSock(t, raw)
 	writeKey(t, w.path("id"), "")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{pub}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{pub}})
 	if _, err := dialT(t, w.opts(base("  IdentityAgent "+sock+"\n  IdentitiesOnly yes\n"), s)); err == nil {
 		t.Fatal("agent key used with IdentitiesOnly")
 	}
@@ -370,7 +367,7 @@ func TestPubOnlyThroughAgent(t *testing.T) {
 	raw, pub := genRaw(t)
 	sock, _ := agentSock(t, raw)
 	write(t, w.path("id.pub"), string(ssh.MarshalAuthorizedKey(pub)))
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{pub}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{pub}})
 	mustDial(t, w.opts(base("  IdentityAgent "+sock+"\n  IdentitiesOnly yes\n"), s))
 }
 
@@ -382,7 +379,7 @@ func TestAgentOrder(t *testing.T) {
 	sock, _ := agentSock(t, raw2, raw1)
 	write(t, w.path("id.pub"), string(ssh.MarshalAuthorizedKey(pub1)))
 	var offered []string
-	s := newServer(t, srvOpts{config: func(c *ssh.ServerConfig) {
+	s := newServer(t, sshtest.Opts{Config: func(c *ssh.ServerConfig) {
 		c.PublicKeyCallback = func(_ ssh.ConnMetadata, k ssh.PublicKey) (*ssh.Permissions, error) {
 			offered = append(offered, ssh.FingerprintSHA256(k))
 			return nil, errNoPrompt
@@ -398,7 +395,7 @@ func TestAddKeysToAgent(t *testing.T) {
 	w := newWorld(t)
 	k := writeKey(t, w.path("id"), "secret")
 	sock, kr := agentSock(t)
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	w.ans = []string{"secret"}
 	mustDial(t, w.opts(base("  IdentityAgent "+sock+"\n  AddKeysToAgent 1h\n"), s))
 	if l, _ := kr.List(); len(l) != 1 || !keyEqual(l[0], k.PublicKey()) || !w.logged("Identity added") {
@@ -420,7 +417,7 @@ func TestAddKeysToAgentAsk(t *testing.T) {
 		w := newWorld(t)
 		k := writeKey(t, w.path("id"), "")
 		sock, kr := agentSock(t)
-		s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+		s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 		w.ans = []string{ans}
 		mustDial(t, w.opts(base("  IdentityAgent "+sock+"\n  AddKeysToAgent ask\n"), s))
 		if l, _ := kr.List(); len(l) != map[string]int{"yes": 1, "no": 0}[ans] {
@@ -435,7 +432,7 @@ func TestAddKeysToAgentConfirm(t *testing.T) {
 	w := newWorld(t)
 	k := writeKey(t, w.path("id"), "")
 	sock, _ := agentSock(t)
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	mustDial(t, w.opts(base("  IdentityAgent "+sock+"\n  AddKeysToAgent confirm 60\n"), s))
 	if !w.logged("could not add identity") || w.logged("Identity added") {
 		t.Fatalf("logs %q", w.logs)
@@ -448,7 +445,7 @@ func TestUserCertificateFile(t *testing.T) {
 	k := writeKey(t, w.path("id"), "")
 	c := cert(t, ca, k.PublicKey(), ssh.UserCert, "me")
 	write(t, w.path("cert"), string(ssh.MarshalAuthorizedKey(c)))
-	s := newServer(t, srvOpts{ca: ca.PublicKey()})
+	s := newServer(t, sshtest.Opts{CA: ca.PublicKey()})
 	mustDial(t, w.opts(base("  CertificateFile %HOME/cert\n"), s))
 }
 
@@ -457,7 +454,7 @@ func TestUserCertificateNextToKey(t *testing.T) {
 	ca := newSigner(t)
 	k := writeKey(t, w.path("id"), "")
 	write(t, w.path("id-cert.pub"), string(ssh.MarshalAuthorizedKey(cert(t, ca, k.PublicKey(), ssh.UserCert, "me"))))
-	s := newServer(t, srvOpts{ca: ca.PublicKey()})
+	s := newServer(t, sshtest.Opts{CA: ca.PublicKey()})
 	mustDial(t, w.opts(base(""), s))
 }
 
@@ -467,7 +464,7 @@ func TestUserCertificateThroughAgent(t *testing.T) {
 	raw, pub := genRaw(t)
 	sock, _ := agentSock(t, raw)
 	write(t, w.path("cert"), string(ssh.MarshalAuthorizedKey(cert(t, ca, pub, ssh.UserCert, "me"))))
-	s := newServer(t, srvOpts{ca: ca.PublicKey()})
+	s := newServer(t, sshtest.Opts{CA: ca.PublicKey()})
 	mustDial(t, w.opts(base("  IdentityAgent "+sock+"\n  IdentitiesOnly yes\n  CertificateFile %HOME/cert\n"), s))
 }
 
@@ -476,7 +473,7 @@ func TestHostCertAsUserCertSkipped(t *testing.T) {
 	ca := newSigner(t)
 	k := writeKey(t, w.path("id"), "")
 	write(t, w.path("cert"), string(ssh.MarshalAuthorizedKey(cert(t, ca, k.PublicKey(), ssh.HostCert, "me"))))
-	s := newServer(t, srvOpts{ca: ca.PublicKey()})
+	s := newServer(t, sshtest.Opts{CA: ca.PublicKey()})
 	if _, err := dialT(t, w.opts(base("  CertificateFile %HOME/cert\n"), s)); err == nil {
 		t.Fatal("host certificate used to log in")
 	}
@@ -492,7 +489,7 @@ func TestPreferredAuthenticationsOrder(t *testing.T) {
 	} {
 		w := newWorld(t)
 		writeKey(t, w.path("id"), "")
-		s := newServer(t, srvOpts{password: "pw", keys: []ssh.PublicKey{newSigner(t).PublicKey()}})
+		s := newServer(t, sshtest.Opts{Password: "pw", Keys: []ssh.PublicKey{newSigner(t).PublicKey()}})
 		w.ans = []string{"bad", "bad", "bad"}
 		dialT(t, w.opts(base("  PreferredAuthentications "+tc.prefs+"\n"), s))
 		if l := s.authLog(); len(l) == 0 || l[0] != tc.first {
@@ -504,7 +501,7 @@ func TestPreferredAuthenticationsOrder(t *testing.T) {
 func TestPubkeyAcceptedAlgorithms(t *testing.T) {
 	w := newWorld(t)
 	k := writeKey(t, w.path("id"), "")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	if _, err := dialT(t, w.opts(base("  PubkeyAcceptedAlgorithms ecdsa-sha2-nistp256\n"), s)); err == nil {
 		t.Fatal("ed25519 key offered")
 	}
@@ -532,7 +529,7 @@ func TestSignAlgorithms(t *testing.T) {
 func TestRequiredRSASize(t *testing.T) {
 	w := newWorld(t)
 	k := writeRSA(t, w.path("id"))
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{k.PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{k.PublicKey()}})
 	mustDial(t, w.opts(base(""), s))
 	if _, err := dialT(t, w.opts(base("  RequiredRSASize 4096\n"), s)); err == nil || !w.logged("RequiredRSASize") {
 		t.Fatalf("short RSA key used: %v", err)
@@ -541,7 +538,7 @@ func TestRequiredRSASize(t *testing.T) {
 
 func TestUnsupportedExplained(t *testing.T) {
 	w := newWorld(t)
-	s := newServer(t, srvOpts{gssapiOnly: true})
+	s := newServer(t, sshtest.Opts{GSSAPIOnly: true})
 	_, err := dialT(t, w.opts(base(""), s))
 	if err == nil || !strings.Contains(err.Error(), "no method desk can use") {
 		t.Fatalf("err %v", err)
@@ -562,7 +559,7 @@ func TestSecurityKeyFileUnsupported(t *testing.T) {
 	}
 	write(t, w.path("id.pub"), string(ssh.MarshalAuthorizedKey(sk)))
 	write(t, w.path("id"), "a key handle x/crypto can't read")
-	s := newServer(t, srvOpts{keys: []ssh.PublicKey{newSigner(t).PublicKey()}})
+	s := newServer(t, sshtest.Opts{Keys: []ssh.PublicKey{newSigner(t).PublicKey()}})
 	_, err = dialT(t, w.opts(base(""), s))
 	if err == nil || !strings.Contains(err.Error(), "a security key ("+w.path("id")+") outside an agent") {
 		t.Fatalf("err %v", err)

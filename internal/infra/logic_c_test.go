@@ -21,7 +21,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -32,6 +34,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/sshc"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 )
 
 // --- helpers (suffix C: this file's) ---
@@ -91,16 +95,6 @@ func catchExitC(t *testing.T, f func()) (code int) {
 	}()
 	f()
 	return -1
-}
-
-// fakeSSHC puts an ssh running body on PATH (with a runtime dir for its
-// sockets); its arguments go to the returned file, one per line.
-func fakeSSHC(t *testing.T, body string) (args string) {
-	t.Helper()
-	runtimeA(t)
-	args = filepath.Join(t.TempDir(), "ssh-args")
-	fakeBinC(t, "ssh", `printf '%s\n' "$@" >> `+args+"\n"+body)
-	return args
 }
 
 // bwKeyC is a Bitwarden symmetric key (AES-256-CBC key, HMAC-SHA256 key).
@@ -253,21 +247,16 @@ func TestNotesErrorsAndCapC(t *testing.T) {
 
 func TestChangesToolC(t *testing.T) {
 	stateC(t)
-	runtimeA(t)
-	args := filepath.Join(t.TempDir(), "args")
-	fakeBinC(t, "ssh", `printf '%s\n' "$@" > `+args+`
-case "$*" in *FAIL*) exit 1;; esac
-echo "== packages"; echo nginx upgraded`)
-	term, _ := fakeTermA(t, "web1")
-	dir := t.TempDir()
-	p := &Pane{id: 1, term: term, name: "web1", dir: dir}
+	w := newSSHW(t, sshtest.Opts{}, "    SetEnv PATH="+stubPath(t)+"\n")
+	term, _ := fakeTermA(t, "web-01")
+	p := &Pane{id: 1, term: term, name: "web-01", dir: w.dir}
 	tab := &Tab{org: "Acme"}
 	r := tab.changes(p, 0)
-	if r.IsError || r.Text != "changes on web1 in the last 1h:\n== packages\nnginx upgraded" {
+	if r.IsError || !strings.HasPrefix(r.Text, "changes on web-01 in the last 1h:\n== packages\n== files changed under /etc\n") {
 		t.Errorf("changes: %+v", r)
 	}
-	if a, _ := os.ReadFile(args); !strings.Contains(string(a), "changes 1'") || !strings.Contains(string(a), "web1") {
-		t.Errorf("ssh args: %s", a)
+	if cs := w.srv.Commands(); len(cs) != 1 || !strings.HasPrefix(cs[0], "sh -c 'sh -c '") || !strings.HasSuffix(cs[0], " changes 1'") {
+		t.Errorf("ran %q", cs)
 	}
 	if es := auditSince("Acme", time.Now().Add(-time.Minute)); len(es) != 1 || es[0].Cmd != "(changes tool, last 1h)" || es[0].By != "claude" {
 		t.Errorf("audited: %+v", es)
@@ -275,8 +264,9 @@ echo "== packages"; echo nginx upgraded`)
 	if r := tab.changes(p, 5000); !strings.Contains(r.Text, "last 720h") {
 		t.Errorf("capped at 30 days: %q", r.Text)
 	}
-	term.Host = "FAIL"
-	if r := tab.changes(p, 2); !r.IsError || r.Text != "changes: exit status 1" {
+	w.config("    SetEnv PATH=" + t.TempDir() + "\n") // no sh there: the script can't run
+	sshPool = &sshc.Pool{}
+	if r := tab.changes(p, 2); !r.IsError || !strings.HasPrefix(r.Text, "changes: ") || !strings.Contains(r.Text, "not found") {
 		t.Errorf("failed: %+v", r)
 	}
 }
@@ -464,11 +454,6 @@ func TestFilesErrorsC(t *testing.T) {
 	if err == nil {
 		t.Error("copying into a missing folder must fail")
 	}
-	from := exec.Command("true")
-	from.Stdout = os.Stdout
-	if err := pipe(from, exec.Command("true"), &n, func() {}); err == nil {
-		t.Error("a command whose stdout is taken can't be piped")
-	}
 }
 
 // --- servers.go ---
@@ -591,7 +576,16 @@ func TestSaveSessionKeepsC(t *testing.T) {
 func TestRestoreSessionC(t *testing.T) {
 	stateC(t)
 	t.Setenv("HOME", t.TempDir())
-	args := fakeSSHC(t, "sleep 30\n")
+	var mu sync.Mutex
+	var hosts []string
+	cmd := []string{"sleep", "30"}
+	HostCmd = func(h string) *exec.Cmd {
+		mu.Lock()
+		defer mu.Unlock()
+		hosts = append(hosts, h)
+		return exec.Command(cmd[0], cmd[1:]...)
+	}
+	t.Cleanup(func() { HostCmd = nil })
 	dir := t.TempDir()
 	saved := time.Date(2026, 1, 2, 15, 4, 0, 0, time.Local)
 	ss := savedSession{Saved: saved, Active: 9, Forwards: []savedFwd{{"web1", dir, "web1", "L", "8080:localhost:80"}},
@@ -624,14 +618,16 @@ func TestRestoreSessionC(t *testing.T) {
 	if k := t1.panes[0].term.Keep(); k.Text != "$ uptime\nup 3 days\n\n── restored from Jan 2 15:04 ──" {
 		t.Errorf("one restored line: %q", k.Text)
 	}
-	if a := waitFileC(t, args); !strings.Contains(a, "web1\n") {
-		t.Errorf("ssh args: %s", a)
+	mu.Lock()
+	if strings.Join(hosts, ",") != "web1,web2" {
+		t.Errorf("dialed %v", hosts)
 	}
+	cmd = []string{"/no/such/shell"} // the pane can't start
+	mu.Unlock()
 	m.restore() // once
 	if len(m.tabs) != 2 {
 		t.Error("restore runs once")
 	}
-	t.Setenv("PATH", t.TempDir()) // no ssh: the pane can't start
 	m2 := &model{}
 	m2.restore()
 	if len(m2.tabs) != 2 || len(m2.tabs[0].panes) != 0 || !m2.tabs[0].orgOnly || m2.errText == "" {
@@ -641,79 +637,9 @@ func TestRestoreSessionC(t *testing.T) {
 
 // --- sshcfg.go ---
 
-func TestAskpassEnvWithoutSocketC(t *testing.T) {
-	askOnce.Do(func() {})
-	old := askSock
-	t.Cleanup(func() { askSock = old })
-	askSock = ""
-	if env, tgt := askpassEnv("web1", t.TempDir()); env != nil || tgt != nil {
-		t.Errorf("no askpass socket, no env: %v %v", env, tgt)
-	}
-	f := filepath.Join(t.TempDir(), "file")
-	write(t, f, "x")
-	t.Setenv("XDG_RUNTIME_DIR", f)
-	startAskpass()
-	if askSock != "" {
-		t.Errorf("a failed listen keeps no socket: %q", askSock)
-	}
-}
-
-func TestAskpassMainC(t *testing.T) {
-	t.Setenv("DESK_ASKPASS", filepath.Join(t.TempDir(), "none.sock"))
-	if code := catchExitC(t, func() { askpassMain("Password: ") }); code != 1 {
-		t.Errorf("no desk to ask: exit %d", code)
-	}
-	sock := filepath.Join(runtimeA(t), "a.sock")
-	ln, err := net.Listen("unix", sock)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	answers := []askRes{{"s3cret-fake", true}, {}}
-	var asked []askReq
-	go func() {
-		for _, a := range answers {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			var r askReq
-			json.NewDecoder(c).Decode(&r)
-			asked = append(asked, r)
-			json.NewEncoder(c).Encode(a)
-			c.Close()
-		}
-	}()
-	t.Setenv("DESK_ASKPASS", sock)
-	t.Setenv("DESK_ASKPASS_ID", "7")
-	code, out, _ := captureA(t, func() int {
-		if !AskpassMain([]string{"desk", "Password: "}) {
-			t.Error("with DESK_ASKPASS and a prompt it answers")
-		}
-		return 0
-	})
-	if code != 0 || out != "s3cret-fake\n" || len(asked) != 1 || asked[0] != (askReq{"7", "Password: "}) {
-		t.Errorf("answered %q, asked %+v", out, asked)
-	}
-	if code := catchExitC(t, func() { askpassMain("Password: ") }); code != 1 {
-		t.Errorf("a refused answer: exit %d", code)
-	}
+func TestMCPMainNoSocketC(t *testing.T) {
 	if code := catchExitC(t, func() { MCPMain(nil) }); code != 2 {
 		t.Errorf("desk mcp without a socket: exit %d", code)
-	}
-}
-
-func TestPortFwdRunC(t *testing.T) {
-	args := fakeSSHC(t, `case "$*" in *cancel*) echo "no such forward" >&2; exit 255;; esac`+"\n")
-	f := portFwd{host: "web1", dir: t.TempDir(), name: "web1", kind: "L", spec: "8080:localhost:80"}
-	if err := f.run(false); err != nil {
-		t.Fatal(err)
-	}
-	if a, _ := os.ReadFile(args); !strings.HasSuffix(string(a), "-O\nforward\n-L\n8080:localhost:80\nweb1\n") {
-		t.Errorf("forward args: %s", a)
-	}
-	if err := f.run(true); err == nil || err.Error() != "no such forward" {
-		t.Errorf("cancel: %v", err)
 	}
 }
 
@@ -787,7 +713,7 @@ func TestTermHistoryAndTapC(t *testing.T) {
 	old := termTap
 	termTap = func(_ *Term, b []byte) { got <- string(b) }
 	defer func() { termTap = old }()
-	tt, err := startTerm("local", exec.Command("sh", "-c", "printf tapped; sleep 1"), 40, 6, func() {}, paneState{})
+	tt, err := startCmd("local", exec.Command("sh", "-c", "printf tapped; sleep 1"), 40, 6, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1026,8 +952,9 @@ func TestCallToolDispatchC(t *testing.T) {
 	if r := call("secrets_search", `{"query":""}`); r.IsError || !strings.HasPrefix(r.Text, "201 items\n") || !strings.HasSuffix(r.Text, "… 1 more, narrow the query") {
 		t.Errorf("many items: %.40q…", r.Text)
 	}
-	fakeSSHC(t, "echo nothing new\n")
-	if r := call("changes", `{"pane":1}`); r.IsError || !strings.HasPrefix(r.Text, "changes on web1 in the last 24h:\nnothing new") {
+	w := newSSHW(t, sshtest.Opts{}, "    SetEnv PATH="+stubPath(t)+"\n")
+	term.Host, tab.panes[0].dir = "web-01", w.dir
+	if r := call("changes", `{"pane":1}`); r.IsError || !strings.HasPrefix(r.Text, "changes on web1 in the last 24h:\n== packages") {
 		t.Errorf("changes default: %+v", r)
 	}
 }
@@ -1200,7 +1127,16 @@ func TestLoadTreeEdgesC(t *testing.T) {
 func TestPanesDialC(t *testing.T) {
 	stateC(t)
 	t.Setenv("HOME", t.TempDir())
-	args := fakeSSHC(t, "printf 'web1$ '; sleep 30\n")
+	var mu sync.Mutex
+	var hosts []string
+	shell := "printf 'web1$ '; sleep 30"
+	HostCmd = func(h string) *exec.Cmd {
+		mu.Lock()
+		defer mu.Unlock()
+		hosts = append(hosts, h)
+		return exec.Command("bash", "-c", shell)
+	}
+	t.Cleanup(func() { HostCmd = nil })
 	dir := t.TempDir()
 	m := &model{}
 	closePanesC(t, m)
@@ -1219,10 +1155,12 @@ func TestPanesDialC(t *testing.T) {
 	if len(tab.panes) != 2 || tab.cur != 1 {
 		t.Errorf("ctrl+t: %d panes, cur %d", len(tab.panes), tab.cur)
 	}
-	if a := waitFileC(t, args); strings.Count(a, "web1\n") < 1 {
-		t.Errorf("ssh: %s", a)
+	mu.Lock()
+	if strings.Join(hosts, ",") != "web1,web1" {
+		t.Errorf("dialed %v", hosts)
 	}
-	t.Setenv("PATH", t.TempDir()) // no ssh
+	mu.Unlock()
+	t.Setenv("PATH", t.TempDir()) // no bash: the shell can't start
 	before := p.term
 	m.redialPane(tab, p)
 	if p.term != before || m.errText == "" {
@@ -1230,7 +1168,7 @@ func TestPanesDialC(t *testing.T) {
 	}
 	m.errText = ""
 	if m.addPane(tab, n, false) != nil || m.errText == "" {
-		t.Error("no ssh: no pane")
+		t.Error("no shell: no pane")
 	}
 	done := make(chan *Pane, 1)
 	r, _ = m.update(paneMsg{tab, n, done})
@@ -1245,31 +1183,44 @@ func TestPanesDialC(t *testing.T) {
 }
 
 func TestKeepForwardsC(t *testing.T) {
-	args := fakeSSHC(t, `case "$*" in *9999*) echo "port taken" >&2; exit 255;; esac`+"\n")
-	dir := t.TempDir()
-	up, _ := fakeTermA(t, "web1")
+	w := newSSHW(t, sshtest.Opts{}, "")
+	dir := w.dir
+	up, _ := fakeTermA(t, "web-01")
 	up.reached = true
-	closed, _ := fakeTermA(t, "web1")
+	closed, _ := fakeTermA(t, "web-01")
 	closed.exited = true
 	tab := &Tab{panes: []*Pane{{id: 1, term: up, dir: dir}}}
-	good := portFwd{host: "web1", dir: dir, name: "web1", kind: "L", spec: "8080:localhost:80"}
-	bad := portFwd{host: "web1", dir: dir, name: "web1", kind: "L", spec: "9999:localhost:80"}
-	on := portFwd{host: "web1", dir: dir, name: "web1", kind: "D", spec: "1080"}
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer taken.Close()
+	port := strconv.Itoa(freePort(t))
+	takenPort := strconv.Itoa(taken.Addr().(*net.TCPAddr).Port)
+	good := portFwd{host: "web-01", dir: dir, name: "web-01", kind: "L", spec: port + ":localhost:80"}
+	bad := portFwd{host: "web-01", dir: dir, name: "web-01", kind: "L", spec: takenPort + ":localhost:80"}
+	on := portFwd{host: "web-01", dir: dir, name: "web-01", kind: "D", spec: "1080"}
 	other := portFwd{host: "web2", dir: dir, name: "web2", kind: "L", spec: "1:localhost:1"}
 	m := &model{tabs: []*Tab{tab}, forwards: []portFwd{good, bad, other}}
 	m.keepForwards()
 	if !m.fwdOn[good] || !m.fwdOn[bad] || m.fwdOn[other] {
 		t.Errorf("on: %v", m.fwdOn)
 	}
-	if m.flash != "forward localhost:9999 → localhost:80 via web1: port taken" {
+	if !strings.HasPrefix(m.flash, "forward localhost:"+takenPort+" → localhost:80 via web-01: ") || !strings.Contains(m.flash, "in use") {
 		t.Errorf("flash: %q", m.flash)
 	}
+	if c, err := net.Dial("tcp", "127.0.0.1:"+port); err != nil {
+		t.Errorf("the forward listens: %v", err)
+	} else {
+		c.Close()
+	}
 	m.forwards, m.fwdOn[on] = append(m.forwards, on), true // up already
-	a, _ := os.ReadFile(args)
-	n := strings.Count(string(a), "-O\n")
 	m.keepForwards()
-	if a, _ := os.ReadFile(args); strings.Count(string(a), "-O\n") != n || n != 2 {
-		t.Errorf("once per connection: %d then %d", n, strings.Count(string(a), "-O\n"))
+	fwdStops.Lock()
+	n := len(fwdStops.m)
+	fwdStops.Unlock()
+	if n != 1 {
+		t.Errorf("once per connection: %d running", n)
 	}
 	p := &Pane{id: 2, term: closed, dir: dir, closed: true}
 	tab.panes = append(tab.panes, p)
@@ -1330,25 +1281,13 @@ func TestTickRunsHealthC(t *testing.T) {
 
 func TestFixLegacyKeyC(t *testing.T) {
 	stateC(t)
-	fakeSSHC(t, "sleep 30\n")
-	sshQMu.Lock()
-	old, had := sshQ["key"]
-	sshQ["key"] = map[string]bool{"ssh-rsa": true}
-	sshQMu.Unlock()
-	defer func() {
-		sshQMu.Lock()
-		if had {
-			sshQ["key"] = old
-		} else {
-			delete(sshQ, "key")
-		}
-		sshQMu.Unlock()
-	}()
+	HostCmd = func(string) *exec.Cmd { return exec.Command("sleep", "30") } // the reconnect
+	t.Cleanup(func() { HostCmd = nil })
 	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
 	os.MkdirAll(dir, 0o755) // the pane's shell starts in it
 	failed, _ := fakeTermA(t, "web1")
 	failed.b, failed.exited, failed.code = nil, true, 255
-	failed.emu.WriteString("Unable to negotiate with 192.0.2.1 port 22: no matching host key type found. Their offer: ssh-rsa")
+	failed.err = &sshc.NegotiationError{What: "HostKeyAlgorithms", Theirs: []string{"ssh-rsa"}}
 	p := &Pane{id: 1, term: failed, dir: dir, name: "web1"}
 	tab := &Tab{org: "Acme", term: failed, panes: []*Pane{p}}
 	m := model{tabs: []*Tab{tab}}
@@ -1370,8 +1309,8 @@ func TestFixLegacyKeyC(t *testing.T) {
 func TestPaletteActionsC(t *testing.T) {
 	st := stateC(t)
 	t.Setenv("HOME", t.TempDir())
-	args := fakeSSHC(t, `case "$*" in *cancel*7777*|*forward*7777*) echo "refused" >&2; exit 255;; esac`+"\n")
-	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
+	w := newSSHW(t, sshtest.Opts{}, "")
+	dir := w.dir
 	term, _ := fakeTermA(t, "web1")
 	term.reached = true
 	tab := &Tab{org: "Acme", name: "web1", term: term, dir: dir, panes: []*Pane{{id: 1, term: term, dir: dir, name: "web1"}},
@@ -1393,27 +1332,32 @@ func TestPaletteActionsC(t *testing.T) {
 		t.Errorf("investigate: %v", invest)
 	}
 
-	palPickC(t, m, "forward 8080", "forward 8080")
-	fwd := portFwd{host: "web1", dir: dir, name: "web1", kind: "L", spec: "8080:localhost:8080"}
+	port := strconv.Itoa(freePort(t))
+	palPickC(t, m, "forward "+port, "forward "+port)
+	fwd := portFwd{host: "web1", dir: dir, name: "web1", kind: "L", spec: port + ":localhost:" + port}
 	if m.flash != "forwarding "+fwd.String() || !m.fwdOn[fwd] || len(m.forwards) != 1 {
 		t.Errorf("forward: %q %v", m.flash, m.forwards)
 	}
-	palPickC(t, m, "forward 7777", "forward 7777")
-	if m.flash != "forward: refused" || len(m.forwards) != 1 {
+	taken, _ := net.Listen("tcp", "127.0.0.1:0")
+	defer taken.Close()
+	tp := strconv.Itoa(taken.Addr().(*net.TCPAddr).Port)
+	palPickC(t, m, "forward "+tp, "forward "+tp)
+	if !strings.HasPrefix(m.flash, "forward: ") || !strings.Contains(m.flash, "in use") || len(m.forwards) != 1 {
 		t.Errorf("failed forward: %q", m.flash)
 	}
 	palPickC(t, m, "stop forward", "stop forward "+fwd.String())
 	if m.flash != "stopped "+fwd.String() || len(m.forwards) != 0 || m.fwdOn[fwd] {
 		t.Errorf("stop: %q", m.flash)
 	}
+	if c, err := net.Dial("tcp", "127.0.0.1:"+port); err == nil {
+		c.Close()
+		t.Error("a stopped forward listens no more")
+	}
 	bad := portFwd{host: "web1", dir: dir, name: "web1", kind: "L", spec: "7777:localhost:7777"}
 	m.forwards, m.fwdOn = []portFwd{bad}, map[portFwd]bool{bad: true}
 	palPickC(t, m, "stop forward", "stop forward "+bad.String())
-	if m.flash != "stop forward: refused" || len(m.forwards) != 0 {
+	if m.flash != "stop forward: no such forward" || len(m.forwards) != 0 {
 		t.Errorf("failed stop: %q", m.flash)
-	}
-	if a, _ := os.ReadFile(args); !strings.Contains(string(a), "-O\ncancel\n-L\n8080:localhost:8080\nweb1\n") {
-		t.Errorf("ssh: %s", a)
 	}
 
 	var opened []string
@@ -1471,9 +1415,11 @@ func TestPaletteActionsC(t *testing.T) {
 	}
 	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host web2\n")
 	m.tree = []node{{depth: 0, org: "Acme", label: "Acme", dir: dir}, {depth: 1, label: "g"}, {depth: 2, org: "Acme", group: "g", host: "web2", label: "web2", dir: dir}}
+	HostCmd = func(string) *exec.Cmd { return exec.Command("/no/such/shell") }
+	t.Cleanup(func() { HostCmd = nil })
 	palPickC(t, m, "Acme › g › web2", "Acme › g › web2")
 	if len(m.tabs) != 1 || m.group != "" {
-		t.Errorf("a host that can't open (no ssh) leaves no tab: %d", len(m.tabs))
+		t.Errorf("a host that can't open leaves no tab: %d", len(m.tabs))
 	}
 }
 
@@ -1614,10 +1560,6 @@ func TestHostOfStatesC(t *testing.T) {
 }
 
 func TestDeskMainsC(t *testing.T) {
-	t.Setenv("DESK_ASKPASS", "")
-	if AskpassMain([]string{"desk", "Password: "}) {
-		t.Error("without DESK_ASKPASS desk isn't ssh's askpass")
-	}
 	if code, out, _ := captureA(t, func() int { return PeerMain([]string{"help"}) }); code != 0 || !strings.Contains(out, "desk peer") {
 		t.Errorf("peer help: %d %q", code, out)
 	}
@@ -1627,7 +1569,8 @@ func TestWorkspaceAPIC(t *testing.T) {
 	for _, v := range []string{"XDG_STATE_HOME", "XDG_CONFIG_HOME", "HOME"} {
 		t.Setenv(v, t.TempDir())
 	}
-	fakeSSHC(t, "sleep 30\n")
+	HostCmd = func(string) *exec.Cmd { return exec.Command("sleep", "30") }
+	t.Cleanup(func() { HostCmd = nil })
 	root := t.TempDir()
 	write(t, filepath.Join(root, "Acme", ".desk", serversFile), "#@ group g\nHost web1\n")
 	write(t, filepath.Join(root, "Acme", ".desk", "desk.toml"), "record = false\n")

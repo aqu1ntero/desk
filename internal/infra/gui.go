@@ -184,13 +184,13 @@ type guiPane struct {
 	Blocks          map[int]Block
 	Password        bool // the server has a vault password (alt+p can answer sudo)
 	// for the connection box: since when it waits (or dropped), the redials
-	// so far and the next one, ssh's last line once it failed, and whether
+	// so far and the next one, why it failed, and whether
 	// that names old algorithms Fix can add
 	Since, Retry time.Time
 	Tries        int
 	Err          string
 	CanFix       bool
-	KeyChange    *hostKeyChange // ssh refused a changed host key: the one sent and the one known
+	KeyChange    *hostKeyChange // the server sent another host key: the one sent and the one known
 }
 
 type guiChat struct {
@@ -266,11 +266,13 @@ func (d *driver) snapshot(m *model) *guiState {
 			case "reconnecting":
 				gp.Since = p.lost
 			case "failed":
-				screen := p.term.Unwrapped()
-				gp.Err = lastLine(screen)
-				fixes, _ := legacyFixes(screen)
-				gp.CanFix = len(fixes) > 0
-				gp.KeyChange = parseHostKeyChange(screen)
+				err := p.term.Err()
+				gp.Err = lastLine(p.term.Unwrapped()) // what the shell said, for HostCmd's
+				if err != nil {
+					gp.Err = err.Error()
+				}
+				gp.CanFix = len(legacyFixes(err)) > 0
+				gp.KeyChange = hostKeyChangeOf(err)
 			}
 			for _, b := range p.term.Blocks() {
 				b.Output = "" // the snapshot only needs the badges

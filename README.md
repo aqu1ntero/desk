@@ -62,7 +62,7 @@ desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…); X11 and ma
 [roadmap](#roadmap). It needs
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`. Optional:
 `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for per-organization Claude
-profiles, and `ssh` for the infra workspace.
+profiles. The infra workspace speaks SSH itself (no `ssh` program needed).
 
 ### Nix
 
@@ -341,8 +341,13 @@ to a card unasked or put follow-up work in To do. Claude Code users outside desk
 through the bundled plugin ([`plugin/`](plugin)).
 
 An organization's servers are one real OpenSSH config, `<Org>/.desk/ssh_config` (or `[servers] file`).
-desk runs `ssh -F <that file> <alias>`, so the same command works from any terminal. desk's own
-data are comment lines OpenSSH ignores, `#@ key value`:
+desk connects with its own SSH client (Go, no `ssh` program), reading that file the way
+`ssh -F <that file> <alias>` would, so the same command works from any terminal. Panes, the files
+split (SFTP, or `sh`/`tar` on servers without it), the `changes` tool and port forwards share one
+connection per server; questions (passwords, passphrases, yes/no) go to desk's ask box, a
+`#@ password` from the vault first. Not supported: GSSAPI/Kerberos, host-based auth, PKCS#11 smart
+cards, FIDO keys outside an agent, X11 forwarding, compression; the pane says so. desk's own data
+are comment lines OpenSSH ignores, `#@ key value`:
 
 <details>
 <summary><b>An annotated <code>ssh_config</code></b></summary>
@@ -381,12 +386,14 @@ Match all
 - Comments go on their own lines (`#@ desc a # b` keeps `a # b`).
 - `password ITEM [FIELD]` fills `{host}`, `{user}` and `{group}` in ITEM and takes it from
   `vault`; `password-raw` is the password itself. The nearest level with either one wins.
-- **A changed host key** (a reinstalled server, rotated keys) stops ssh. The pane's box then shows
-  the key the server sent next to the one in `known_hosts`, by fingerprint. **Accept new key** (A)
-  drops that line and reconnects, and ssh saves the new key; it does nothing if the line no longer
-  holds that key for that host.
+- **A changed host key** (a reinstalled server, rotated keys) stops the connection. The pane's box
+  then shows the key the server sent next to the one in `known_hosts`, by fingerprint. **Accept
+  new key** (A) drops that line, saves the key shown and reconnects; it does nothing if the line
+  no longer holds that key for that host.
+- **Old algorithms**: a server offering only ones modern SSH turns off gets **Fix algorithms** (F),
+  which writes `KexAlgorithms +…` (or `HostKeyAlgorithms`, `Ciphers`, `MACs`) into its Host block.
 - **Includes** resolving inside the org folder count; ones outside it (like `~/.ssh/config`) are
-  ssh's alone, so your personal hosts never list as the org's servers.
+  read when connecting but never listed, so your personal hosts never show as the org's servers.
 - **Dynamic inventory**: `#@ hosts-cmd PATH` runs at start and on reload and keeps what it prints
   (ssh_config text or `name user@host:port` lines) in `<Org>/.desk/servers-dynamic.conf`.
 - Every tab of the org works in `<Org>/.desk/infra/`: its Claude's cwd, with `runbooks/` and its

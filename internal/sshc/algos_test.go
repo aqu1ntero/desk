@@ -2,6 +2,7 @@ package sshc
 
 import (
 	"errors"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"slices"
 	"strings"
 	"testing"
@@ -16,14 +17,14 @@ func TestNegotiationErrors(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		what, fix string
-		srv       srvOpts
+		srv       sshtest.Opts
 	}{
-		{"Ciphers", "aes128-cbc", srvOpts{config: func(c *ssh.ServerConfig) { c.Ciphers = []string{"aes128-cbc"} }}},
-		{"KexAlgorithms", "diffie-hellman-group1-sha1", srvOpts{config: func(c *ssh.ServerConfig) { c.KeyExchanges = []string{"diffie-hellman-group1-sha1"} }}},
-		{"MACs", "hmac-sha1-96", srvOpts{config: func(c *ssh.ServerConfig) {
+		{"Ciphers", "aes128-cbc", sshtest.Opts{Config: func(c *ssh.ServerConfig) { c.Ciphers = []string{"aes128-cbc"} }}},
+		{"KexAlgorithms", "diffie-hellman-group1-sha1", sshtest.Opts{Config: func(c *ssh.ServerConfig) { c.KeyExchanges = []string{"diffie-hellman-group1-sha1"} }}},
+		{"MACs", "hmac-sha1-96", sshtest.Opts{Config: func(c *ssh.ServerConfig) {
 			c.Ciphers, c.MACs = []string{"aes128-ctr"}, []string{"hmac-sha1-96"}
 		}}},
-		{"HostKeyAlgorithms", "ssh-rsa", srvOpts{hostKeys: []ssh.Signer{rsaOnly}}},
+		{"HostKeyAlgorithms", "ssh-rsa", sshtest.Opts{HostKeys: []ssh.Signer{rsaOnly}}},
 	} {
 		w := newWorld(t)
 		s := pwServer(t, w, tc.srv)

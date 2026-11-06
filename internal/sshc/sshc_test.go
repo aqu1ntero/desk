@@ -3,6 +3,7 @@ package sshc
 import (
 	"context"
 	"errors"
+	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"net"
 	"sync"
 	"testing"
@@ -25,7 +26,7 @@ func waitDone(t *testing.T, c *Client) {
 
 func TestKeepaliveLost(t *testing.T) {
 	fastAlive(t)
-	c, _, w := pwClient(t, "  ServerAliveInterval 1\n  ServerAliveCountMax 3\n", srvOpts{noKeepalive: true})
+	c, _, w := pwClient(t, "  ServerAliveInterval 1\n  ServerAliveCountMax 3\n", sshtest.Opts{NoKeepalive: true})
 	start := time.Now()
 	waitDone(t, c)
 	if !errors.Is(c.Err(), ErrLost) || !w.logged("Timeout, server 127.0.0.1 not responding.") {
@@ -38,7 +39,7 @@ func TestKeepaliveLost(t *testing.T) {
 
 func TestKeepaliveAnswered(t *testing.T) {
 	fastAlive(t)
-	c, _, _ := pwClient(t, "  ServerAliveInterval 1\n  ServerAliveCountMax 1\n", srvOpts{})
+	c, _, _ := pwClient(t, "  ServerAliveInterval 1\n  ServerAliveCountMax 1\n", sshtest.Opts{})
 	time.Sleep(200 * time.Millisecond)
 	if c.Err() != nil {
 		t.Fatalf("lost: %v", c.Err())
@@ -46,11 +47,11 @@ func TestKeepaliveAnswered(t *testing.T) {
 }
 
 func TestServerGone(t *testing.T) {
-	c, s, _ := pwClient(t, "", srvOpts{})
+	c, s, _ := pwClient(t, "", sshtest.Opts{})
 	if c.Err() != nil {
 		t.Fatal(c.Err())
 	}
-	s.drop()
+	s.Drop()
 	waitDone(t, c)
 	if c.Err() == nil || errors.Is(c.Err(), ErrLost) {
 		t.Fatalf("err %v", c.Err())
@@ -58,7 +59,7 @@ func TestServerGone(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	c, _, _ := pwClient(t, "  User me\n", srvOpts{})
+	c, _, _ := pwClient(t, "  User me\n", sshtest.Opts{})
 	if c.Config().User() != "me" {
 		t.Fatal("config")
 	}
@@ -77,7 +78,7 @@ func TestClose(t *testing.T) {
 
 func TestPoolShares(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}
 	o := w.opts(base(""), s)
 	var p Pool
@@ -103,8 +104,8 @@ func TestPoolShares(t *testing.T) {
 			t.Fatal("not shared")
 		}
 	}
-	if s.count() != 1 {
-		t.Fatalf("%d connections", s.count())
+	if s.Count() != 1 {
+		t.Fatalf("%d connections", s.Count())
 	}
 	releases[0]()
 	p.mu.Lock()
@@ -128,7 +129,7 @@ func TestPoolShares(t *testing.T) {
 
 func TestPoolLinger(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	o := w.opts(base(""), s)
 	p := Pool{Linger: 100 * time.Millisecond}
 	ctx := context.Background()
@@ -156,15 +157,15 @@ func TestPoolLinger(t *testing.T) {
 	p.mu.Unlock()
 	w.ans = []string{"pw"}
 	c3, rel3, err := p.Get(ctx, "srv", o)
-	if err != nil || c3 == c || s.count() != 2 {
-		t.Fatalf("not redialed: %v, %d connections", err, s.count())
+	if err != nil || c3 == c || s.Count() != 2 {
+		t.Fatalf("not redialed: %v, %d connections", err, s.Count())
 	}
 	rel3()
 }
 
 func TestPoolDefaultLinger(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	var p Pool
 	w.ans = []string{"pw"}
 	c, rel, err := p.Get(context.Background(), "srv", w.opts(base(""), s))
@@ -181,7 +182,7 @@ func TestPoolDefaultLinger(t *testing.T) {
 
 func TestPoolDropsDead(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	o := w.opts(base(""), s)
 	var p Pool
 	w.ans = []string{"pw"}
@@ -190,7 +191,7 @@ func TestPoolDropsDead(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer rel()
-	s.drop()
+	s.Drop()
 	waitDone(t, c)
 	w.ans = []string{"pw"}
 	c2, rel2, err := p.Get(context.Background(), "srv", o)
@@ -202,7 +203,7 @@ func TestPoolDropsDead(t *testing.T) {
 
 func TestPoolDialError(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	o := w.opts(base(""), s)
 	var p Pool
 	if _, _, err := p.Get(context.Background(), "srv", o); err == nil {
@@ -218,7 +219,7 @@ func TestPoolDialError(t *testing.T) {
 
 func TestPoolWaiterCancelled(t *testing.T) {
 	w := newWorld(t)
-	s := pwServer(t, w, srvOpts{})
+	s := pwServer(t, w, sshtest.Opts{})
 	o := w.opts(base(""), s)
 	asked, answer := make(chan struct{}), make(chan struct{})
 	o.Prompt = func(string, bool) (string, error) {

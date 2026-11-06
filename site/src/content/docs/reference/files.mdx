@@ -81,9 +81,10 @@ Made by a running desk, readable by you only. Without `XDG_RUNTIME_DIR`, they go
 |---|---|
 | `cards-<pid>.sock` | Card sessions' desk tools (alerts, tickets, link, ci). |
 | `infra-<pid>-<tab>.sock` | One per infra tab: its Claude's tools. |
-| `askpass-<pid>.sock` | ssh asking desk for a password. |
 | `peer/<pid>.sock` | `desk peer`. It talks to the newest one. |
-| `ssh-%C` | ssh's shared connections (`ControlMaster`), kept 60 s after the last pane closes. |
+
+desk's SSH connections to servers live in the process itself (one per server, kept 60 s after
+the last pane closes): there are no `ControlMaster` sockets.
 
 ## Environment variables
 
