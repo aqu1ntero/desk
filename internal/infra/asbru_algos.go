@@ -2,35 +2,25 @@ package infra
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 )
 
 // sshAlgoKind is the `ssh -Q` query that lists what each algorithm-list
-// keyword takes (lower-cased keywords: ssh's are case-insensitive).
+// keyword takes (lower-cased keywords: ssh's are case-insensitive). key-sig,
+// not key: these lists take signature names too (rsa-sha2-512).
 var sshAlgoKind = map[string]string{
 	"hostkeyalgorithms": "key-sig", "pubkeyacceptedalgorithms": "key-sig", "pubkeyacceptedkeytypes": "key-sig",
 	"hostbasedacceptedalgorithms": "key-sig", "hostbasedkeytypes": "key-sig", "casignaturealgorithms": "key-sig",
 	"kexalgorithms": "kex", "ciphers": "cipher", "macs": "mac",
 }
 
-// sshQuery lists what the local ssh supports of kind (`ssh -Q kind`), nil
-// when it can't say (no ssh, or one too old for the query). Tests replace it.
-var sshQuery = func(kind string) []string {
-	out, err := exec.Command("ssh", "-Q", kind).Output()
-	if err != nil {
-		return nil
-	}
-	return strings.Fields(string(out))
-}
-
 // supported drops from h's algorithm lists the names the local ssh lacks:
 // ssh refuses a whole config over one it doesn't know (OpenSSH 10 has no
 // ssh-dss), so one old host imported as it was would break every server of
 // the organization. Each drop is noted in the block; a list left empty goes.
-// Patterns (*, ?, !) are kept. known caches the queries over one import; a
-// kind ssh can't list is kept as it is.
-func (h *asbruHost) supported(known map[string]map[string]bool) {
+// Patterns (*, ?, !) are kept. A kind ssh can't list (no ssh, or one too old
+// for the query) is kept as it is.
+func (h *asbruHost) supported() {
 	lines := h.lines[:0]
 	for _, l := range h.lines {
 		kind := sshAlgoKind[strings.ToLower(l[0])]
@@ -38,16 +28,7 @@ func (h *asbruHost) supported(known map[string]map[string]bool) {
 			lines = append(lines, l)
 			continue
 		}
-		have, ok := known[kind]
-		if !ok {
-			if names := sshQuery(kind); len(names) > 0 {
-				have = map[string]bool{}
-				for _, n := range names {
-					have[n] = true
-				}
-			}
-			known[kind] = have
-		}
+		have := sshSupports(kind)
 		op, v := "", l[1]
 		if v != "" && strings.ContainsRune("+-^", rune(v[0])) {
 			op, v = v[:1], v[1:]
@@ -57,7 +38,7 @@ func (h *asbruHost) supported(known map[string]map[string]bool) {
 			if a = strings.TrimSpace(a); a == "" {
 				continue
 			}
-			if have == nil || have[a] || strings.ContainsAny(a, "*?!") {
+			if len(have) == 0 || have[a] || strings.ContainsAny(a, "*?!") {
 				keep = append(keep, a)
 			} else {
 				drop = append(drop, a)

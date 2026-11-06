@@ -204,9 +204,9 @@ func AsbruConfig(data []byte, group string, taken map[string]bool) (string, []st
 	})
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Imported from Ásbrú Connection Manager on %s: %d servers.\n", time.Now().Format(time.DateOnly), len(names))
-	last, known := "\x00", map[string]map[string]bool{}
+	last := "\x00"
 	for _, h := range hosts {
-		h.supported(known)
+		h.supported()
 		if g := cmpOr(h.group, topGroup); g != last { // a group always: the hosts may go after others' groups
 			fmt.Fprintf(&b, "\n#@ group %s\n", g)
 			last = g
