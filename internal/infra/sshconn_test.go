@@ -551,11 +551,16 @@ func TestSSHConnectEdges(t *testing.T) {
 	// the session starts; the pool keeps its connection while it runs
 	w = newSSHW(t, sshtest.Opts{}, "    RemoteCommand sleep 30\n")
 	sshPool = &sshc.Pool{Linger: 20 * time.Millisecond}
-	notified.Store(0)
-	term, _ = NewTerm("web-01", w.dir, 80, 24, func() { notified.Add(1) }, paneState{})
+	var cur atomic.Pointer[Term]
+	var toldUp atomic.Bool
+	term, _ = NewTerm("web-01", w.dir, 80, 24, func() {
+		if tp := cur.Load(); tp != nil && tp.Connected() {
+			toldUp.Store(true)
+		}
+	}, paneState{})
+	cur.Store(term)
 	t.Cleanup(term.Close)
-	waitS(t, "the session", term.Connected)
-	waitS(t, "told", func() bool { return notified.Load() > 0 })
+	waitS(t, "told it's up", toldUp.Load)
 	time.Sleep(200 * time.Millisecond)
 	if _, exited := term.State(); exited {
 		t.Error("the pooled connection went while the pane used it")
