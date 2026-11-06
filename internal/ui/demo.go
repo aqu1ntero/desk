@@ -345,9 +345,9 @@ func (s *demoWorkspace) Interrupt() error                                    { r
 func (s *demoWorkspace) Close()                                              {}
 
 const (
-	demoWSAnswer = "The retry reuses `tok` from before the loop, so after it expires every attempt sends the same expired token. Refresh it first:\n\n" +
-		"```diff\n--- internal/auth/login.go\n+++ internal/auth/login.go\n@@ retry @@\n-    resp, err := c.post(ctx, tok)\n+    if tok.Expired() {\n+        tok, err = c.refresh(ctx, tok)\n+    }\n+    resp, err := c.post(ctx, tok)\n```\n\n" +
-		"`refresh` already handles the 401 from the token endpoint, so nothing else changes."
+	demoWSAnswer = "Yes: `s.Expired()` is checked on every try, so a token that expires between attempts is refreshed before the next `c.do`. One gap: a token the server refuses before it expires is sent again unchanged. Expire it on a 401:\n\n" +
+		"```diff\n--- internal/auth/login.go\n+++ internal/auth/login.go\n@@ login @@\n \t\tif err == nil && resp.StatusCode != http.StatusUnauthorized {\n \t\t\treturn resp, nil\n \t\t}\n+\t\ts.Expire() // refused: the next try refreshes it first\n \t}\n```\n\n" +
+		"`refresh.Token` already stores the new token in `s`, so nothing else changes."
 	demoWSCard = "The user has `internal/auth/login.go` open at the retry loop. They expect the refresh before the post, and a test for an expired token in `login_test.go`."
 )
 

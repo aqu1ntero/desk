@@ -154,7 +154,7 @@ func TestDemo(t *testing.T) {
 	h.u.wsSend(id, "Why does the retry fail?")
 	h.pumpUntil("the workspace answer", func() bool {
 		m := h.u.chat(wsKey(id))
-		return len(m) > 0 && strings.HasPrefix(m[len(m)-1].Text, "The retry reuses")
+		return len(m) > 0 && strings.HasPrefix(m[len(m)-1].Text, "Yes: `s.Expired()`")
 	})
 	if err := h.u.wsAskCard(id, "What is the user looking at?"); err != nil {
 		t.Fatal(err)

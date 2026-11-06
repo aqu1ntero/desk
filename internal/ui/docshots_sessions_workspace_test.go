@@ -42,7 +42,7 @@ func sessWorkspace(s *shooter) {
 	s.u.wsSend(id, "Is refreshing inside the loop right?")
 	s.wait("the workspace Claude's answer", 10*time.Second, func() bool {
 		m := s.u.chat(wsKey(id))
-		return len(m) > 0 && strings.HasPrefix(m[len(m)-1].Text, "The retry reuses")
+		return len(m) > 0 && strings.HasPrefix(m[len(m)-1].Text, "Yes: `s.Expired()`")
 	})
 	s.settle()
 	ask := s.at("wsAskChange")
