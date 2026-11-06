@@ -172,6 +172,23 @@ func (u *ui) cfgFolderPage(gtx layout.Context) layout.Dimensions {
 					field("Claude speaks with you in", "chat", "The card's conversation"))
 			})
 		},
+		func(gtx layout.Context) layout.Dimensions { // the text size counts at once, as its keys do: Save doesn't wait for it
+			return layout.Inset{Bottom: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(th("Text size")), layout.Rigid(kit.VGap(6)),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								dim, step := k.Stepper(gtx, "zoom", fmt.Sprintf("%d%%", orgs.Zoom()))
+								if step != 0 {
+									d.act = func() { u.zoom(step) }
+								}
+								return dim
+							}),
+							layout.Rigid(kit.HGap(12)),
+							layout.Rigid(k.Lbl("Terminals and the session panel · Ctrl+= bigger, Ctrl+- smaller, Ctrl+0 back to 100%", 11, kit.CText3, kit.Sans)))
+					}))
+			})
+		},
 		k.Lbl("Search folders · where desk finds organizations, top to bottom: when two folders give the same name, the higher one wins", 12, kit.CText2, kit.Sans),
 		layout.Spacer{Height: 10}.Layout,
 		func(gtx layout.Context) layout.Dimensions {

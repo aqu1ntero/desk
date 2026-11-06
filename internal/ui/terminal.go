@@ -215,6 +215,7 @@ func (u *ui) termView(gtx layout.Context) layout.Dimensions {
 
 // termGrid draws tt's screen in the space given and feeds it the input.
 func (u *ui) termGrid(gtx layout.Context, tt *termTab) {
+	gtx = kit.Zoomed(gtx, orgs.Zoom()) // the cells follow the text: a zoom resizes the program
 	sh := u.k.Sh
 	size := fixed.I(gtx.Sp(14))
 	cw, chh, asc := cellMetrics(sh, kit.Mono, size, &tt.glyphs)
@@ -298,6 +299,9 @@ func (u *ui) termEvents(gtx layout.Context, tt *termTab, inner image.Rectangle, 
 				tt.t.SendKey(uv.KeyPressEvent{Code: r, Text: string(r)})
 			}
 		case key.Event:
+			if u.zoomKey(ev) { // the terminal takes every key: the zoom's too, before the program
+				continue
+			}
 			if ev.State == key.Press && ev.Name == "V" && ev.Modifiers.Contain(key.ModCtrl) { // an image goes in as its saved file, which Claude Code attaches
 				k, raw := termKey(ev)
 				shift := ev.Modifiers.Contain(key.ModShift)

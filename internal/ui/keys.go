@@ -21,6 +21,7 @@ func (u *ui) keys(gtx layout.Context) {
 		return // so do the servers' panes, and the workspace has its own Ctrl+Shift keys
 	}
 	filters := []event.Filter{key.Filter{Name: key.NameEscape}} // esc always: it backs out of everything
+	filters = append(filters, zoomFilters()...)                 // and the text size: no editor uses Ctrl+=, Ctrl+- or Ctrl+0
 	if u.edit == nil && u.unlock == nil && u.cfg == nil && u.pick == "" && u.pal == nil {
 		// the palette also over the message box: no editor uses Ctrl+K
 		filters = append(filters, key.Filter{Name: "K", Required: key.ModShortcut})
@@ -52,6 +53,9 @@ func (u *ui) keys(gtx layout.Context) {
 		}
 		if e.Name == key.NameEscape {
 			u.escape(gtx)
+			continue
+		}
+		if u.zoomKey(e) {
 			continue
 		}
 		if e.Name == "K" && e.Modifiers.Contain(key.ModShortcut) {

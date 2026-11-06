@@ -448,9 +448,10 @@ last argument). Ásbrú writes that file when it closes cleanly, so close it bef
 | Improve the request | **Ctrl+J** in the new-card dialog |
 | Undo an archive | **Ctrl+Z** |
 | Back out | **Esc**: the dialog, the search, a field, the panel, then the selection |
+| Text size | **Ctrl+=** bigger, **Ctrl+-** smaller, **Ctrl+0** back to 100%: the terminals and the session panel, anywhere |
 
 Board keys work on the board only, not while you type in a field or in a dialog. A terminal takes
-every key, Esc included, for Claude Code.
+every key, Esc included, for Claude Code, except the text size's.
 
 ## Development
 
