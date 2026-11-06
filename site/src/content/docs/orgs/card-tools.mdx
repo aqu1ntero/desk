@@ -1,6 +1,6 @@
 ---
 title: Card tools
-description: The read-only tools every card's Claude gets to read its organization's alerts, tickets, links and CI through desk.
+description: The tools every card's Claude gets from desk, to read its organization's alerts, tickets, links and CI, and to reach the card's workspace.
 ---
 
 Every card's Claude session has desk's own tools, `mcp__desk__*`. They read the card's
@@ -42,6 +42,19 @@ a skill, or what the repository's `CLAUDE.md` says), Claude picks which to use a
 workflow when it works. When one of the workflow's tools fails (not installed, not logged in, no
 access, an error), Claude tries the desk tool for the same thing, and says which one it used and
 why.
+
+## The workspace's tools
+
+Two more tools reach the card's [workspace](/sessions/workspace/). They don't read the
+organization, and they're allowed without asking too:
+
+| Tool | Arguments | What it does |
+|---|---|---|
+| `add_project` | `path` | adds the project root above `path` (the nearest folder with a `.git`, else `path`) to the workspace, once; desk tells Claude to call it when it starts working in a project outside the card's folder |
+| `ask_workspace` | `question` | asks the workspace Claude; returns at once, and the answer comes into the conversation later as a message from the workspace Claude |
+
+The workspace Claude has the read-only tools above too, and `suggest_to_card` (`text`), which sends
+a suggestion to the card's Claude when you ask it to.
 
 ## Locked vaults
 

@@ -103,6 +103,6 @@ It reports on stderr the hosts it skipped (`skipped …`) and how many it added 
 
 desk runs itself for these. You don't need them, but you may see them in a process list.
 
-- **`desk mcp <socket> <groups>`**: the MCP server of an infra tab's Claude. `<groups>` are the tool groups the organization's `desk.toml` enables (`secrets`, `nagios`, `metrics`). With `card=<id>` in place of the groups, it serves a card session's read-only desk tools (alerts, tickets, link, ci, ci_log). desk writes these into the sessions' `--mcp-config` itself.
+- **`desk mcp <socket> <groups>`**: the MCP server of an infra tab's Claude. `<groups>` are the tool groups the organization's `desk.toml` enables (`secrets`, `nagios`, `metrics`). With `card=<id>` in place of the groups, it serves a card session's desk tools (alerts, tickets, link, ci, ci_log, add_project, ask_workspace); with `ws=<id>`, its workspace Claude's (the read-only ones and suggest_to_card). desk writes these into the sessions' `--mcp-config` itself.
 - **`desk demo-infra <socket>`**: the demo's scripted infra Claude, started by the demo's infra workspace.
 - **askpass**: when desk runs ssh, it sets `SSH_ASKPASS` to itself and `DESK_ASKPASS` to a socket. ssh then runs `desk "<prompt>"`, which asks the running desk for the password and prints it.

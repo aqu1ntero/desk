@@ -62,8 +62,12 @@ func (u *ui) archiveCard(id string) {
 	if u.panel == id {
 		u.panel = ""
 	}
-	if u.view == "sess:"+id {
+	if u.view == "sess:"+id || u.view == "ws:"+id {
 		u.view = ""
+	}
+	if st := u.ws[id]; st != nil && st.proc != nil { // its workspace Claude too
+		st.proc.Close()
+		st.proc, st.from = nil, nil
 	}
 	msg := "Archived " + key
 	if stopped {
@@ -117,6 +121,7 @@ func (u *ui) drawCardMenu(gtx layout.Context) {
 		{id: "Open session", label: "Open session", key: key.NameReturn, cap: "↵", ico: kit.IcoChat, f: func() { u.openPanel(id) }},
 		{id: "Open full window", label: "Open full window", ico: kit.IcoSide, f: func() { u.openSession(id) }},
 		{id: "Claude Code terminal", label: "Claude Code terminal", key: "T", cap: "T", ico: kit.IcoTerminal, f: func() { u.terminal(id) }},
+		{id: "Workspace", label: "Workspace", key: "W", cap: "W", ico: kit.IcoCode, f: func() { u.openWS(id) }},
 		{id: "Edit card", label: "Edit card", key: "E", cap: "E", ico: kit.IcoEdit, f: func() { u.open(id) }},
 		{id: "Copy key " + c.Key(), label: "Copy key " + c.Key(), key: "C", cap: kit.ModText("C"), ico: kit.IcoLink, f: func() { u.copyKey = c.Key() }},
 	}

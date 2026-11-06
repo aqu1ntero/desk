@@ -43,6 +43,7 @@ export default defineConfig({
 						'sessions/subagents',
 						'sessions/team',
 						'sessions/diffs',
+						'sessions/workspace',
 						'sessions/terminal',
 						'sessions/usage',
 					],

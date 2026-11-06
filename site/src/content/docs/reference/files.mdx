@@ -15,6 +15,7 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 |---|---|
 | `board.json` | The board: columns, cards, their links and session stats, the archive. Saved as you go, atomically (written to `board.json.tmp`, then renamed). A missing file starts a fresh board. |
 | `chats/<card>.jsonl` | Each card's conversation, one message per line. |
+| `chats/ws-<card>.jsonl` | Its [workspace](/sessions/workspace/) Claude's conversation. |
 | `images/` | Images you pasted into a card or a message, referenced as `![image](path)`. |
 | `snoozed.json` | Snoozed alerts and until when. |
 | `crash.log` | If desk crashes, the trace goes here. desk runs detached, with no terminal to print it on. |
