@@ -54,10 +54,12 @@ type Card struct {
 	Last      string    `json:"last,omitempty"` // the latest message, either side
 	Links     []Link    `json:"links,omitempty"`
 	Session   Session   `json:"session,omitzero"`
-	Artifacts []string  `json:"artifacts,omitempty"` // claude.ai artifacts the session published
-	Pushed    string    `json:"pushed,omitempty"`    // the column its tickets were last moved to match
-	Ticket    bool      `json:"ticket,omitempty"`    // its Claude creates its ticket before any work`
-	Alert     string    `json:"alert,omitempty"`     // the monitoring alert it investigates: "org|host|service"
+	Artifacts []string  `json:"artifacts,omitempty"`  // claude.ai artifacts the session published
+	Pushed    string    `json:"pushed,omitempty"`     // the column its tickets were last moved to match
+	Ticket    bool      `json:"ticket,omitempty"`     // its Claude creates its ticket before any work`
+	Alert     string    `json:"alert,omitempty"`      // the monitoring alert it investigates: "org|host|service"
+	Projects  []string  `json:"projects,omitempty"`   // its workspace's folders beyond its own (absolute)
+	WSSession string    `json:"ws_session,omitempty"` // its workspace Claude's session (claude --resume)
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`

@@ -190,7 +190,7 @@ func (u *ui) sections() []struct {
 		}
 	}
 	for _, c := range cards {
-		if doneIDs[c.ID] && u.terms[c.ID] == nil && u.asks[c.ID] == nil && u.view != "sess:"+c.ID { // finished: the archive has it
+		if doneIDs[c.ID] && u.terms[c.ID] == nil && u.asks[c.ID] == nil && u.view != "sess:"+c.ID && u.view != "ws:"+c.ID { // finished: the archive has it
 			continue
 		}
 		it := sideItem{"sess:" + c.ID, c.Key() + " " + c.Title, nil, cmp.Or(statusColor[c.Status], kit.CText3)}
@@ -255,6 +255,11 @@ func (u *ui) viewTitle() string {
 			return c.Key() + " · agent session"
 		}
 	}
+	if id, ok := strings.CutPrefix(u.view, "ws:"); ok {
+		if c := u.b.Card(id); c != nil {
+			return c.Key() + " · workspace"
+		}
+	}
 	for _, s := range u.sections() {
 		for _, it := range s.items {
 			if it.view == u.view {
@@ -290,6 +295,9 @@ func (u *ui) sentence() string {
 	}
 	if strings.HasPrefix(u.view, "sess:") {
 		return "The card's Claude session, full window; Esc goes back to the board"
+	}
+	if strings.HasPrefix(u.view, "ws:") {
+		return "The card's projects and a Claude that reads them with you; Esc goes back to the session"
 	}
 	now := time.Now()
 	var n, over int
@@ -370,7 +378,7 @@ func (u *ui) sideRow(gtx layout.Context, it sideItem) layout.Dimensions {
 		return layout.Inset{Top: 6, Bottom: 2, Left: 8}.Layout(gtx, k.LblFill(it.label, 11, kit.CText3, kit.Medium(kit.Sans)))
 	}
 	id, sess := strings.CutPrefix(it.view, "sess:")
-	on := u.view == it.view || (sess && u.view == "term:"+id) // a session shows lit in its terminal too
+	on := u.view == it.view || (sess && (u.view == "term:"+id || u.view == "ws:"+id)) // a session shows lit in its terminal and workspace too
 	fill, fg := color.NRGBA{}, kit.CText2
 	if on {
 		fill, fg = kit.CAccSoft, kit.CText

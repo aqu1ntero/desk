@@ -141,7 +141,7 @@ func (u *ui) cardTell(key, text string) error {
 	}
 	u.say(c.ID, "peer", text)
 	if u.terms[c.ID] != nil || u.shellStop[c.ID] != nil || u.asks[c.ID] != nil {
-		u.peerOut[c.ID] += text + "\n\n"
+		u.peerOut[c.ID] += "From the infra Claude (desk peer):\n" + text + "\n\n"
 		return nil
 	}
 	u.deliver(c.ID, text, true)

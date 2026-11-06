@@ -47,6 +47,11 @@ func Demo() (string, error) {
 			return "", err
 		}
 	}
+	for name, text := range demoFiles { // what the workspace shows; desk.toml's write above says whether the folder takes files
+		p := filepath.Join(work, name)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(text), 0o644)
+	}
 	path := kanban.Path()
 	b := kanban.Default()
 	for _, s := range demoBoard() {
@@ -72,6 +77,41 @@ func absWayland() {
 	if w := os.Getenv("WAYLAND_DISPLAY"); w != "" && !filepath.IsAbs(w) {
 		os.Setenv("WAYLAND_DISPLAY", filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), w))
 	}
+}
+
+// demoFiles are a few files of Acme's api, under ~/Work: login.go as the
+// demo's fix leaves it (demoFix's Edit).
+var demoFiles = map[string]string{
+	"Acme/api/go.mod":    "module example.com/api\n\ngo 1.26\n",
+	"Acme/api/README.md": "# api\n\nAcme's public API: auth, orders and the audit log.\n",
+	"Acme/api/internal/auth/login.go": `package auth
+
+import (
+	"context"
+	"net/http"
+
+	"example.com/api/internal/auth/refresh"
+)
+
+// login sends req with the session's token, trying a refused one twice more.
+func (c *Client) login(ctx context.Context, req *http.Request, s *Session) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+	for try := 0; try < 3; try++ {
+		if s.Expired() {
+			if err := refresh.Token(ctx, s); err != nil {
+				return nil, err
+			}
+		}
+		resp, err = c.do(req, s.Token)
+		if err == nil && resp.StatusCode != http.StatusUnauthorized {
+			return resp, nil
+		}
+	}
+	return resp, err
+}
+`,
+	"Acme/api/internal/auth/refresh/refresh.go": "package refresh\n\n// Token refreshes s's access token and stores it.\nfunc Token(ctx context.Context, s Session) error { return s.Refresh(ctx) }\n",
 }
 
 var demoDirs = map[string][]string{"Acme": {"api", "web"}, "Globex": {"billing", "infra"}, "Initech": {"portal"}}
@@ -153,6 +193,9 @@ func demoBoard() []demoCard {
 // demoFakes puts the scripted Claude and the made-up providers in place.
 func demoFakes() {
 	startClaude = func(o claude.Options, on func(claude.Event)) (session, error) {
+		if strings.Contains(o.System, "workspace Claude of card") {
+			return &demoWorkspace{on: on}, nil
+		}
 		return &demoSession{on: on, asks: make(chan bool, 1)}, nil
 	}
 	optimize = demoOptimize
@@ -278,6 +321,35 @@ func (s *demoSession) Respond(_ string, allow bool, _ json.RawMessage, _ string)
 
 func (s *demoSession) Interrupt() error { return nil }
 func (s *demoSession) Close()           {}
+
+// demoWorkspace is a card's workspace Claude, scripted: it reads the file
+// and answers (the main Claude's question, or the user's).
+type demoWorkspace struct{ on func(claude.Event) }
+
+func (s *demoWorkspace) Send(prompt string) error {
+	answer := demoWSAnswer
+	if strings.HasPrefix(prompt, "The card's main Claude asks:") {
+		answer = demoWSCard
+	}
+	go (&demoSession{on: s.on}).play([]demoStep{
+		{400, demoTool("w1", "Read", map[string]any{"file_path": "internal/auth/login.go"}, ""), false},
+		{300, demoDone("w1"), false},
+		{900, demoText(answer), false},
+		{100, `{"type":"result","subtype":"success","total_cost_usd":0.03}`, false},
+	})
+	return nil
+}
+
+func (s *demoWorkspace) Respond(string, bool, json.RawMessage, string) error { return nil }
+func (s *demoWorkspace) Interrupt() error                                    { return nil }
+func (s *demoWorkspace) Close()                                              {}
+
+const (
+	demoWSAnswer = "The retry reuses `tok` from before the loop, so after it expires every attempt sends the same expired token. Refresh it first:\n\n" +
+		"```diff\n--- internal/auth/login.go\n+++ internal/auth/login.go\n@@ retry @@\n-    resp, err := c.post(ctx, tok)\n+    if tok.Expired() {\n+        tok, err = c.refresh(ctx, tok)\n+    }\n+    resp, err := c.post(ctx, tok)\n```\n\n" +
+		"`refresh` already handles the 401 from the token endpoint, so nothing else changes."
+	demoWSCard = "The user has `internal/auth/login.go` open at the retry loop. They expect the refresh before the post, and a test for an expired token in `login_test.go`."
+)
 
 // demoStep is a stream-json line after a pause (ms); ask waits for the
 // user's answer to the permission request it carries.

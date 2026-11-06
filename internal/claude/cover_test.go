@@ -229,6 +229,9 @@ func TestDirectivesMore(t *testing.T) {
 	if s := System("DESK-1", "t", "Acme"); !strings.Contains(s, "board for the Acme organization") {
 		t.Fatalf("%s", s)
 	}
+	if s := Workspace("DESK-7", "Fix it"); !strings.Contains(s, `workspace Claude of card DESK-7 ("Fix it")`) || !strings.Contains(s, "suggest_to_card") {
+		t.Fatalf("%s", s)
+	}
 	clean, d := Take("hi\nDESK-TICKET: Fix login\nDESK-CARD: write docs\nDESK-CARD:\n")
 	if clean != "hi" || d.Ticket != "Fix login" || len(d.Cards) != 1 || d.Cards[0] != "write docs" {
 		t.Fatalf("%q %+v", clean, d)

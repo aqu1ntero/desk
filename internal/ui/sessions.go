@@ -234,7 +234,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 	acct := orgs.Account(u.root, c.Org)
 	exists := claude.SessionExists(u.home, acct, c.Session.ID)
 	prompt := text
-	if !exists && !slices.ContainsFunc(u.chat(id), func(m kanban.ChatMsg) bool { return m.Who != "shell" && m.Who != "peer" }) { // the user's "!" commands, the infra Claude's notes aren't the conversation
+	if !exists && !slices.ContainsFunc(u.chat(id), func(m kanban.ChatMsg) bool { return m.Who != "shell" && m.Who != "peer" && m.Who != "workspace" }) { // the user's "!" commands, the infra and workspace Claudes' notes aren't the conversation
 		prompt = firstPrompt(c, text)
 	} else if imageRef.MatchString(text) {
 		prompt += "\n" + imageHint
@@ -242,8 +242,8 @@ func (u *ui) deliver(id, text string, quiet bool) {
 	if ran := u.shellOut[id]; ran != "" { // what the user ran with "!" since the last message
 		prompt = "The user ran these commands directly in the card's folder, not through you:\n" + ran + "\n" + prompt
 	}
-	if in := u.peerOut[id]; in != "" { // the infra Claude's, kept while the card couldn't take them
-		prompt = "From the infra Claude (desk peer):\n" + in + prompt
+	if in := u.peerOut[id]; in != "" { // the infra and workspace Claudes', kept while the card couldn't take them (each says whose)
+		prompt = in + prompt
 	}
 	p := u.procs[id]
 	if p == nil {
@@ -344,6 +344,9 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			if e.Parent != "" {
 				u.toolBy[e.ToolID] = e.Parent
 			}
+			if e.Path != "" { // an Edit or Write: its file's open tab looks again once it's done
+				u.wsPaths[e.ToolID] = e.Path
+			}
 		}
 		if e.Parent != "" {
 			u.subSay(id, e.Parent, toolMsg(e))
@@ -374,6 +377,10 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 	case claude.KindTask:
 		u.onTask(id, e.Task)
 	case claude.KindToolDone:
+		if p, ok := u.wsPaths[e.ToolID]; ok {
+			delete(u.wsPaths, e.ToolID)
+			u.wsTouched(id, p)
+		}
 		if t := u.findTask(id, "", e.Parent); t != nil && e.Parent != "" {
 			delete(t.pending, e.ToolID)
 			t.act = time.Now()
@@ -388,7 +395,7 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 	case claude.KindResult:
 		delete(u.asks, id) // a request the turn left unanswered is void
 		if u.peerOut[id] != "" {
-			defer u.deliver(id, "(desk) These came in from the infra Claude while you were busy.", true)
+			defer u.deliver(id, "(desk) These came in while you were busy.", true)
 		}
 		c.Session.Window = max(c.Session.Window, e.Window)
 		c.Session.Turns++

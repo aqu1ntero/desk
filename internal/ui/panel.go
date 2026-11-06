@@ -217,6 +217,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 					top = append(top, ib("pnFull", kit.IcoChat, "Open full window (Agent Sessions)", func() { u.openSession(id) }))
 				}
 				top = append(top,
+					ib("pnWS", kit.IcoCode, "Open the workspace: its files and a Claude that reads them", func() { u.openWS(id) }),
 					ib("pnEdit", kit.IcoEdit, "Edit the card (E)", func() { u.open(id) }),
 					ib("pnTerm", kit.IcoTerminal, "Open in the Claude Code terminal (T)", func() { u.terminal(id) }),
 					ib("pnArchive", kit.IcoArchive, "Archive the card", func() { u.archiveCard(id) }))
@@ -529,7 +530,7 @@ func (u *ui) message(gtx layout.Context, card, id string, m kanban.ChatMsg, foll
 		}
 		if len(m.Edits) > 0 { // what an Edit changed
 			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Left: 14, Top: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.diffBlock(gtx, id, m) })
+				return layout.Inset{Left: 14, Top: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.diffBlock(gtx, card, id, m) })
 			}))
 		}
 		if wrote1 { // a Write: its size, not its text
@@ -543,13 +544,17 @@ func (u *ui) message(gtx layout.Context, card, id string, m kanban.ChatMsg, foll
 			}))
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
-	case "you", "prompt", "peer": // prompt: what the session asked a subagent; peer: what the infra Claude sent
+	case "you", "prompt", "peer", "workspace", "main": // prompt: what the session asked a subagent; peer: what the infra Claude sent; workspace: the workspace Claude's to the card's; main: the card's to it
 		who, wc := "You", kit.CAccText
 		switch m.Who {
 		case "prompt":
 			who, wc = "Prompt", kit.CPurple
 		case "peer":
 			who, wc = "Infra Claude", kit.CGreen
+		case "workspace":
+			who, wc = "Workspace Claude", kit.Accents[5]
+		case "main":
+			who, wc = "Card's Claude", kit.COrange
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, head(who, wc),
 			layout.Rigid(kit.Boxed(kit.CPanelCard, color.NRGBA{}, kit.RCard, layout.Inset{Top: 8, Bottom: 8, Left: 10, Right: 10}, func(gtx layout.Context) layout.Dimensions {

@@ -1,0 +1,122 @@
+---
+title: The workspace
+description: A card's IDE view, where you read and edit its projects' files beside a second Claude that reads them with you, never writes, and answers the card's own Claude.
+---
+
+Every card has a workspace: its projects' files, an editor, and a second Claude, the workspace
+Claude, that reads the code with you. The card's own Claude keeps doing the card's work; the
+workspace is where you look over its shoulder, ask about what it did, and fix things yourself.
+
+![DESK-3's workspace: the project tree on the left, login.go open with the change selected and marked in the gutter, the workspace Claude's answer on the right](../../../assets/shots/sess-workspace.png)
+
+## Opening it
+
+- In a card's panel or full window, click the **`</>`** icon in the header.
+- Right-click the card and pick **Workspace** (<kbd>W</kbd> while the menu is open).
+- From a [file change](/sessions/diffs/): the **`</>`** in a diff's header opens that file with the
+  change selected (see [From a diff](#from-a-diff)).
+
+<figure class="cut">
+
+![The session header's icons, the workspace's first](../../../assets/shots/sess-workspace-open-btn.png)
+
+<figcaption>The workspace icon in a session's header.</figcaption>
+</figure>
+
+<kbd>Esc</kbd> goes back to the card's session, even from inside the editor. The chat icon at the
+top right does the same.
+
+## Projects
+
+The tree on the left holds the card's projects. The first is always the card's own folder; it
+can't be removed. The others are the folders the card's Claude works in: when it starts working
+in a project root (a repository, or a folder with its own build) outside the card's folder, it
+adds it with desk's `add_project` tool. desk takes the repository's root above the path it names
+(the nearest folder with a `.git`, below your home), adds it at once and says so in a toast,
+"Added lib to DESK-3's workspace", with **Undo** (<kbd>Ctrl</kbd>+<kbd>Z</kbd> on the board).
+
+<figure class="cut">
+
+![The tree: api open, with internal, README.md and go.mod](../../../assets/shots/sess-workspace-tree.png)
+
+<figcaption>The tree: folders first, each read when you open it.</figcaption>
+</figure>
+
+- A click on a folder opens or closes it; desk reads it as you open it, so a closed and reopened
+  folder shows what's there now. `.git` and `node_modules` stay out.
+- A click on a file opens it in a tab.
+- The **×** on an added project's row takes it out of the workspace (not its files).
+
+The projects are saved on the card (`projects` in the board file).
+
+## The editor
+
+Files open in tabs over the editor: line numbers, the code's highlighting (the same colors as the
+chat's code), no wrapping, undo and redo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>,
+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd>
+to indent selected lines. The foot shows the file's path and the caret's line and column.
+
+- <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file in place, keeping its permissions. A tab with
+  changes not saved shows **●** after its name; its **×** asks once before dropping them.
+- When the file changes on disk (the card's Claude edited it, say) and you have no changes in it,
+  the tab reloads by itself. desk looks when the card's Claude finishes an edit to that file, when
+  you open the workspace and when you switch to the tab.
+- If you do have changes in it, a bar asks: **Reload** takes the file as it is on disk, **Keep
+  mine** keeps your text (saving it then writes over the other change).
+
+Files over 4 MB, and files that aren't text, don't open.
+
+## From a diff
+
+Every [diff](/sessions/diffs/) in a card's conversation has a **`</>`** in its header: **Open in
+workspace**.
+
+<figure class="cut">
+
+![A diff's header: its path, +5 −0, the workspace icon and the view switch](../../../assets/shots/sess-workspace-open-diff.png)
+
+<figcaption>Open in workspace, in a diff's header.</figcaption>
+</figure>
+
+It opens the file, finds the change in it (by its new text: desk doesn't keep line numbers),
+selects it, scrolls to it and marks it in the gutter. When the file no longer holds that text
+(it changed since), the file opens at the top and the bar says so.
+
+The bar over the editor offers **Ask about this change**, which puts the change, as a diff, in the
+workspace Claude's message box for you to add your question, and **Done**, which clears the mark.
+
+<figure class="cut">
+
+![The bar: "The change to login.go from the chat, selected", Ask about this change, Done](../../../assets/shots/sess-workspace-bar.png)
+
+<figcaption>The bar over a change opened from the chat.</figcaption>
+</figure>
+
+## The workspace Claude
+
+The right column is the workspace Claude's conversation. It starts the first time you (or the
+card's Claude) ask it something, in the card's folder with the other projects added, under the
+organization's account. Its session is kept on the card and resumed the next time; a project
+added while it runs restarts it (resumed) before its next answer.
+
+<figure class="cut">
+
+![The workspace Claude's column: a question, its Read, and its answer with a suggested diff](../../../assets/shots/sess-workspace-chat.png)
+
+<figcaption>It reads the file, then suggests the change as a diff.</figcaption>
+</figure>
+
+- **It only reads.** Read, Glob, Grep and skills; Edit, Write and Bash are off, and anything it
+  would ask to run is refused. It proposes changes as diffs or snippets, for you to make in the
+  editor or pass on.
+- **What you're looking at goes with your message**, by itself: the change you opened from the
+  chat, else your selection with its line numbers, else the file open and the caret's line. The
+  line under the box says which ("↵ sends with the selection in login.go").
+- **It talks with the card's Claude.** The card's Claude can ask it something with desk's
+  `ask_workspace` tool: the question shows in the workspace as **Card's Claude**, and the answer
+  goes back into the card's conversation as **Workspace Claude** (to Claude, "From the workspace
+  Claude:"), as the [infra Claude's](/servers/cards/) messages do. When you ask it to pass a
+  suggestion on, it sends it the same way (`suggest_to_card`).
+
+Its conversation is kept beside the card's (`chats/ws-<card>.jsonl`). Open tabs aren't kept: the
+workspace opens with none when desk starts again.

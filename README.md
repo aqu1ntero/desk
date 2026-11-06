@@ -39,6 +39,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 🖥️ **Infra workspace** | Live SSH panes of the org's servers, from a plain OpenSSH config (or imported from Ásbrú), shared with an infrastructure Claude that asks before every change. |
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
+| 🧭 **Workspace** | Each card's IDE view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
 | 🔐 **Vaults** | Tokens from Bitwarden/Vaultwarden, Passbolt, env vars or a command. Unlocked keys stay in memory only. |
 | 🪶 **No CLIs needed** | Every provider and vault is spoken to in Go. No `gh`, `glab`, `bw` or `wl-paste`. |
 
@@ -158,8 +159,9 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   **Snooze** (1 hour … 1 week, or your own `2h30m`) hides it until then.
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
-  workflow tools; Claude falls back to them when one of the workflow's fails.
-- **Right-click a card** for its menu: open its session or full window, its terminal, edit it,
+  workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and
+  `ask_workspace` reach the card's workspace.
+- **Right-click a card** for its menu: open its session or full window, its terminal, its workspace, edit it,
   copy its key, move it to another column, archive it.
 - **Desktop notifications** when a card turns to your turn, blocked, failed or done, unless you're
   looking at it.
@@ -216,6 +218,13 @@ runs under.
   **Explain** has Haiku take it apart flag by flag.
 - **Terminals**: **T** opens the card's session in the full Claude Code TUI inside desk (desk
   lets go of the chat's process first). It keeps running while you look at the board.
+- **The workspace**: the header's **`</>`** (or the card menu's **W**) opens the card's projects
+  (its folder, plus the ones its Claude adds with `add_project`, with an Undo toast) in a tree,
+  files in tabs of a code editor (highlighting, line numbers, undo, **Ctrl+S** saves, reloads
+  when Claude edits an open file), and a workspace Claude that only reads: what you have open,
+  selected or the change you're viewing goes with your message, it suggests changes as diffs, and
+  the card's Claude can ask it things (`ask_workspace`). A diff's **`</>`** opens the file on that
+  change, marked in the gutter.
 - **Artifacts** the session publishes are listed under the card's links.
 - **Selecting text**: drag or double-click; Claude's replies select with formatting kept, and
   **Copy** takes a whole reply as Markdown.
@@ -490,7 +499,8 @@ Planned, not there yet:
 - [Gio](https://gioui.org) for the GUI, [charmbracelet](https://github.com/charmbracelet)'s
   `x/vt` and `ultraviolet` for the terminals (patched copies in [`third_party/`](third_party)),
   [goldmark](https://github.com/yuin/goldmark) and [chroma](https://github.com/alecthomas/chroma)
-  for the conversation, [fzf](https://github.com/junegunn/fzf)'s matching algorithm for every
+  for the conversation, [gvcode](https://github.com/oligo/gvcode) for the workspace's editor,
+  [fzf](https://github.com/junegunn/fzf)'s matching algorithm for every
   search box, [go-adf](https://github.com/nyactl/go-adf) and
   [go-passbolt](https://github.com/passbolt/go-passbolt).
 - Fonts: [Manrope](https://github.com/sharanda/manrope) and

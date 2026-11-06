@@ -61,7 +61,7 @@ func ctx(ops *op.Ops, w, h int) layout.Context {
 func TestIconsDistinct(t *testing.T) {
 	icons := map[string]IconPath{"plus": IcoPlus, "x": IcoX, "search": IcoSearch, "clock": IcoClock, "chat": IcoChat,
 		"warn": IcoWarn, "check": IcoCheck, "spark": IcoSpark, "terminal": IcoTerminal, "archive": IcoArchive, "edit": IcoEdit,
-		"link": IcoLink, "send": IcoSend, "stop": IcoStop, "side": IcoSide, "star": IcoStar, "board": IcoBoard}
+		"link": IcoLink, "send": IcoSend, "stop": IcoStop, "side": IcoSide, "star": IcoStar, "board": IcoBoard, "code": IcoCode}
 	seen := map[string]string{}
 	for name, ico := range icons {
 		var ops op.Ops

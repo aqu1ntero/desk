@@ -162,13 +162,18 @@ type ui struct {
 	recent     []string  // the palette's items opened last, newest first
 	draft      string    // a new card's request left when its dialog closed
 	focusLater any       // a field to focus on the next frame
+	post       func()    // a click's action run once the frame is drawn (it changes the view)
+
+	ws      map[string]*wsState // cards' workspaces (workspace.go), by card
+	wsGen   int                 // bumps on any workspace change, for sig
+	wsPaths map[string]string   // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
 }
 
 func newUI(b *kanban.Board, path string) *ui {
 	home, _ := os.UserHomeDir()
 	u := &ui{w: new(app.Window), k: kit.New(), b: b, path: path, side: true, root: orgs.Root(), home: home,
 		chats: map[string][]kanban.ChatMsg{}, procs: map[string]session{}, pending: map[string]claude.Directives{}, locked: map[string]*vault.LockedError{}, events: make(chan func(), 256),
-		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, convo: map[string]bool{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}}
+		tickets: map[string][]links.Ticket{}, ticketErr: map[string]string{}, alerts: map[string][]links.Alert{}, alertErr: map[string]string{}, ci: map[string][]ciItem{}, terms: map[string]*termTab{}, asks: map[string]*askState{}, allowed: map[string]map[string]bool{}, rsels: map[string]*richSel{}, shellOut: map[string]string{}, peerOut: map[string]string{}, shellStop: map[string]context.CancelFunc{}, limits: map[string]*planUsage{}, tasks: map[string][]*task{}, toolLines: map[string]string{}, toolBy: map[string]string{}, toolCmds: map[string]string{}, explains: map[string]*explained{}, diffs: map[string][]diffLine{}, diffRowsOf: map[string][]diffRow{}, cellsOf: map[cellKey][]cell{}, tableNat: map[string][]int{}, selSeen: map[string]time.Time{}, diffOpen: map[string]bool{}, diffMode: map[string]int{}, pushing: map[string]bool{}, loading: map[string]int{}, accts: map[string]string{}, snoozeAsk: map[string]string{}, cardInfra: map[string]string{}, noSplit: map[string]bool{}, convo: map[string]bool{}, earlier: map[string]bool{}, pushErr: map[string]string{}, sels: map[string]*widget.Selectable{}, ws: map[string]*wsState{}, wsPaths: map[string]string{}}
 	u.orgList = orgs.List(u.root)
 	u.search.SingleLine, u.search.Submit = true, true
 	u.pickQ.SingleLine, u.pickQ.Submit, u.pickList.Axis = true, true, layout.Vertical
@@ -232,6 +237,11 @@ func Run(b *kanban.Board, path string) error {
 		for _, p := range u.procs {
 			p.Close()
 		}
+		for _, st := range u.ws {
+			if st.proc != nil {
+				st.proc.Close()
+			}
+		}
 		for _, tt := range u.terms {
 			tt.t.Close()
 		}
@@ -280,7 +290,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), len(u.convo), len(u.earlier), u.pick, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig())
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), len(u.convo), len(u.earlier), u.pick, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen)
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click
@@ -335,9 +345,11 @@ func (u *ui) frame(gtx layout.Context) {
 				main = u.termView
 			} else if strings.HasPrefix(u.view, "sess:") {
 				main = u.sessionView
+			} else if strings.HasPrefix(u.view, "ws:") {
+				main = u.wsView
 			}
 			kids = append(kids, layout.Flexed(1, main))
-			if u.panel != "" && !strings.HasPrefix(u.view, "term:") && !strings.HasPrefix(u.view, "sess:") {
+			if u.panel != "" && !strings.HasPrefix(u.view, "term:") && !strings.HasPrefix(u.view, "sess:") && !strings.HasPrefix(u.view, "ws:") {
 				kids = append(kids, layout.Rigid(kit.HGap(1)), layout.Rigid(u.chatPanel))
 			}
 			return layout.Flex{}.Layout(gtx, kids...)
@@ -348,6 +360,10 @@ func (u *ui) frame(gtx layout.Context) {
 	u.serverPicker(gtx)
 	u.paletteDialog(gtx)
 	u.toasts(gtx)
+	if f := u.post; f != nil {
+		u.post = nil
+		f()
+	}
 }
 
 // save writes the board; a failure shows rather than losing the change
