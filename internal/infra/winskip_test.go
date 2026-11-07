@@ -32,6 +32,11 @@ func noUnix(t *testing.T) {
 	}
 }
 
+// serverPty is why an SSH pane test skips on Windows: sshtest's real
+// sessions run this machine's bash or sh -c in a Unix PTY (creack/pty),
+// which Windows hasn't; desk's own side (the client) runs there.
+const serverPty = "sshtest's server runs the session's shell in a Unix PTY (creack/pty): none on Windows"
+
 // skipOnWindows skips t on Windows, saying why: what it checks isn't there
 // (bwrap, mode bits).
 func skipOnWindows(t *testing.T, why string) {

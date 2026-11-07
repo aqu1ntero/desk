@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/term"
 )
 
 // TestMain doubles as the programs tests run in terminals (prog), so they
@@ -42,6 +44,7 @@ func TestMain(m *testing.M) {
 
 // prog is the test binary running steps, in order: "out:text" prints
 // text, "read" waits for a line, "cat" copies its input to its output,
+// "raw" does too in raw mode (no echo, no line editing: what a TUI sees),
 // "exit:n" ends with n, "code:x" reads a line and ends with 0 when it's x,
 // else says the login failed and ends with 1.
 func prog(steps ...string) *exec.Cmd {
@@ -62,6 +65,16 @@ func runProg(steps []string) int {
 			in.ReadString('\n')
 		case "cat":
 			io.Copy(os.Stdout, in)
+		case "raw": // what a TUI does: keys as they come, shown by the program (ESC as ^[)
+			term.MakeRaw(os.Stdin.Fd())
+			buf := make([]byte, 64)
+			for {
+				n, err := os.Stdin.Read(buf)
+				if err != nil {
+					return 0
+				}
+				os.Stdout.WriteString(strings.ReplaceAll(string(buf[:n]), "\x1b", "^["))
+			}
 		case "exit":
 			n, _ := strconv.Atoi(arg)
 			return n

@@ -2542,11 +2542,19 @@ func opsBytes(o *op.Ops) []byte {
 
 // ---- shell ----
 
-// TestCoverRunShell: the real runner runs bash in the folder, output and exit code.
+// TestCoverRunShell: the real runner runs bash (PowerShell on Windows) in
+// the folder, output and exit code.
 func TestCoverRunShell(t *testing.T) {
 	dir := t.TempDir()
 	var b bytes.Buffer
-	if err := realRunShell(context.Background(), dir, "echo hi; pwd", &b); err != nil || b.String() != "hi\n"+dir+"\n" {
+	cmd := "echo hi; pwd"
+	if onWindows {
+		if wine() {
+			t.Skip("Wine's powershell.exe is a stub that runs nothing")
+		}
+		cmd = "echo hi; (Get-Location).Path" // pwd prints a table there
+	}
+	if err := realRunShell(context.Background(), dir, cmd, &b); err != nil || strings.ReplaceAll(b.String(), "\r\n", "\n") != "hi\n"+dir+"\n" {
 		t.Fatalf("%q %v", b.String(), err)
 	}
 	var ee *exec.ExitError

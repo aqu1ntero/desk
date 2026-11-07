@@ -1099,6 +1099,9 @@ func TestTermRows(t *testing.T) {
 }
 
 func TestNewTermLocal(t *testing.T) {
+	if wine() {
+		t.Skip("Wine's powershell.exe is a stub, not PowerShell: no prompt function, no directory report")
+	}
 	dir, _ := filepath.EvalSymlinks(t.TempDir()) // as the shell's pwd says it (macOS: /private/var)
 	tm, err := NewTerm("local", dir, 80, 24, func() {}, paneState{})
 	if err != nil {

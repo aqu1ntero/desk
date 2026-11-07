@@ -1166,7 +1166,7 @@ func TestTerminal(t *testing.T) {
 	var got []string
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
 		got = cmd.Args
-		return term.Start(prog("out:ready\n", "cat"), w, ht, notify)
+		return term.Start(prog("out:ready\n", "raw"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -1196,7 +1196,13 @@ func TestTerminal(t *testing.T) {
 	}
 	waitFor("ready")
 	h.send(key.EditEvent{Text: "hola"}, press(key.NameEscape, 0))
-	waitFor("hola")
+	if wine() {
+		// Wine's ConPTY drops a lone ESC from the input (Windows' passes it on
+		// as the Escape key, read back as ESC in VT input mode).
+		waitFor("hola")
+	} else {
+		waitFor("hola^[") // the program got them, esc too
+	}
 	if h.u.view != "term:"+c.ID {
 		t.Fatal("esc left the terminal instead of reaching it")
 	}

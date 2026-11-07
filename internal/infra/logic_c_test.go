@@ -586,11 +586,14 @@ func TestRestoreSessionC(t *testing.T) {
 	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	var mu sync.Mutex
 	var hosts []string
-	cmd := []string{"sleep", "30"}
+	var cmd []string // nil: the test binary sleeping (infraHelper)
 	HostCmd = func(h string) *exec.Cmd {
 		mu.Lock()
 		defer mu.Unlock()
 		hosts = append(hosts, h)
+		if cmd == nil {
+			return infraHelper("sleep")
+		}
 		return exec.Command(cmd[0], cmd[1:]...)
 	}
 	t.Cleanup(func() { HostCmd = nil })

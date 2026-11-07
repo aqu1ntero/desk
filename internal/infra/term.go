@@ -130,14 +130,16 @@ const shEnvFuncs = `__desk_e(){ local e; e=$( (env -0 2>/dev/null || env) | base
 
 // psIntegration is shellIntegration for PowerShell (5.1 and 7), whose
 // default prompt is "PS C:\path> ": the prompt function wraps the one it had
-// with D;exit and B, and with PSReadLine (always there when interactive)
-// its ReadLine is followed by C. Then Clear-Host.
-// ponytail: no OSC 7 or environment report (osc7 and the restore's cd and
-// exports speak POSIX paths and shells), so a PowerShell pane doesn't keep
-// its directory or exports over a restart; older conhosts (before Windows
-// 11 22H2) may swallow the marks, which leaves the pane without blocks.
+// with D;exit, OSC 7 (the directory, a Windows path; a non-file location's
+// isn't absPath) and B, and with PSReadLine (always there when interactive)
+// its ReadLine is followed by C. Then Clear-Host; maybeInject adds the
+// restored directory.
+// ponytail: no environment report (the restore's exports speak POSIX
+// shells), so a PowerShell pane doesn't keep its exports over a restart;
+// older conhosts (before Windows 11 22H2) may swallow the marks, which
+// leaves the pane without blocks or directory.
 const psIntegration = `$global:__deskP = $function:prompt; function global:prompt { $e = if ($?) { 0 } elseif ($global:LASTEXITCODE) { $global:LASTEXITCODE } else { 1 }; ` +
-	`"$([char]27)]133;D;$e$([char]7)" + (& $global:__deskP) + "$([char]27)]133;B$([char]7)" }; ` +
+	`"$([char]27)]133;D;$e$([char]7)$([char]27)]7;$($PWD.ProviderPath)$([char]7)" + (& $global:__deskP) + "$([char]27)]133;B$([char]7)" }; ` +
 	`if (Get-Module PSReadLine) { function global:PSConsoleHostReadLine { $l = [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace, $ExecutionContext); [Console]::Write("$([char]27)]133;C$([char]7)"); $l } }; Clear-Host`
 
 // promptEnd is how a shell prompt ends: bash $ #, zsh %, fish > ❯.
@@ -306,8 +308,11 @@ func (t *Term) maybeInject() {
 			t.injected = true
 			if e == ">" && strings.HasPrefix(l, "PS ") {
 				mark := ""
+				if t.cwd != "" { // a restored pane's
+					mark = "; Set-Location -LiteralPath '" + strings.ReplaceAll(t.cwd, "'", "''") + "'"
+				}
 				if t.pending != nil {
-					mark = `; [Console]::Write("$([char]27)]6974$([char]7)")` // replayMark
+					mark += `; [Console]::Write("$([char]27)]6974$([char]7)")` // replayMark
 				}
 				io.WriteString(t.pty, psIntegration+mark+"\r")
 				return
@@ -331,11 +336,17 @@ func (t *Term) osc7(data []byte) bool {
 			p, _ = url.PathUnescape(rest[i:])
 		}
 	}
-	if strings.HasPrefix(p, "/") && p != t.cwd {
+	if absPath(p) && p != t.cwd {
 		t.cwd = p
 		t.rev++
 	}
 	return true
+}
+
+// absPath: a POSIX path, or a Windows one (C:\x, \\server\share) from
+// PowerShell's prompt.
+func absPath(p string) bool {
+	return strings.HasPrefix(p, "/") || strings.HasPrefix(p, `\\`) || len(p) > 2 && p[1] == ':' && (p[2] == '\\' || p[2] == '/')
 }
 
 // oscEnv reads the environment report of the shell integration (base64 of

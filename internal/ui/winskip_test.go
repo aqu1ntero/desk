@@ -20,6 +20,9 @@ func needBash(t *testing.T) {
 	}
 }
 
+// wine is whether the tests run under Wine.
+func wine() bool { return sshtest.Wine() }
+
 // noUnix skips t under Wine, which has no AF_UNIX sockets (Windows 10 1803
 // and later do).
 func noUnix(t *testing.T) {
