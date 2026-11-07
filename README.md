@@ -32,7 +32,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | | |
 |---|---|
 | 🗂️ **Board of sessions** | Backlog, To do, In progress, Blocked, Done. Sessions move their own card: a message sends it to In progress, Claude reporting blocked to Blocked, done to Done. |
-| 🏢 **Organizations** | Each org is a folder with its own `desk.toml`: its accounts, its Claude profile (sandboxed with bwrap on Linux, `CLAUDE_CONFIG_DIR` on macOS), its skills, its agents. |
+| 🏢 **Organizations** | Each org is a folder with its own `desk.toml`: its accounts, its Claude profile (sandboxed with bwrap on Linux, `CLAUDE_CONFIG_DIR` on macOS and Windows), its skills, its agents. |
 | ✨ **Prompt optimization** | A new card's request is worked out by Haiku in the org's folder into a real brief: context, steps, acceptance criteria, labels, links and the skills to use. |
 | 🔗 **Live links** | GitHub, GitLab and Bitbucket PRs/MRs and Jira issues on each card, with their state and CI. Tickets follow their card's column. |
 | 🎫 **My tickets, CI, alerts** | Per org: tickets assigned to you, failing pipelines, and Nagios alerts. One click turns any of them into a card. |
@@ -133,7 +133,7 @@ CGO_CFLAGS_ALLOW=-fno-strict-overflow go build -tags nox11 -o desk ./cmd/desk
    folders and depth in **Settings → General**, along with the languages cards are written in and
    Claude speaks with you in (English unless you change them; each new card can pick its own).
 2. **Optionally give an org a Claude account.** A profile in `~/Secure/Claudes/<Org>/` makes that
-   org's sessions run under it, sandboxed with bwrap (on macOS, with `CLAUDE_CONFIG_DIR` at it).
+   org's sessions run under it, sandboxed with bwrap (on macOS and Windows, with `CLAUDE_CONFIG_DIR` at it).
    Others use your own login.
 3. **Optionally connect its accounts** in **Settings** (or by hand in `<Org>/.desk/desk.toml`, see
    [Links and organizations](#links-and-organizations)).
@@ -200,8 +200,9 @@ holds now. What you wrote is kept: **Use mine** or **Discard suggestions** goes 
 
 - **Screenshots**: Ctrl+V of an image saves it beside the board and puts `![image](path)` in the
   notes; the session reads it. desk reads images from the compositor itself (the Wayland
-  data-control protocol: Hyprland, Sway, other wlroots compositors, KDE), or on macOS from the
-  pasteboard (⌘V), nothing to install.
+  data-control protocol: Hyprland, Sway, other wlroots compositors, KDE), on macOS from the
+  pasteboard (⌘V), on Windows from the clipboard (a PNG or a screenshot's bitmap), nothing to
+  install.
 - **Tickets**: when the organization has somewhere to create them (its first `[[jira]]` project,
   else a `[[github]]` account's `repo`), the **Ticket** switch has the card's Claude create its
   ticket before any work, assigned to you, with the Markdown description converted to Atlassian's

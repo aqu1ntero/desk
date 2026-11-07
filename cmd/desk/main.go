@@ -31,7 +31,10 @@ var (
 // a plain go build says its commit instead (versionOf).
 var version = ""
 
-func main() { exit(run(os.Args)) }
+func main() {
+	attachConsole()
+	exit(run(os.Args))
+}
 
 // versionOf is v, else the commit the binary was built from ("dev-1a2b3c4",
 // "-dirty" with local changes), else "dev".
@@ -86,6 +89,19 @@ func loginPath(darwin bool) {
 	}
 }
 
+// exeOnPath puts desk's own folder first on PATH, so what desk starts finds
+// `desk peer` (Claude's Bash tool, the plugin's skill) when desk runs from
+// a folder PATH doesn't name: the Windows zip, desk.app.
+func exeOnPath(exe string, err error) {
+	if err != nil {
+		return
+	}
+	dir, path := filepath.Dir(exe), os.Getenv("PATH")
+	if first, _, _ := strings.Cut(path, string(os.PathListSeparator)); first != dir {
+		os.Setenv("PATH", dir+string(os.PathListSeparator)+path)
+	}
+}
+
 // run is desk with args (os.Args); it returns the exit code, or never
 // returns once the window is up (app.Main).
 func run(args []string) int {
@@ -125,6 +141,7 @@ func run(args []string) int {
 		}
 	}
 	loginPath(runtime.GOOS == "darwin")
+	exeOnPath(os.Executable())
 	path := kanban.Path()
 	b, err := kanban.Load(path)
 	if err != nil {

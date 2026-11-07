@@ -3,6 +3,7 @@ package sshconfig
 import (
 	"errors"
 	"net/netip"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -465,7 +466,7 @@ func TestPermOK(t *testing.T) {
 	if !permOK("/") {
 		t.Error("root's own directory is fine")
 	}
-	if permOK("/nonexistent/x") {
+	if permOK("/nonexistent/x") && runtime.GOOS != "windows" { // Windows': always true (OpenSSH there checks ACLs, not modes)
 		t.Error("what can't be stat'ed isn't")
 	}
 }

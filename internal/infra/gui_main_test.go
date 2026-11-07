@@ -52,6 +52,7 @@ type gmH struct {
 func gmEnv(t *testing.T) string {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	t.Setenv("XDG_STATE_HOME", filepath.Join(home, "state"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
 	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))

@@ -460,7 +460,7 @@ func TestRevokedHostKeysFile(t *testing.T) {
 	for _, tc := range []struct{ content, want string }{
 		{"# revoked\n" + string(ssh.MarshalAuthorizedKey(ca.PublicKey())), "revoked by file"},
 		{"SSHKRL\n\x00binary", "is a KRL"},
-		{"", "no such file"},
+		{"", "revoked: open "}, // missing: the OS says so in its own words
 	} {
 		if tc.content != "" {
 			write(t, w.path("revoked"), tc.content)
@@ -498,10 +498,11 @@ func TestKnownHostsCommand(t *testing.T) {
 }
 
 func TestKnownHostsCommandFails(t *testing.T) {
+	vol := map[bool]string{true: "C:"}[onWindows] // absolute there takes a drive
 	for _, tc := range []struct{ cmd, log string }{
 		{"relative/cmd", "must be an absolute path"},
-		{"/nonexistent/cmd", "KnownHostsCommand /nonexistent/cmd"},
-		{"/bin/x %Z", "KnownHostsCommand: "},
+		{vol + "/nonexistent/cmd", "KnownHostsCommand " + vol + "/nonexistent/cmd"},
+		{vol + "/bin/x %Z", "KnownHostsCommand: "},
 	} {
 		w := newWorld(t)
 		s := pwServer(t, w, sshtest.Opts{})
@@ -668,6 +669,9 @@ func TestReadKnownLogsUnreadable(t *testing.T) {
 }
 
 func TestAddKnownKeepsUnreadable(t *testing.T) {
+	if onWindows {
+		t.Skip("no mode bits on Windows to make a file unreadable")
+	}
 	w := newWorld(t)
 	write(t, w.known(), "box.example.com ssh-ed25519 AAAA\n")
 	os.Chmod(w.known(), 0o200)

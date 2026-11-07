@@ -62,6 +62,7 @@ func gfNew(t *testing.T) *gfH {
 	h.home = t.TempDir()
 	t.Chdir(t.TempDir()) // the tests that unset HOME make the cache dir relative: keep it out of the package
 	t.Setenv("HOME", h.home)
+	t.Setenv("USERPROFILE", h.home) // Windows' home
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	h.srv, h.loc = t.TempDir(), filepath.Join(h.home, "loc")
@@ -650,6 +651,7 @@ func TestFilesOpenFiles(t *testing.T) {
 	}
 	t.Setenv("XDG_CACHE_HOME", "")
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "") // Windows' home
 	h.u.toast = ""
 	h.u.open(h.fv, h.fv.sides[0])
 	if !strings.Contains(h.toast(), "Open failed") {
@@ -690,6 +692,7 @@ func TestFilesEditRemoteFailures(t *testing.T) {
 	h.u.toast = ""
 	t.Setenv("XDG_CACHE_HOME", "")
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "") // Windows' home
 	h.key(key.NameF4, 0)
 	h.waitToast("Edit failed")
 }

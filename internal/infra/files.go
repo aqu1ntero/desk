@@ -97,7 +97,7 @@ func remoteSh(ctx context.Context, host, dir, script string, stdin io.Reader, st
 // opening them shows.
 func sftpFor(ctx context.Context, host, dir string) (*sftp.Client, func(), error) {
 	if host == "local" {
-		return nil, nil, nil
+		return localSFTP(ctx)
 	}
 	c, release, err := sshClient(ctx, host, dir)
 	if err != nil {
@@ -535,8 +535,9 @@ func renameRemote(ctx context.Context, host, dir, from, to string) error {
 }
 
 // Opener is the command that opens a file or URL with the desktop's default
-// application.
-var Opener = map[bool]string{true: "open", false: "xdg-open"}[runtime.GOOS == "darwin"]
+// application: xdg-open, macOS's open, Windows' explorer (which takes the
+// URL or path as one argument, no shell to quote for as `cmd /c start`).
+var Opener = cmp.Or(map[string]string{"darwin": "open", "windows": "explorer"}[runtime.GOOS], "xdg-open")
 
 // openLocal opens p with Opener (a variable so tests don't launch anything).
 var openLocal = func(p string) error { return exec.Command(Opener, p).Start() }

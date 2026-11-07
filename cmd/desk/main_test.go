@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -51,17 +52,18 @@ func TestVersion(t *testing.T) {
 // PATH, else bash; one that is there, none, or nothing to find stays.
 func TestFixShell(t *testing.T) {
 	bin := t.TempDir()
+	exe := map[bool]string{true: ".exe"}[runtime.GOOS == "windows"] // Windows' PATH finds only bash.exe
 	for _, n := range []string{"bash", "zsh"} {
-		os.WriteFile(filepath.Join(bin, n), []byte("#!/bin/sh\n"), 0o755)
+		os.WriteFile(filepath.Join(bin, n+exe), []byte("#!/bin/sh\n"), 0o755)
 	}
 	t.Setenv("PATH", bin)
 	for in, want := range map[string]string{
-		"/no/such/bin/zsh":         filepath.Join(bin, "zsh"),
-		"/nix/store/gone/bin/bash": filepath.Join(bin, "bash"),
-		"/no/such/bin/fish":        filepath.Join(bin, "bash"),
-		filepath.Join(bin, "zsh"):  filepath.Join(bin, "zsh"),
-		bin:                        filepath.Join(bin, "bash"), // a folder is no shell
-		"":                         "",
+		"/no/such/bin/zsh":             filepath.Join(bin, "zsh"+exe),
+		"/nix/store/gone/bin/bash":     filepath.Join(bin, "bash"+exe),
+		"/no/such/bin/fish":            filepath.Join(bin, "bash"+exe),
+		filepath.Join(bin, "zsh"+exe): filepath.Join(bin, "zsh"+exe),
+		bin:                            filepath.Join(bin, "bash"+exe), // a folder is no shell
+		"":                             "",
 	} {
 		t.Setenv("SHELL", in)
 		if fixShell(); os.Getenv("SHELL") != want {
@@ -78,6 +80,9 @@ func TestFixShell(t *testing.T) {
 // TestLoginPath: on macOS PATH is the login shell's; elsewhere, or when the
 // shell fails or says nothing, it stays.
 func TestLoginPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a POSIX login shell script; loginPath runs on macOS only")
+	}
 	sh := filepath.Join(t.TempDir(), "sh")
 	t.Setenv("PATH", "/usr/bin:/bin")
 	for script, want := range map[string]string{
@@ -95,6 +100,23 @@ func TestLoginPath(t *testing.T) {
 			t.Errorf("%s: %q, want %q", script, os.Getenv("PATH"), want)
 		}
 		t.Setenv("PATH", "/usr/bin:/bin")
+	}
+}
+
+// TestExeOnPath: desk's folder goes first on PATH, once; no executable
+// leaves PATH.
+func TestExeOnPath(t *testing.T) {
+	sep := string(os.PathListSeparator)
+	dir := filepath.Join(t.TempDir(), "bin")
+	t.Setenv("PATH", "a"+sep+"b")
+	exeOnPath("", errors.New("none"))
+	if os.Getenv("PATH") != "a"+sep+"b" {
+		t.Fatalf("no executable: %q", os.Getenv("PATH"))
+	}
+	exeOnPath(filepath.Join(dir, "desk"), nil)
+	exeOnPath(filepath.Join(dir, "desk"), nil)
+	if got := os.Getenv("PATH"); got != dir+sep+"a"+sep+"b" {
+		t.Fatalf("PATH %q", got)
 	}
 }
 
@@ -141,6 +163,9 @@ func TestWindow(t *testing.T) {
 		want int
 	}{{errors.New("no display"), 1}, {nil, 0}} {
 		xdg := t.TempDir()
+		// the crash log stays open, and Windows can't remove an open file:
+		// closed before the folder goes (cleanups run last first)
+		t.Cleanup(func() { debug.SetCrashOutput(nil, debug.CrashOptions{}) })
 		t.Setenv("XDG_DATA_HOME", xdg)
 		os.MkdirAll(filepath.Join(xdg, "desk"), 0o755)
 		codes := make(chan int, 1)

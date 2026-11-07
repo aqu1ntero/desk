@@ -1385,6 +1385,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("XDG_STATE_HOME", state)  // nor the user's state: recordings, audit, session
 	os.Setenv("XDG_CONFIG_HOME", state) // nor desk's settings: the folders to search
 	os.Setenv("HOME", state)            // nor the user's home: ~/.claude.json, ~/Secure
+	os.Setenv("USERPROFILE", state)     // Windows' home
 	sshBase.System = "none"             // nor the machine's ssh_config
 	claude.NoBwrap = false              // bwrap's profiles on every OS; TestClaudeCmdNoBwrap has macOS's
 	code := m.Run()

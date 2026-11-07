@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/lfdominguez/desk/internal/fzf"
@@ -133,7 +134,22 @@ func (b *Board) Column(t string) int {
 	return slices.IndexFunc(b.Columns, func(c Column) bool { return strings.EqualFold(c.Title, t) })
 }
 
-func newID() string { return strconv.FormatInt(time.Now().UnixNano(), 36) }
+// lastID is the last newID's nanoseconds.
+var lastID atomic.Int64
+
+// newID is the time in nanoseconds, base 36, kept increasing: Windows'
+// clock can tick slower than two cards are added, which made twins.
+func newID() string {
+	for {
+		last, n := lastID.Load(), time.Now().UnixNano()
+		if n <= last {
+			n = last + 1
+		}
+		if lastID.CompareAndSwap(last, n) {
+			return strconv.FormatInt(n, 36)
+		}
+	}
+}
 
 // Find returns the column and index of card id, or -1, -1.
 func (b *Board) Find(id string) (col, i int) {

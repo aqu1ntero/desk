@@ -215,7 +215,7 @@ func (a *auth) signers() ([]ssh.Signer, error) {
 		pub, err := a.publicKey(p)
 		if pub == nil {
 			if !errors.Is(err, fs.ErrNotExist) {
-				a.o.Logf("Load key %q: %v", p, err)
+				a.o.Logf("Load key \"%s\": %v", p, err) // as ssh: no Go escapes (Windows' backslashes)
 			}
 			continue
 		}
@@ -389,7 +389,7 @@ func (a *auth) loadFile(p string) (ssh.AlgorithmSigner, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Load key %q: %v", p, err)
+		return nil, fmt.Errorf("Load key \"%s\": %v", p, err)
 	}
 	s, err := ssh.NewSignerFromKey(raw)
 	if err != nil {

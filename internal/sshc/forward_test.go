@@ -107,6 +107,7 @@ func TestLocalForwardBind(t *testing.T) {
 }
 
 func TestLocalForwardUnix(t *testing.T) {
+	noUnix(t)
 	c, _, _ := pwClient(t, "  StreamLocalBindMask 0077\n", sshtest.Opts{})
 	sock := filepath.Join(t.TempDir(), "l")
 	f := to(echo(t, "tcp", "127.0.0.1:0"))
@@ -115,7 +116,7 @@ func TestLocalForwardUnix(t *testing.T) {
 		t.Fatal(err)
 	}
 	st, _ := os.Stat(sock)
-	if st.Mode().Perm() != 0o700 || !ping(t, "unix", sock) {
+	if st.Mode().Perm() != 0o700 && !onWindows || !ping(t, "unix", sock) {
 		t.Fatalf("mode %v", st.Mode())
 	}
 	// Taken: refused, unless StreamLocalBindUnlink.
@@ -129,6 +130,7 @@ func TestLocalForwardUnix(t *testing.T) {
 }
 
 func TestLocalForwardToUnixAndFailures(t *testing.T) {
+	noUnix(t)
 	c, _, w := pwClient(t, "", sshtest.Opts{})
 	sock := filepath.Join(t.TempDir(), "far")
 	echo(t, "unix", sock)
@@ -165,6 +167,7 @@ func TestRemoteForward(t *testing.T) {
 }
 
 func TestRemoteForwardUnix(t *testing.T) {
+	noUnix(t)
 	c, _, _ := pwClient(t, "", sshtest.Opts{})
 	sock := filepath.Join(t.TempDir(), "r")
 	f := to(echo(t, "tcp", "127.0.0.1:0"))

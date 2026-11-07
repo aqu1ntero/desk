@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -68,13 +69,25 @@ func TestMatchesLinks(t *testing.T) {
 // TestPath: XDG_DATA_HOME when set, else ~/.local/share.
 func TestPath(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/data")
-	if got := Path(); got != "/data/desk/board.json" {
+	if got := Path(); got != filepath.FromSlash("/data/desk/board.json") {
 		t.Fatalf("Path = %q", got)
 	}
 	t.Setenv("XDG_DATA_HOME", "")
 	t.Setenv("HOME", "/home/acme")
-	if got := Path(); got != "/home/acme/.local/share/desk/board.json" {
+	t.Setenv("USERPROFILE", "/home/acme") // Windows' home
+	if got := Path(); got != filepath.FromSlash("/home/acme/.local/share/desk/board.json") {
 		t.Fatalf("Path = %q", got)
+	}
+}
+
+// TestNewIDIncreases: ids never repeat, even when the clock hasn't moved
+// on (Windows' can tick slower than cards are added).
+func TestNewIDIncreases(t *testing.T) {
+	defer lastID.Store(lastID.Load())
+	ahead := time.Now().Add(time.Hour).UnixNano()
+	lastID.Store(ahead)
+	if a, b := newID(), newID(); a == b || a != strconv.FormatInt(ahead+1, 36) || b != strconv.FormatInt(ahead+2, 36) {
+		t.Fatalf("ids %q %q", a, b)
 	}
 }
 

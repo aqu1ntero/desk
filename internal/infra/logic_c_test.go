@@ -155,6 +155,7 @@ func TestStateDirDefaultC(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", "")
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	if got := stateDir(); got != filepath.Join(home, ".local", "state", "desk", "infra") {
 		t.Errorf("stateDir: %s", got)
 	}
@@ -374,6 +375,7 @@ func TestHashiVaultErrorsC(t *testing.T) {
 func profileHomeC(t *testing.T, progs ...string) (home, bin string) {
 	home, bin = t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	t.Setenv("CLAUDE_PROFILE", "")
 	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))
 	t.Setenv("PATH", bin)
@@ -576,6 +578,7 @@ func TestSaveSessionKeepsC(t *testing.T) {
 func TestRestoreSessionC(t *testing.T) {
 	stateC(t)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	var mu sync.Mutex
 	var hosts []string
 	cmd := []string{"sleep", "30"}
@@ -800,6 +803,7 @@ func TestInvestigateC(t *testing.T) {
 	stateC(t)
 	runtimeA(t)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	t.Setenv("PATH", t.TempDir()) // no claude
 	a := nagiosAlert{Org: "Acme", Host: "db1", State: "DOWN", Output: "PING CRITICAL", Since: time.Now()}
 	var seen []string
@@ -831,6 +835,7 @@ func TestHealthSkipsAndRunsC(t *testing.T) {
 	stateC(t)
 	runtimeA(t)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	c, rec := claudeA(t)
 	t.Setenv("PATH", t.TempDir()) // no claude
 	bad, none, odd := orgWith(t, "[[[ broken"), orgWith(t, ""), orgWith(t, "[schedule]\nhealth = \"half past eight\"\n")
@@ -1127,6 +1132,7 @@ func TestLoadTreeEdgesC(t *testing.T) {
 func TestPanesDialC(t *testing.T) {
 	stateC(t)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	var mu sync.Mutex
 	var hosts []string
 	shell := "printf 'web1$ '; sleep 30"
@@ -1234,6 +1240,7 @@ func TestUpdateMessagesC(t *testing.T) {
 	stateC(t)
 	runtimeA(t)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	t.Setenv("PATH", t.TempDir()) // no claude
 	tab := &Tab{org: "Acme", orgOnly: true, orgCfg: &orgConfig{}, dir: t.TempDir(), asked: []string{"and the disk?"}, busy: true}
 	m := model{tabs: []*Tab{tab}}
@@ -1266,6 +1273,7 @@ func TestUpdateMessagesC(t *testing.T) {
 func TestTickRunsHealthC(t *testing.T) {
 	stateC(t)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	dir := orgWith(t, "[schedule]\nhealth = \"00:00\"\n")
 	c, _ := claudeA(t)
 	m := model{restored: true, tree: []node{{depth: 0, org: "Acme", label: "Acme", dir: dir}},
@@ -1309,6 +1317,7 @@ func TestFixLegacyKeyC(t *testing.T) {
 func TestPaletteActionsC(t *testing.T) {
 	st := stateC(t)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	w := newSSHW(t, sshtest.Opts{}, "")
 	dir := w.dir
 	term, _ := fakeTermA(t, "web1")
@@ -1432,6 +1441,7 @@ func TestApproveBlockedRunsC(t *testing.T) {
 
 func TestNewTabAndReloadErrorsC(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
 	bad := filepath.Join(t.TempDir(), "Bad", infraDir)
 	write(t, filepath.Join(orgOfInfra(bad), ".desk", "desk.toml"), "[[[ broken")
 	m := &model{}

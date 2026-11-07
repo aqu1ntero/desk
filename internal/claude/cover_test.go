@@ -81,7 +81,7 @@ func TestStartSession(t *testing.T) {
 func TestProcWrites(t *testing.T) {
 	bin := fakeClaude(t, false)
 	in := filepath.Join(t.TempDir(), "in")
-	os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\nwhile IFS= read -r l; do printf '%s\\n' \"$l\" >> \"$FAKE_IN\"; done\n"), 0o755)
+	writeFake(t, bin, "claude", "#!/bin/sh\nwhile IFS= read -r l; do printf '%s\\n' \"$l\" >> \"$FAKE_IN\"; done\n", "stdin")
 	t.Setenv("FAKE_IN", in)
 	got := make(chan Event, 10)
 	p, err := Start(Options{Home: t.TempDir(), Dir: t.TempDir()}, func(e Event) { got <- e })
@@ -148,6 +148,9 @@ func TestAccountNameConfigDir(t *testing.T) {
 
 // TestCommandSeedFails: a profile whose json can't be seeded is an error.
 func TestCommandSeedFails(t *testing.T) {
+	if exe != "" {
+		t.Skip("Windows folders have no mode bits to make them read-only")
+	}
 	home := t.TempDir()
 	fakeClaude(t, true)
 	claudes := filepath.Join(home, "Secure", "Claudes")
@@ -259,7 +262,7 @@ func TestOptimizeMore(t *testing.T) {
 // was cancelled, not that the killed process failed.
 func TestOptimizeCancelledMidRun(t *testing.T) {
 	bin := fakeClaude(t, false)
-	os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\nwhile :; do :; done\n"), 0o755)
+	writeFake(t, bin, "claude", "#!/bin/sh\nwhile :; do :; done\n", "spin")
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	if _, err := Optimize(ctx, Ask{Home: t.TempDir(), Dir: t.TempDir()}, nil); err != context.DeadlineExceeded {

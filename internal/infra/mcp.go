@@ -389,7 +389,7 @@ var workspaceTools = append(slices.Clone(cardTools[:5]), map[string]any{
 // the card's id; ok false: an error), on a socket of desk's; the socket's
 // path. Calls run on their own goroutines.
 func ServeCards(handle func(card, name string, args json.RawMessage) (text string, ok bool)) (string, error) {
-	sock := fmt.Sprintf("%s/cards-%d.sock", runtimeDir(), os.Getpid())
+	sock := filepath.Join(runtimeDir(), fmt.Sprintf("cards-%d.sock", os.Getpid()))
 	os.Remove(sock)
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
@@ -441,13 +441,14 @@ func toolsMCP(sock, group string, tools []map[string]any) (string, []string) {
 // runtimeDir is desk's folder for sockets: $XDG_RUNTIME_DIR/desk (user only).
 // macOS has none, and its $TMPDIR may not be the one a session running
 // `desk peer` sees, so there it is ~/.cache/desk/run (short enough for a
-// socket's 104 bytes).
+// socket's 104 bytes); Windows too (AF_UNIX since 10 1803, 108 bytes; the
+// profile folder is the user's alone by its ACL, where 0o700 means nothing).
 func runtimeDir() string {
 	d := os.Getenv("XDG_RUNTIME_DIR")
 	switch {
 	case d != "":
 		d = filepath.Join(d, "desk")
-	case macOS:
+	case macOS || runtime.GOOS == "windows":
 		d, _ = deskorgs.XDGDir("XDG_CACHE_HOME", ".cache")
 		d = filepath.Join(d, "desk", "run")
 	default:
@@ -462,7 +463,7 @@ var macOS = runtime.GOOS == "darwin"
 
 // serveTools listens on a per-tab socket and runs tool calls on its terminal.
 func serveTools(t *Tab) (string, net.Listener, error) {
-	sock := fmt.Sprintf("%s/infra-%d-%p.sock", runtimeDir(), os.Getpid(), t)
+	sock := filepath.Join(runtimeDir(), fmt.Sprintf("infra-%d-%p.sock", os.Getpid(), t))
 	os.Remove(sock)
 	ln, err := net.Listen("unix", sock)
 	if err != nil {

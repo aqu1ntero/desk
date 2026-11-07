@@ -144,7 +144,7 @@ account's card:
 |---|---|---|
 | Vault item | `vault`, `item`, `field` | an item of one of the organization's [vaults](/orgs/vaults/), by name or id; `field` is `password` (the default), `username`, `notes`, `totp` or a custom field |
 | Environment variable | `token_env` | the variable's name; desk says so when it isn't set |
-| Command | `token_cmd` | a command that prints it (run with `sh -c`, at most 20 seconds) |
+| Command | `token_cmd` | a command that prints it (run with `sh -c`, `cmd /C` on Windows, at most 20 seconds) |
 | In desk.toml | `token` | the value itself, in plain text |
 | None | | no token: desk asks this provider nothing |
 

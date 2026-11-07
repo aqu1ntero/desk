@@ -76,7 +76,7 @@ func newResolver(opt Options) (*resolver, error) {
 		r.sysDir = filepath.Join(os.Getenv("ProgramData"), "ssh")
 	}
 	if r.opt.System == "" {
-		r.opt.System = r.sysDir + "/ssh_config"
+		r.opt.System = filepath.Join(r.sysDir, "ssh_config")
 	}
 	r.home = opt.Home
 	if r.home == "" {

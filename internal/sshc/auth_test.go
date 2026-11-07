@@ -264,6 +264,7 @@ func TestEncryptedKeyWithoutPub(t *testing.T) {
 // agentSock serves a keyring holding keys on a Unix socket.
 func agentSock(t *testing.T, keys ...any) (string, agent.Agent) {
 	t.Helper()
+	noUnix(t)
 	kr := agent.NewKeyring()
 	for _, k := range keys {
 		if err := kr.Add(agent.AddedKey{PrivateKey: k}); err != nil {

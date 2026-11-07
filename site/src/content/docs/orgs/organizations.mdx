@@ -88,7 +88,7 @@ NixOS); without it, a session of an organization with a profile fails to start a
 needs bwrap.
 :::
 
-On macOS, which has no bwrap, desk runs `claude` with `CLAUDE_CONFIG_DIR` set to the profile
+On macOS and Windows, which have no bwrap, desk runs `claude` with `CLAUDE_CONFIG_DIR` set to the profile
 folder instead. Claude Code then keeps that account's `.claude.json` in the folder itself
 (`~/Secure/Claudes/<Org>/.claude.json`); `claude-<org>.json` isn't used. Signing in to the
 profile opens no browser: you open the URL it prints. desk reads plan limits from the profile's

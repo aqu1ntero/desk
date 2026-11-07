@@ -72,6 +72,7 @@ func hostByAlias(hs []serverHost, a string) *serverHost {
 func TestServersFileScoping(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	org := filepath.Join(home, "Work", "Acme")
 	write(t, filepath.Join(home, ".ssh", "config"), "Host personal\n    HostName 192.0.2.99\n")
 	write(t, filepath.Join(home, ".ssh", "rel.conf"), "Host sshdir\n")
@@ -153,6 +154,7 @@ Match all
 func TestServersTreeAndSSH(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	root := filepath.Join(home, "Work")
 	org := filepath.Join(root, "Acme")
 	write(t, filepath.Join(root, "Globex", oldInfraDir, "prod", "hosts"), "db1\n") // the old layout: no servers
@@ -225,6 +227,7 @@ Include ~/Work/Acme/.desk/servers-dynamic-lab.conf
 func TestApplyFixesServersFile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	org := filepath.Join(home, "Work", "Acme")
 	infra := filepath.Join(org, infraDir)
 	os.MkdirAll(infra, 0o755)

@@ -145,7 +145,7 @@ func TestAddRoot(t *testing.T) {
 		t.Fatalf("the root itself: %q", a)
 	}
 	bin := t.TempDir()
-	os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\n"), 0o755)
+	writeFake(t, bin, "claude", "#!/bin/sh\n", "")
 	t.Setenv("PATH", bin)
 	c, err := Interactive(t.TempDir(), "", "/w/Org/app", "/w/Org", "id1", "sys")
 	if err != nil || !strings.Contains(strings.Join(c.Args, " "), "--add-dir=/w/Org") {
@@ -176,7 +176,7 @@ func TestCommandProfile(t *testing.T) {
 	os.MkdirAll(filepath.Join(home, "Secure", "Claudes", "Globex"), 0o755)
 	bin := t.TempDir()
 	for _, n := range []string{"claude", "bwrap"} {
-		os.WriteFile(filepath.Join(bin, n), []byte("#!/bin/sh\n"), 0o755)
+		writeFake(t, bin, n, "#!/bin/sh\n", "")
 	}
 	t.Setenv("PATH", bin)
 	t.Setenv("CLAUDE_PROFILE", "")
@@ -185,7 +185,7 @@ func TestCommandProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := strings.Join(c.Args, " ")
-	if !strings.HasSuffix(c.Path, "bwrap") || !strings.Contains(args, "--bind "+filepath.Join(home, "Secure/Claudes/Globex")+" "+filepath.Join(home, ".claude")) || !strings.HasSuffix(args, "claude -p") {
+	if !strings.HasSuffix(c.Path, "bwrap"+exe) || !strings.Contains(args, "--bind "+filepath.Join(home, "Secure", "Claudes", "Globex")+" "+filepath.Join(home, ".claude")) || !strings.HasSuffix(args, "claude"+exe+" -p") {
 		t.Fatalf("%s", args)
 	}
 	if _, err := os.Stat(filepath.Join(home, "Secure", "Claudes", "claude-globex.json")); err != nil {
@@ -198,14 +198,16 @@ func TestCommandProfile(t *testing.T) {
 	os.MkdirAll(filepath.Join(home, ".ssh"), 0o700)
 	os.WriteFile(filepath.Join(home, "proxy.conf"), []byte("ProxyCommand none"), 0o444)
 	os.WriteFile(filepath.Join(home, "store-config"), []byte("Host *\nInclude "+filepath.Join(home, "*.conf")+"\n"), 0o444)
-	os.Symlink(filepath.Join(home, "store-config"), filepath.Join(home, ".ssh", "config"))
+	if c, _ := Command(home, "Initech", "-p"); !strings.HasSuffix(c.Path, "claude"+exe) {
+		t.Fatalf("no profile should be plain claude: %s", c.Path)
+	}
+	if err := os.Symlink(filepath.Join(home, "store-config"), filepath.Join(home, ".ssh", "config")); err != nil {
+		t.Skip("no symlinks here (Windows without Developer Mode, Wine):", err)
+	}
 	c, _ = Command(home, "Globex", "-p")
-	cp := filepath.Join(home, "Secure/Claudes/Globex/.ssh-config-0")
+	cp := filepath.Join(home, "Secure", "Claudes", "Globex", ".ssh-config-0")
 	if b, _ := os.ReadFile(cp); string(b) != "Host *\nProxyCommand none\n" || !strings.Contains(strings.Join(c.Args, " "), "--ro-bind "+cp+" "+filepath.Join(home, "store-config")) {
 		t.Fatalf("ssh config not copied: %s", c.Args)
-	}
-	if c, _ := Command(home, "Initech", "-p"); !strings.HasSuffix(c.Path, "claude") {
-		t.Fatalf("no profile should be plain claude: %s", c.Path)
 	}
 }
 
@@ -213,7 +215,7 @@ func TestCommandProfile(t *testing.T) {
 // that session's markers on (its children would keep no transcript).
 func TestCommandEnv(t *testing.T) {
 	bin := t.TempDir()
-	os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\n"), 0o755)
+	writeFake(t, bin, "claude", "#!/bin/sh\n", "")
 	t.Setenv("PATH", bin)
 	t.Setenv("CLAUDE_CODE_CHILD_SESSION", "1")
 	t.Setenv("DESK_KEEP", "yes")

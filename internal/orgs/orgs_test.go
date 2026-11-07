@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 )
@@ -110,7 +111,8 @@ func TestFolders(t *testing.T) {
 	}
 	// Account is remembered: a settings change reaches it once saved
 	// through SaveFolders, or once List looks again.
-	os.WriteFile(SettingsFile(), []byte("[[folder]]\npath = \""+clients+"\"\ndepth = 1\n"), 0o644)
+	// a literal string: Windows' backslashes aren't escapes
+	os.WriteFile(SettingsFile(), []byte("[[folder]]\npath = '"+clients+"'\ndepth = 1\n"), 0o644)
 	if a := Account(work, "Deep"); a != "Acme" {
 		t.Fatalf("remembered: %q", a)
 	}
@@ -182,7 +184,7 @@ func TestSaveRaw(t *testing.T) {
 	if back, _ := LoadRaw(root, "Globex"); back["vault"].([]map[string]any)[0]["future"] != "kept" {
 		t.Fatalf("an unknown key was dropped: %v", back["vault"])
 	}
-	if fi, _ := os.Stat(filepath.Join(root, "Globex", ".desk", "desk.toml")); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(filepath.Join(root, "Globex", ".desk", "desk.toml")); fi.Mode().Perm() != 0o600 && runtime.GOOS != "windows" { // no mode bits there
 		t.Fatalf("mode %v", fi.Mode())
 	}
 }

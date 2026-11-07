@@ -143,10 +143,15 @@ func bindAddr(cfg *sshconfig.Config, network string) (net.IP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BindInterface %s: %v", name, err)
 	}
+	// IPv4 first for any family: Windows lists ::1 before 127.0.0.1.
+	// ponytail: OpenSSH takes the target address's family; do that if a
+	// v6-only target behind BindInterface ever needs it.
 	addrs, _ := ifc.Addrs()
-	for _, a := range addrs {
-		if n, ok := a.(*net.IPNet); ok && !n.IP.IsLinkLocalUnicast() && fits(n.IP) {
-			return n.IP, nil
+	for _, v4 := range []bool{true, false} {
+		for _, a := range addrs {
+			if n, ok := a.(*net.IPNet); ok && !n.IP.IsLinkLocalUnicast() && fits(n.IP) && (n.IP.To4() != nil) == v4 {
+				return n.IP, nil
+			}
 		}
 	}
 	return nil, fmt.Errorf("BindInterface %s has no usable address", name)

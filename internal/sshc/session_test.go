@@ -273,6 +273,9 @@ func TestForwardAgentUnsafe(t *testing.T) {
 }
 
 func TestLocalCommand(t *testing.T) {
+	if onWindows {
+		t.Skip("POSIX shell syntax; Windows runs LocalCommand with cmd /C")
+	}
 	w := newWorld(t)
 	s := pwServer(t, w, sshtest.Opts{})
 	w.ans = []string{"pw"}

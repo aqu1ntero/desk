@@ -10,6 +10,9 @@ import (
 // TestMain runs the package's tests with bwrap's profiles, Linux's, on every
 // OS; TestNoBwrap turns macOS's on.
 func TestMain(m *testing.M) {
+	if fakeMain() {
+		return
+	}
 	NoBwrap = false
 	os.Exit(m.Run())
 }
@@ -32,7 +35,7 @@ func TestNoBwrap(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", "/elsewhere")
 	t.Setenv("CLAUDECODE", "1")
 	c, err := Command(home, "Globex", "-p")
-	if err != nil || c.Path != filepath.Join(bin, "claude") || c.Args[1] != "-p" {
+	if err != nil || c.Path != filepath.Join(bin, "claude"+exe) || c.Args[1] != "-p" {
 		t.Fatalf("%v %v", c, err)
 	}
 	if env := c.Environ(); !slices.Contains(env, "CLAUDE_CONFIG_DIR="+cfg) || slices.Contains(env, "CLAUDE_CONFIG_DIR=/elsewhere") ||
@@ -47,7 +50,7 @@ func TestNoBwrap(t *testing.T) {
 		t.Errorf("account %q", got)
 	}
 	c, own, err := Login(home, "Globex")
-	if err != nil || !own || !slices.Contains(c.Env, "BROWSER=true") || c.Path != filepath.Join(bin, "claude") {
+	if err != nil || !own || !slices.Contains(c.Env, "BROWSER=true") || c.Path != filepath.Join(bin, "claude"+exe) {
 		t.Fatalf("own login: %v %v %v", c, own, err)
 	}
 	c, own, err = Login(home, "Acme")

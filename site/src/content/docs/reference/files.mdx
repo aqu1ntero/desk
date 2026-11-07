@@ -3,7 +3,7 @@ title: Files
 description: Where desk keeps the board, conversations, settings, infra state and sockets on disk.
 ---
 
-desk follows the XDG folders. Below, `~/.local/share` is `$XDG_DATA_HOME`, `~/.config` is `$XDG_CONFIG_HOME`, `~/.local/state` is `$XDG_STATE_HOME` and `~/.cache` is `$XDG_CACHE_HOME`, when those are set. macOS uses the same folders (not `~/Library`).
+desk follows the XDG folders. Below, `~/.local/share` is `$XDG_DATA_HOME`, `~/.config` is `$XDG_CONFIG_HOME`, `~/.local/state` is `$XDG_STATE_HOME` and `~/.cache` is `$XDG_CACHE_HOME`, when those are set. macOS and Windows use the same folders (not `~/Library`, not `%APPDATA%`); on Windows `~` is your profile folder, `%USERPROFILE%`.
 
 :::tip
 To try something without touching your real board, point `XDG_DATA_HOME` and `DESK_ROOT` at scratch folders. Or run [`desk demo`](/start/demo/), which puts all of the below in a temporary folder.
@@ -48,8 +48,8 @@ Older versions of desk kept `desk.toml` and `ssh_config` in the organization's f
 
 | Path | What's in it |
 |---|---|
-| `~/Secure/Claudes/<Org>/` | An organization's own Claude Code profile. Its sessions run with it in place of `~/.claude`: through `bwrap` on Linux, as `CLAUDE_CONFIG_DIR` on macOS. |
-| `~/Secure/Claudes/claude-<org>.json` | That profile's `~/.claude.json` (the organization's name in lower case), on Linux. Made if missing. On macOS the profile's own `<Org>/.claude.json` is used. |
+| `~/Secure/Claudes/<Org>/` | An organization's own Claude Code profile. Its sessions run with it in place of `~/.claude`: through `bwrap` on Linux, as `CLAUDE_CONFIG_DIR` on macOS and Windows. |
+| `~/Secure/Claudes/claude-<org>.json` | That profile's `~/.claude.json` (the organization's name in lower case), on Linux. Made if missing. On macOS and Windows the profile's own `<Org>/.claude.json` is used. |
 
 ## Infra state: `~/.local/state/desk/infra/`
 
@@ -75,7 +75,7 @@ Older versions of desk kept `desk.toml` and `ssh_config` in the organization's f
 
 ## Sockets: `$XDG_RUNTIME_DIR/desk/`
 
-Made by a running desk, readable by you only. Without `XDG_RUNTIME_DIR`, they go in `~/.cache/desk/run/` on macOS and in the system's temp folder elsewhere.
+Made by a running desk, readable by you only. Without `XDG_RUNTIME_DIR`, they go in `~/.cache/desk/run/` on macOS and Windows (Unix sockets there need Windows 10 1803 or later) and in the system's temp folder elsewhere.
 
 | Path | What it's for |
 |---|---|

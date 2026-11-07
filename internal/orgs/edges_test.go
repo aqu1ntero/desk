@@ -19,7 +19,7 @@ func TestSecretGet(t *testing.T) {
 	}{
 		{"env", Secret{TokenEnv: "DESK_TEST_TOKEN", TokenCmd: "echo cmd", Token: "plain"}, "from-env", ""},
 		{"env unset", Secret{TokenEnv: "DESK_TEST_EMPTY", Token: "plain"}, "", "$DESK_TEST_EMPTY is not set"},
-		{"cmd", Secret{TokenCmd: "echo '  from-cmd  '", Token: "plain"}, "from-cmd", ""},
+		{"cmd", Secret{TokenCmd: "echo   from-cmd  ", Token: "plain"}, "from-cmd", ""}, // sh's echo drops the spaces, cmd's keeps them
 		{"cmd fails", Secret{TokenCmd: "exit 3"}, "", "token_cmd: "},
 		{"plain", Secret{Token: "plain"}, "plain", ""},
 		{"none", Secret{}, "", ""},
@@ -75,7 +75,8 @@ func TestLangs(t *testing.T) {
 // TestExpand: only a leading ~ alone or before a slash is the home folder.
 func TestExpand(t *testing.T) {
 	t.Setenv("HOME", "/home/acme")
-	for in, want := range map[string]string{"~": "/home/acme", "~/Work": "/home/acme/Work", "~globex/x": "~globex/x", "/a/~": "/a/~"} {
+	t.Setenv("USERPROFILE", "/home/acme")
+	for in, want := range map[string]string{"~": filepath.FromSlash("/home/acme"), "~/Work": filepath.FromSlash("/home/acme/Work"), "~globex/x": "~globex/x", "/a/~": "/a/~"} {
 		if got := Expand(in); got != want {
 			t.Errorf("Expand(%q) = %q, want %q", in, got, want)
 		}
@@ -161,10 +162,12 @@ func TestXDGDir(t *testing.T) {
 	}
 	t.Setenv("XDG_CACHE_HOME", "")
 	t.Setenv("HOME", "/home/me")
-	if d, err := XDGDir("XDG_CACHE_HOME", ".cache"); d != "/home/me/.cache" || err != nil {
+	t.Setenv("USERPROFILE", "/home/me") // Windows' home
+	if d, err := XDGDir("XDG_CACHE_HOME", ".cache"); d != filepath.FromSlash("/home/me/.cache") || err != nil {
 		t.Errorf("unset: %q %v", d, err)
 	}
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
 	t.Chdir(t.TempDir())
 	if d, err := XDGDir("XDG_CACHE_HOME", ".cache"); d != "" || err == nil {
 		t.Errorf("no home: %q %v", d, err)

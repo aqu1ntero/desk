@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -87,7 +88,21 @@ func newWorld(t *testing.T) *world {
 	return w
 }
 
-func (w *world) path(name string) string { return filepath.Join(w.home, name) }
+// path is name in the world's home as configs write it (%HOME/name), so
+// messages quoting a config's path match on Windows too.
+func (w *world) path(name string) string { return w.home + "/" + name }
+
+// onWindows: no mode bits (a chmod makes a file read-only at most), config
+// commands through cmd /C.
+var onWindows = runtime.GOOS == "windows"
+
+// noUnix skips t under Wine, which has no AF_UNIX sockets (Windows 10 1803
+// and later do).
+func noUnix(t *testing.T) {
+	if sshtest.Wine() {
+		t.Skip("Wine has no AF_UNIX sockets")
+	}
+}
 
 // known is the world's known_hosts file.
 func (w *world) known() string { return w.path("known_hosts") }

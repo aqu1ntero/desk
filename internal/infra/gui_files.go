@@ -496,7 +496,7 @@ func (u *ui) transferFrom(fv *filesView, from int, srcDir string, items []fileEn
 		u.showToast(fmt.Sprintf("Queued after the running copy (%d waiting)", n), false)
 		return
 	}
-	if fv.host == "local" && srcDir == dstDir { // both panels on this machine: cat would truncate the file it reads
+	if fv.host == "local" && localPath(srcDir) == localPath(dstDir) { // both panels on this machine: cat would truncate the file it reads
 		fv.mu.Unlock()
 		u.showToast("Source and destination are the same folder", true)
 		return
@@ -1457,7 +1457,15 @@ func (u *ui) crumbs(gtx layout.Context, fv *filesView, side int) layout.Dimensio
 	s := fv.sides[side]
 	type seg struct{ name, to string }
 	var segs []seg
-	if s.path != "" {
+	if s.path != "" && !s.remote { // this machine's path: C:\Users\me on Windows
+		for p := filepath.Clean(s.path); ; p = filepath.Dir(p) {
+			if filepath.Dir(p) == p {
+				segs = append([]seg{{p, p}}, segs...)
+				break
+			}
+			segs = append([]seg{{filepath.Base(p), p}}, segs...)
+		}
+	} else if s.path != "" {
 		segs = append(segs, seg{"/", "/"})
 		cur := ""
 		for _, part := range strings.Split(strings.Trim(s.path, "/"), "/") {

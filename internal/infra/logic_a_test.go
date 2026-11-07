@@ -100,6 +100,7 @@ func runtimeA(t *testing.T) string {
 func fakeClaudeBinA(t *testing.T, body string) (args string) {
 	bin, home := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))
 	t.Setenv("CLAUDE_PROFILE", "")
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -345,6 +346,7 @@ func TestCompactSessionA(t *testing.T) {
 func TestClaudeCmdProfileA(t *testing.T) {
 	home, bin := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	t.Setenv("CLAUDE_PROFILE", "")
 	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))
 	t.Setenv("PATH", bin)
@@ -392,6 +394,7 @@ func TestClaudeCmdNoBwrap(t *testing.T) {
 	t.Cleanup(func() { claude.NoBwrap = false })
 	home, bin := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // Windows' home
 	t.Setenv("CLAUDE_PROFILE", "")
 	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))
 	t.Setenv("PATH", bin)
@@ -442,6 +445,7 @@ func TestListLocalHostMac(t *testing.T) {
 		t.Fatalf("%q %+v %v", abs, es, err)
 	}
 	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir) // Windows' home
 	if abs, _, err := listRemote(context.Background(), "local", "", ""); abs != dir || err != nil {
 		t.Errorf("home: %q %v", abs, err)
 	}

@@ -32,7 +32,7 @@ Every account that needs a token (`[[github]]`, `[[jira]]`, `[[bitbucket]]`, `[[
 | `item` | string | The vault item's name or id. Needed with `vault`. |
 | `field` | string | Which of the item's values. Default: the password. Also `username`, `totp`, `notes`, or a custom field's name (Bitwarden); `username`, `uri`, `description`, or a custom field's name (Passbolt). |
 | `token_env` | string | An environment variable that holds the token. |
-| `token_cmd` | string | A command whose output is the token. It runs with `sh -c`, for at most 20 seconds. |
+| `token_cmd` | string | A command whose output is the token. It runs with `sh -c` (`cmd /C` on Windows), for at most 20 seconds. |
 | `token` | string | The token itself, in the file. |
 
 desk uses the first one set, in this order: `vault`, `token_env`, `token_cmd`, `token`. A `token_env` naming an unset variable is an error; desk doesn't fall back to the next one. Vault values are cached for 10 minutes.

@@ -5,11 +5,16 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 )
+
+// onWindows: no mode bits (a chmod makes a file read-only at most) and cmd
+// for config commands.
+var onWindows = runtime.GOOS == "windows"
 
 // dns is a stub resolver: name (with its trailing dot when asked so) to canonical name.
 type dns map[string]string
@@ -181,11 +186,11 @@ func TestSystemFiles(t *testing.T) {
 	}
 	o.File, o.System = "", "none"
 	write(".ssh/config", "User x\n", 0o666)
-	if _, err := Resolve("h", o); err == nil {
+	if _, err := Resolve("h", o); err == nil && !onWindows { // no mode bits there: permOK is true
 		t.Fatal("a writable ~/.ssh/config must fail")
 	}
 	os.Chmod(filepath.Join(dir, ".ssh/config"), 0o000)
-	if os.Getuid() != 0 {
+	if os.Getuid() != 0 && !onWindows { // 0o000 is only read-only there
 		if c, err := Resolve("h", o); err != nil || c.User() != "me" {
 			t.Fatalf("an unreadable ~/.ssh/config is skipped: %v", err)
 		}
@@ -245,8 +250,8 @@ func TestIncludeVanished(t *testing.T) {
 	inc := filepath.Join(dir, "inc")
 	os.WriteFile(cfg, []byte("Include "+inc+"\n"), 0o644)
 	os.WriteFile(inc, []byte("User u\n"), 0o000)
-	if os.Getuid() == 0 {
-		t.Skip("root reads anything")
+	if os.Getuid() == 0 || onWindows {
+		t.Skip("root, or Windows (no mode bits), reads anything")
 	}
 	if _, err := Resolve("h", Options{File: cfg, Home: dir, LocalUser: "me"}); err == nil {
 		t.Fatal("an included file that can't be read must fail")
@@ -298,6 +303,9 @@ func TestRunShell(t *testing.T) {
 	}
 	if ok, err := runShell("exit 3"); ok || err != nil {
 		t.Fatalf("exit 3: %v %v", ok, err)
+	}
+	if onWindows {
+		return // cmd /C, whatever SHELL says; no kill
 	}
 	if _, err := runShell("kill -9 $$"); err == nil {
 		t.Fatal("a killed command must be an error")
@@ -449,10 +457,12 @@ func TestNewResolverDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.home == "" || r.localUser == "" || r.opt.Exec == nil || r.opt.Lookup == nil || r.opt.Networks == nil || r.opt.System != "/etc/ssh/ssh_config" {
+	if r.home == "" || r.localUser == "" || r.opt.Exec == nil || r.opt.Lookup == nil || r.opt.Networks == nil || r.opt.System != filepath.Join(r.sysDir, "ssh_config") ||
+		r.sysDir != map[bool]string{true: filepath.Join(os.Getenv("ProgramData"), "ssh"), false: "/etc/ssh"}[onWindows] {
 		t.Fatalf("defaults %+v", r)
 	}
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
 	t.Chdir(t.TempDir())
 	if _, err := newResolver(Options{}); err == nil {
 		t.Fatal("no home must fail")
@@ -518,8 +528,8 @@ func TestMissingFile(t *testing.T) {
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("a missing -F file: %v", err)
 	}
-	if os.Getuid() == 0 {
-		return
+	if os.Getuid() == 0 || onWindows {
+		return // reads anything
 	}
 	sys := filepath.Join(t.TempDir(), "sys")
 	os.WriteFile(sys, []byte("User s\n"), 0o000)
@@ -541,7 +551,11 @@ func TestSystemLookup(t *testing.T) {
 }
 
 func TestRelativeToFile(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "a%b[c") // % and [ must survive expansion and glob
+	name := "a%b[c" // % and [ must survive expansion and glob
+	if onWindows {
+		name = "a%b" // Windows' Glob has no escapes: a [ in the folder can't be matched
+	}
+	dir := filepath.Join(t.TempDir(), name)
 	os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
 	cfg := filepath.Join(dir, "config")
 	os.WriteFile(cfg, []byte(`Include sub/inc
@@ -567,8 +581,8 @@ XAuthLocation xauth
 	if c.User() != "inc" {
 		t.Fatal("Include not taken from the file's folder")
 	}
-	at := func(s string) string { return dir + "/" + s }
-	if ids, _ := c.IdentityFiles(); !slices.Equal(ids, []string{at("sub/k2"), at("keys/id")}) {
+	at := func(s string) string { return dir + string(filepath.Separator) + s }
+	if ids, _ := c.IdentityFiles(); !slices.Equal(ids, []string{at(filepath.FromSlash("sub/k2")), at("keys/id")}) {
 		t.Fatalf("IdentityFile %q", ids)
 	}
 	if cs, _ := c.CertificateFiles(); !slices.Equal(cs, []string{"ov", at("keys/id-cert.pub")}) {

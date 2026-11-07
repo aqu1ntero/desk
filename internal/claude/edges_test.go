@@ -17,9 +17,9 @@ import (
 func fakeClaude(t *testing.T, bwrap bool) string {
 	bin := t.TempDir()
 	script := "#!/bin/sh\n[ -n \"$FAKE_ARGS\" ] && printf '%s' \"$*\" > \"$FAKE_ARGS\"\nprintf '%s\\n' \"$FAKE_OUT\"\nprintf '%s' \"$FAKE_ERR\" >&2\nexit ${FAKE_EXIT:-0}\n"
-	os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755)
+	writeFake(t, bin, "claude", script, "args")
 	if bwrap {
-		os.WriteFile(filepath.Join(bin, "bwrap"), []byte("#!/bin/sh\n"), 0o755)
+		writeFake(t, bin, "bwrap", "#!/bin/sh\n", "")
 	}
 	t.Setenv("PATH", bin)
 	t.Setenv("CLAUDE_PROFILE", "")
@@ -157,12 +157,12 @@ func TestCommandPlain(t *testing.T) {
 	os.MkdirAll(filepath.Join(claudes, "Globex"), 0o700)
 	os.WriteFile(filepath.Join(claudes, "Initech"), nil, 0o600)
 	for _, org := range []string{"", "Acme", "Initech"} {
-		if c, err := Command(home, org, "-p"); err != nil || c.Path != filepath.Join(bin, "claude") {
+		if c, err := Command(home, org, "-p"); err != nil || c.Path != filepath.Join(bin, "claude"+exe) {
 			t.Errorf("%q: %v %v", org, c, err)
 		}
 	}
 	t.Setenv("CLAUDE_PROFILE", "Globex")
-	if c, _ := Command(home, "Globex", "-p"); c.Path != filepath.Join(bin, "claude") {
+	if c, _ := Command(home, "Globex", "-p"); c.Path != filepath.Join(bin, "claude"+exe) {
 		t.Errorf("nested profile: %s", c.Path)
 	}
 }
@@ -176,7 +176,7 @@ func TestCommandSeed(t *testing.T) {
 	os.MkdirAll(p, 0o700)
 	os.WriteFile(filepath.Join(p, ".claude.json"), []byte(`{"seeded":1}`), 0o600)
 	c, err := Command(home, "Globex", "-p")
-	if err != nil || c.Path != filepath.Join(bin, "bwrap") {
+	if err != nil || c.Path != filepath.Join(bin, "bwrap"+exe) {
 		t.Fatalf("%v %v", c, err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(home, "Secure", "Claudes", "claude-globex.json")); string(b) != `{"seeded":1}` {
@@ -322,6 +322,9 @@ func TestAuthFailed(t *testing.T) {
 // TestLoginOwnAccount: an org's own account signs in with no way to the
 // desktop, so no browser opens (it may be signed in to another account).
 func TestLoginOwnAccount(t *testing.T) {
+	if exe != "" {
+		t.Skip("bwrap's sign-in is Linux's: Windows has NoBwrap's (TestNoBwrap)")
+	}
 	fakeClaude(t, true)
 	home := t.TempDir()
 	os.MkdirAll(filepath.Join(home, "Secure", "Claudes", "Acme"), 0o755)
@@ -330,7 +333,7 @@ func TestLoginOwnAccount(t *testing.T) {
 		t.Setenv(kv[0], kv[1])
 	}
 	c, own, err := Login(home, "Acme")
-	if err != nil || !own || filepath.Base(c.Path) != "bwrap" {
+	if err != nil || !own || filepath.Base(c.Path) != "bwrap"+exe {
 		t.Fatalf("own account: %v %v %v", c, own, err)
 	}
 	for _, kv := range c.Env {

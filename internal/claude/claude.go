@@ -1,7 +1,7 @@
 // Package claude runs a card's Claude session: one long-lived `claude -p`
 // process fed stream-json on stdin, its stream-json output turned into
 // Events. Each organization with a profile in ~/Secure/Claudes/<Org> runs
-// under that account (bwrap binds it over ~/.claude; on macOS,
+// under that account (bwrap binds it over ~/.claude; on macOS and Windows,
 // CLAUDE_CONFIG_DIR points at it); others use the personal login.
 package claude
 
@@ -473,9 +473,10 @@ func AuthFailed(msg string) bool {
 // to that account. So it runs with no way to the desktop (no display, no
 // D-Bus, an empty runtime dir), and the user opens the URL it prints
 // (LoginURL) where that account lives. The default account opens the
-// default browser, as `claude` does. On macOS (NoBwrap) there is no
-// namespace to hide the desktop in: BROWSER=true alone keeps it from
-// opening one.
+// default browser, as `claude` does. On macOS and Windows (NoBwrap) there
+// is no namespace to hide the desktop in: BROWSER=true alone keeps it from
+// opening one (on Windows a browser command that isn't there, so it only
+// prints the URL).
 func Login(home, org string) (cmd *exec.Cmd, own bool, err error) {
 	cmd, err = Command(home, org, "auth", "login")
 	if err == nil && NoBwrap && slices.Contains(cmd.Env, "CLAUDE_PROFILE="+org) {
@@ -511,7 +512,7 @@ func LoginURL(screen string) string {
 
 // Command is `claude args…` under org's account: with a profile folder in
 // ~/Secure/Claudes/<org>, bwrap binds it over ~/.claude and
-// claude-<org>.json over ~/.claude.json (on macOS, NoBwrap: CLAUDE_CONFIG_DIR
+// claude-<org>.json over ~/.claude.json (off Linux, NoBwrap: CLAUDE_CONFIG_DIR
 // is the folder, and its own .claude.json the other); else plain claude.
 // Inside a profile already ($CLAUDE_PROFILE) it never nests.
 func Command(home, org string, args ...string) (*exec.Cmd, error) {
@@ -600,11 +601,11 @@ func command(home, org string, args ...string) (*exec.Cmd, error) {
 		"--", bin), args...)...), nil
 }
 
-// NoBwrap: macOS has no bwrap (no namespaces), so a profile runs with
-// CLAUDE_CONFIG_DIR at its folder instead; Claude Code then keeps its state
-// there, .claude.json included. A variable so tests reach both ways on
-// either OS.
-var NoBwrap = runtime.GOOS == "darwin"
+// NoBwrap: bwrap is Linux's (namespaces); macOS and Windows have none, so
+// a profile runs with CLAUDE_CONFIG_DIR at its folder instead; Claude Code
+// then keeps its state there, .claude.json included. A variable so tests
+// reach both ways on any OS.
+var NoBwrap = runtime.GOOS != "linux"
 
 // storeBwrap is where NixOS keeps bwrap off PATH; tests point it elsewhere.
 var storeBwrap = "/nix/store/*-bubblewrap-*/bin/bwrap"

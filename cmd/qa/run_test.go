@@ -29,6 +29,9 @@ func stdout(t *testing.T, f func()) string {
 // makes it the working directory.
 func module(t *testing.T) string {
 	t.Helper()
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("qa drives the go command, not on PATH here:", err)
+	}
 	dir := t.TempDir()
 	files := map[string]string{
 		"go.mod": "module desk\n\ngo 1.26\n",
@@ -109,6 +112,9 @@ func TestCover(t *testing.T) {
 // statements don't count.
 func TestCoverBase(t *testing.T) {
 	dir := module(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("-base asks git, not on PATH here:", err)
+	}
 	old := floors
 	defer func() { floors = old }()
 	floors = map[string]float64{"desk/internal/a": 0, "desk/internal/b": 0}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -330,12 +331,13 @@ func TestAsbruValues(t *testing.T) {
 // TestAsbruPath: $ASBRU_CFG, else ~/.config/asbru.
 func TestAsbruPath(t *testing.T) {
 	t.Setenv("ASBRU_CFG", "/cfg")
-	if p := AsbruPath(); p != "/cfg/asbru.yml" {
+	if p := AsbruPath(); p != filepath.FromSlash("/cfg/asbru.yml") {
 		t.Error(p)
 	}
 	t.Setenv("ASBRU_CFG", "")
 	t.Setenv("HOME", "/home/me")
-	if p := AsbruPath(); p != "/home/me/.config/asbru/asbru.yml" {
+	t.Setenv("USERPROFILE", "/home/me") // Windows' home
+	if p := AsbruPath(); p != filepath.FromSlash("/home/me/.config/asbru/asbru.yml") {
 		t.Error(p)
 	}
 }
@@ -351,7 +353,7 @@ func TestImportAsbru(t *testing.T) {
 	if err != nil || file != filepath.Join(org, ".desk", "ssh_config") || len(added) != 2 {
 		t.Fatalf("%q %q %v", file, added, err)
 	}
-	if st, _ := os.Stat(file); st.Mode().Perm() != 0o600 {
+	if st, _ := os.Stat(file); st.Mode().Perm() != 0o600 && runtime.GOOS != "windows" { // no mode bits there
 		t.Errorf("mode %v", st.Mode())
 	}
 	before, _ := os.ReadFile(file)

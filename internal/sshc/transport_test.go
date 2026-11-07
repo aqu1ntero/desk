@@ -6,7 +6,6 @@ import (
 	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"net"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -108,6 +107,9 @@ func TestProxyCommandFails(t *testing.T) {
 	if _, err := dialT(t, w.opts(base("  ProxyCommand x %Z\n"), s)); err == nil || !strings.Contains(err.Error(), "ProxyCommand x %Z") {
 		t.Fatalf("err %v", err)
 	}
+	if onWindows {
+		return // cmd /C, whatever SHELL says
+	}
 	t.Setenv("SHELL", w.path("noshell"))
 	if _, err := dialT(t, w.opts(base("  ProxyCommand true\n"), s)); err == nil || !strings.Contains(err.Error(), "ProxyCommand true") {
 		t.Fatalf("err %v", err)
@@ -116,6 +118,12 @@ func TestProxyCommandFails(t *testing.T) {
 
 func TestShellCommandDefaultShell(t *testing.T) {
 	t.Setenv("SHELL", "")
+	if c := shellCommand("echo", true); onWindows {
+		if c.Args[0] != "cmd" || c.Args[1] != "/C" || c.Args[2] != "echo" {
+			t.Fatalf("%v", c.Args)
+		}
+		return
+	}
 	c := shellCommand("echo", true)
 	if c.Path != "/bin/sh" || c.Args[2] != "exec echo" {
 		t.Fatalf("%v", c.Args)
@@ -175,6 +183,7 @@ func TestConnectionAttempts(t *testing.T) {
 }
 
 func TestDialOptions(t *testing.T) {
+	needLo(t)
 	w := newWorld(t)
 	s := pwServer(t, w, sshtest.Opts{})
 	for _, extra := range []string{"  BindAddress 127.0.0.1\n", "  BindAddress localhost\n  AddressFamily inet\n", "  BindInterface " + lo + "\n  AddressFamily inet\n", "  TCPKeepAlive no\n", "  BindInterface " + lo + "\n"} {
@@ -219,10 +228,28 @@ func TestProxyCommandNoEnv(t *testing.T) {
 	}
 }
 
-// lo is the loopback interface's name: lo0 on macOS and the BSDs.
-var lo = map[bool]string{true: "lo", false: "lo0"}[runtime.GOOS == "linux"]
+// lo is the loopback interface's name (lo; lo0 on macOS and the BSDs;
+// "Loopback Pseudo-Interface 1" on Windows), quoted for a config; "" when
+// there's none (Wine lists only real adapters).
+var lo = func() string {
+	ifs, _ := net.Interfaces()
+	for _, i := range ifs {
+		if a, _ := i.Addrs(); i.Flags&net.FlagLoopback != 0 && len(a) > 0 {
+			return `"` + i.Name + `"`
+		}
+	}
+	return ""
+}()
+
+// needLo skips t without a loopback interface to bind to.
+func needLo(t *testing.T) {
+	if lo == "" {
+		t.Skip("no loopback interface listed")
+	}
+}
 
 func TestBindInterfaceFamily(t *testing.T) {
+	needLo(t)
 	w := newWorld(t)
 	cfg := resolve(t, w, "Host *\n  BindInterface "+lo+"\n")
 	ip, err := bindAddr(cfg, "tcp4")

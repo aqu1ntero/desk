@@ -3,6 +3,7 @@ package orgs
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 )
@@ -66,7 +67,12 @@ func TestDeskTomlBoth(t *testing.T) {
 func TestMovedLinks(t *testing.T) {
 	org := t.TempDir()
 	os.WriteFile(filepath.Join(org, "shared.toml"), []byte("rel"), 0o600)
-	os.Symlink("shared.toml", filepath.Join(org, "desk.toml"))
+	if err := os.Symlink("shared.toml", filepath.Join(org, "desk.toml")); err != nil {
+		t.Skip("no symlinks here (Windows without Developer Mode):", err)
+	}
+	if wine() {
+		t.Skip("Wine makes a Unix link of the moved link's ..\\shared.toml, backslash and all")
+	}
 	abs := filepath.Join(t.TempDir(), "servers")
 	os.WriteFile(abs, []byte("abs"), 0o600)
 	os.Symlink(abs, filepath.Join(org, "ssh_config"))
@@ -85,6 +91,9 @@ func TestMovedLinks(t *testing.T) {
 func TestMovedFails(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root writes read-only folders")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows folders have no mode bits to make them read-only")
 	}
 	org := t.TempDir()
 	os.WriteFile(filepath.Join(org, "desk.toml"), []byte("x"), 0o600)

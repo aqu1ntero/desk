@@ -151,6 +151,7 @@ func TestFilesOverLocalHost(t *testing.T) {
 		t.Errorf("missing dir: %v", err)
 	}
 	t.Setenv("HOME", src)
+	t.Setenv("USERPROFILE", src) // Windows' home
 	if abs, _, err := listRemote(ctx, "local", "", ""); err != nil || abs != src {
 		t.Errorf("home listing: %q %v", abs, err)
 	}

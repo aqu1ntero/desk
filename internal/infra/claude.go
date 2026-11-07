@@ -391,7 +391,7 @@ var ClaudeCmd func(args ...string) *exec.Cmd
 
 // claudeCmd runs claude under the account that owns dir: the default account
 // as-is, any other through bwrap with its config bound over ~/.claude (on
-// macOS, claude.NoBwrap, with CLAUDE_CONFIG_DIR at it).
+// macOS and Windows, claude.NoBwrap, with CLAUDE_CONFIG_DIR at it).
 func claudeCmd(dir string, args ...string) (*exec.Cmd, error) {
 	if ClaudeCmd != nil {
 		return ClaudeCmd(args...), nil
@@ -405,7 +405,7 @@ func claudeCmd(dir string, args ...string) (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	if claude.NoBwrap { // macOS: the profile folder is Claude Code's config dir
+	if claude.NoBwrap { // macOS, Windows: the profile folder is Claude Code's config dir
 		cmd := exec.Command(bin, args...)
 		cmd.Env = append(os.Environ(), "CLAUDE_CONFIG_DIR="+cfg, "CLAUDE_PROFILE="+name)
 		return cmd, nil

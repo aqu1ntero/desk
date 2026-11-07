@@ -325,7 +325,7 @@ func TestNoAccount(t *testing.T) {
 	bitbucketAPI = srv.URL
 	t.Cleanup(func() { bitbucketAPI = old })
 	t.Setenv("GH_TOKEN", "envtok")
-	empty := orgs.Secret{TokenCmd: "true"} // resolves to ""
+	empty := orgs.Secret{TokenCmd: "exit 0"} // resolves to "" (sh and cmd alike)
 	gh := kanban.Link{URL: "https://github.com/acme/api/pull/1", Kind: KindGitHubPR}
 	bb := kanban.Link{URL: "https://bitbucket.org/ws/repo/pull-requests/1", Kind: KindBitbucketPR}
 	gl := kanban.Link{URL: srv.URL + "/grp/app/-/merge_requests/1", Kind: KindGitLabMR}
