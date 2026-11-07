@@ -26,6 +26,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"golang.org/x/image/math/fixed"
 
+	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -416,6 +417,7 @@ func (u *ui) sudoBar(gtx layout.Context, p guiPane, user string, area image.Rect
 // grid draws the cells, block cards, gutter and cursor in area, and handles
 // the terminal's keyboard and mouse.
 func (u *ui) grid(gtx layout.Context, t *guiTab, i int, p guiPane, area image.Rectangle) {
+	gtx = kit.Zoomed(gtx, deskorgs.Zoom()) // desk's text size: the cells follow it, and the pane's size in them
 	v := u.view(p.Term)
 	size := fixed.I(gtx.Sp(13))
 	cw, chh, asc := cellMetrics(u.sh, monoFont, size, &v.glyphs)

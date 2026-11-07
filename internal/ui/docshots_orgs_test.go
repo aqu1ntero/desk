@@ -84,10 +84,11 @@ func init() {
 			s.shot("orgs-settings-general",
 				cut{"nav", dp(204, 58, 428, 320), true},
 				cut{"langs", dp(446, 100, 1388, 194), false},
-				cut{"folder", dp(446, 236, 1388, 342), false},
+				cut{"zoom", dp(446, 198, 1388, 268), false},
+				cut{"folder", dp(446, 308, 1388, 414), false}, // under the 72dp Text size row
 			)
 			s.click(id + "only_toml")
-			s.shot("orgs-settings-only", cut{"preview", dp(446, 236, 1388, 502), false})
+			s.shot("orgs-settings-only", cut{"preview", dp(446, 308, 1388, 574), false})
 		}},
 		scene{"orgs-settings-org", func(s *shooter) {
 			s.click("sideOrgCfg")

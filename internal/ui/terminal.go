@@ -215,6 +215,7 @@ func (u *ui) termView(gtx layout.Context) layout.Dimensions {
 
 // termGrid draws tt's screen in the space given and feeds it the input.
 func (u *ui) termGrid(gtx layout.Context, tt *termTab) {
+	gtx = kit.Zoomed(gtx, orgs.Zoom()) // the cells follow the text: a zoom resizes the program
 	sh := u.k.Sh
 	size := fixed.I(gtx.Sp(14))
 	cw, chh, asc := cellMetrics(sh, kit.Mono, size, &tt.glyphs)

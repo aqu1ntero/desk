@@ -114,6 +114,7 @@ func (u *ui) chatPanel(gtx layout.Context) layout.Dimensions {
 // chatPane is card id's session, w wide: header, links, the conversation
 // (and Claude's open question) and the composer; full is the session view.
 func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Dimensions {
+	gtx = kit.Zoomed(gtx, orgs.Zoom()) // its text; the pane's width stays
 	k := u.k
 	c := u.b.Card(id)
 	gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y))

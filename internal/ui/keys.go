@@ -4,9 +4,10 @@ import (
 	"image"
 	"strings"
 
-	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
+
+	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
 // keys handles the window's keys that no focused editor took: arrows move
@@ -14,13 +15,16 @@ import (
 // fields, T its terminal, / or Ctrl+F search, Ctrl+N a new card, esc backs
 // out of whatever is open.
 func (u *ui) keys(gtx layout.Context) {
+	filters := kit.ZoomFilters() // the text size everywhere: no editor, terminal or pane keeps Ctrl+=, Ctrl+- or Ctrl+0
 	if _, tt := u.termCard(); tt != nil && u.edit == nil && u.unlock == nil && u.cfg == nil {
-		return // a terminal takes every key, esc and Ctrl+N included: Claude Code uses them
+		u.zoomKeys(gtx, filters) // a terminal takes every other key, esc and Ctrl+N included: Claude Code uses them
+		return
 	}
 	if strings.HasPrefix(u.view, "srv:") && u.edit == nil && u.unlock == nil && u.cfg == nil && u.pick == "" {
-		return // so do the servers' panes, and the workspace has its own Ctrl+Shift keys
+		u.zoomKeys(gtx, filters) // so do the servers' panes, and the workspace has its own Ctrl+Shift keys
+		return
 	}
-	filters := []event.Filter{key.Filter{Name: key.NameEscape}} // esc always: it backs out of everything
+	filters = append(filters, key.Filter{Name: key.NameEscape}) // esc always: it backs out of everything
 	if u.edit == nil && u.unlock == nil && u.cfg == nil && u.pick == "" && u.pal == nil {
 		// the palette also over the message box: no editor uses Ctrl+K
 		filters = append(filters, key.Filter{Name: "K", Required: key.ModShortcut})
@@ -52,6 +56,9 @@ func (u *ui) keys(gtx layout.Context) {
 		}
 		if e.Name == key.NameEscape {
 			u.escape(gtx)
+			continue
+		}
+		if u.zoomKey(e) {
 			continue
 		}
 		if e.Name == "K" && e.Modifiers.Contain(key.ModShortcut) {
