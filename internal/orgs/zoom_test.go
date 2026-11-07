@@ -65,6 +65,23 @@ func TestZoomFile(t *testing.T) {
 	}
 }
 
+// TestZoomBrokenFile: a settings file that doesn't parse is left as it is,
+// and the zoom still counts.
+func TestZoomBrokenFile(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	file := filepath.Join(dir, "desk", "settings.toml")
+	os.MkdirAll(filepath.Dir(file), 0o755)
+	broken := "[[folder]]\npath = \"/home/me/Work\"\ndepth = \n"
+	os.WriteFile(file, []byte(broken), 0o644)
+	if err := SetZoom(140); err == nil || Zoom() != 140 {
+		t.Errorf("err %v, zoom %d", err, Zoom())
+	}
+	if b, _ := os.ReadFile(file); string(b) != broken {
+		t.Errorf("rewritten: %q", b)
+	}
+}
+
 // TestZoomUnwritable: a zoom the file can't keep still counts until desk quits.
 func TestZoomUnwritable(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "file")

@@ -1,6 +1,12 @@
 package orgs
 
-import "sync"
+import (
+	"errors"
+	"io/fs"
+	"sync"
+
+	"github.com/BurntSushi/toml"
+)
 
 // ZoomMin and ZoomMax bound the zoom, in percent; ZoomStep is one key press.
 const (
@@ -45,7 +51,11 @@ func SetZoom(z int) error {
 	zoomCache.Lock()
 	zoomCache.path, zoomCache.z = path, z
 	zoomCache.Unlock()
-	s := loadSettings()
+	var s settings
+	// a file that doesn't parse isn't rewritten: a key press would lose its folders and languages
+	if _, err := toml.DecodeFile(path, &s); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
 	if s.Zoom = z; z == 100 {
 		s.Zoom = 0 // the default: not written
 	}

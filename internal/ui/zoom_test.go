@@ -37,6 +37,22 @@ func TestZoomKeys(t *testing.T) {
 	}
 }
 
+// TestZoomServers: in the servers' view, which keeps desk's other keys off,
+// the zoom keys still work with no pane focused.
+func TestZoomServers(t *testing.T) {
+	h := newHarness(t)
+	h.u.view = "srv:Acme"
+	h.frame()
+	h.send(press("=", key.ModShortcut))
+	if orgs.Zoom() != 110 {
+		t.Fatalf("Ctrl+= in the servers' view: %d", orgs.Zoom())
+	}
+	h.send(press(key.NameEscape, 0)) // esc stays the panes'
+	if h.u.view != "srv:Acme" {
+		t.Fatalf("esc left the servers: %q", h.u.view)
+	}
+}
+
 // TestZoomUnwritable: a settings file that can't be written says so.
 func TestZoomUnwritable(t *testing.T) {
 	h := newHarness(t)
@@ -87,5 +103,10 @@ func TestZoomTerminal(t *testing.T) {
 	}
 	if orgs.Zoom() != 120 || tt.cols >= cols || h.u.view != "term:"+c.ID {
 		t.Fatalf("zoom %d, columns %d → %d, view %q", orgs.Zoom(), cols, tt.cols, h.u.view)
+	}
+	h.u.sel = c.ID
+	h.send(press(key.NameEscape, 0)) // only the zoom keys are desk's there: esc stays Claude Code's
+	if h.u.view != "term:"+c.ID || h.u.sel != c.ID {
+		t.Fatalf("esc was desk's: view %q, selection %q", h.u.view, h.u.sel)
 	}
 }

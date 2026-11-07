@@ -5,14 +5,25 @@ import (
 
 	"gioui.org/io/event"
 	"gioui.org/io/key"
+	"gioui.org/layout"
 
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
-// zoomFilters are the zoom keys, heard everywhere but in a terminal, which
-// hears its own (termEvents).
-func zoomFilters() []event.Filter { return kit.ZoomFilters() }
+// zoomKeys reads only the zoom keys: where a terminal or the servers' panes
+// take the rest, the text size still works when none of them has focus.
+func (u *ui) zoomKeys(gtx layout.Context, filters []event.Filter) {
+	for {
+		ev, ok := gtx.Event(filters...)
+		if !ok {
+			return
+		}
+		if e, ok := ev.(key.Event); ok {
+			u.zoomKey(e)
+		}
+	}
+}
 
 // zoomKey zooms the terminals' and session panel's text when e is a zoom
 // key, and says whether it was.

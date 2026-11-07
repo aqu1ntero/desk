@@ -797,11 +797,6 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 				}
 			}
 		case key.Event:
-			if steps, ok := kit.ZoomKey(ev); ok { // the pane takes every key: desk's zoom's too, before the shell
-				deskorgs.StepZoom(steps)
-				gtx.Execute(op.InvalidateCmd{})
-				continue
-			}
 			if u.shortcut(ev) {
 				continue
 			}
