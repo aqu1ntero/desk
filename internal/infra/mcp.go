@@ -256,6 +256,9 @@ func mcpServe(sock, groups string, r io.Reader, w io.Writer) {
 	if isCard {
 		tools = cardTools
 	}
+	if id, ok := strings.CutPrefix(groups, "ws="); ok { // a card's workspace Claude: reads, and suggests to the card's
+		tools, card = workspaceTools, "ws:"+id
+	}
 	in := bufio.NewScanner(r)
 	in.Buffer(make([]byte, 1024*1024), 16*1024*1024)
 	out := json.NewEncoder(w)
@@ -353,7 +356,31 @@ var cardTools = []map[string]any{
 			"required": []string{"url", "job"}},
 		"annotations": map[string]any{"readOnlyHint": true},
 	},
+	{
+		"name": "add_project",
+		"description": "Add a folder to the card's workspace (the user's IDE view of the card): call it when you start working in a project root " +
+			"(a repository or a folder with its own build) that isn't the card's own folder. desk uses the repository root above path.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"path": map[string]any{"type": "string", "description": "An absolute folder."}}, "required": []string{"path"}},
+	},
+	{
+		"name": "ask_workspace",
+		"description": "Ask the card's workspace Claude (it reads the workspace's projects with the user, never writes) a question. " +
+			"Returns at once; its answer comes into this conversation as a message from the workspace Claude.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"question": map[string]any{"type": "string"}}, "required": []string{"question"}},
+	},
 }
+
+// workspaceTools are the card's workspace Claude's (`desk mcp <sock>
+// ws=<id>`): the card tools that only read, and suggest_to_card.
+var workspaceTools = append(slices.Clone(cardTools[:5]), map[string]any{
+	"name": "suggest_to_card",
+	"description": "Send a suggestion (a change as a diff or snippet, with why) to the card's main Claude, which does the work. " +
+		"Only when the user asks you to pass it on.",
+	"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+		"text": map[string]any{"type": "string"}}, "required": []string{"text"}},
+})
 
 // ServeCards answers the card sessions' tool calls with handle (card is
 // the card's id; ok false: an error), on a socket of desk's; the socket's
@@ -387,15 +414,22 @@ func ServeCards(handle func(card, name string, args json.RawMessage) (text strin
 // CardMCP is claude's --mcp-config that gives card id's session the card
 // tools through sock (ServeCards'), and the tools to allow without asking:
 // they only read. "" without a socket.
-func CardMCP(sock, id string) (string, []string) {
+func CardMCP(sock, id string) (string, []string) { return toolsMCP(sock, "card="+id, cardTools) }
+
+// WorkspaceMCP is CardMCP for card id's workspace Claude.
+func WorkspaceMCP(sock, id string) (string, []string) {
+	return toolsMCP(sock, "ws="+id, workspaceTools)
+}
+
+func toolsMCP(sock, group string, tools []map[string]any) (string, []string) {
 	exe, err := os.Executable()
 	if err != nil || sock == "" {
 		return "", nil
 	}
 	cfg, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{"desk": map[string]any{
-		"type": "stdio", "command": exe, "args": []string{"mcp", sock, "card=" + id}}}})
+		"type": "stdio", "command": exe, "args": []string{"mcp", sock, group}}}})
 	var allow []string
-	for _, t := range cardTools {
+	for _, t := range tools {
 		allow = append(allow, "mcp__desk__"+t["name"].(string))
 	}
 	return string(cfg), allow

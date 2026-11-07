@@ -145,6 +145,28 @@ func TestDemo(t *testing.T) {
 	p.Interrupt()
 	p.Close()
 
+	// the fixed card's workspace: login.go there, its Claude answers the user and the card's
+	h.u.openWS(id)
+	login := filepath.Join(h.u.root, "Acme", "api", "internal", "auth", "login.go")
+	if tb := h.u.wsOpen(h.u.wsOf(id), login); tb == nil || !strings.Contains(tb.ed.Text(), "refresh.Token(ctx, s)") {
+		t.Fatal("the demo's login.go")
+	}
+	h.u.wsSend(id, "Why does the retry fail?")
+	h.pumpUntil("the workspace answer", func() bool {
+		m := h.u.chat(wsKey(id))
+		return len(m) > 0 && strings.HasPrefix(m[len(m)-1].Text, "Yes: `s.Expired()`")
+	})
+	if err := h.u.wsAskCard(id, "What is the user looking at?"); err != nil {
+		t.Fatal(err)
+	}
+	h.pumpUntil("the answer to the card", func() bool {
+		return slices.ContainsFunc(h.u.chat(id), func(m kanban.ChatMsg) bool { return m.Who == "workspace" && strings.HasPrefix(m.Text, "The user has") })
+	})
+	ws := h.u.ws[id].proc
+	ws.Respond("x", false, nil, "")
+	ws.Interrupt()
+	ws.Close()
+
 	// Stop while Improve reads or writes: no draft
 	for _, after := range []time.Duration{0, 3 * time.Millisecond} {
 		demoPace = time.Millisecond / 100

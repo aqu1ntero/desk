@@ -188,4 +188,14 @@ var (
 		p.LineTo(f32.Pt(s*.67, s*.85))
 		p.LineTo(f32.Pt(s*.72, s*.28))
 	}
+	IcoCode IconPath = func(p *clip.Path, s float32) { // </>: the workspace
+		p.MoveTo(f32.Pt(s*.32, s*.3))
+		p.LineTo(f32.Pt(s*.12, s*.5))
+		p.LineTo(f32.Pt(s*.32, s*.7))
+		p.MoveTo(f32.Pt(s*.68, s*.3))
+		p.LineTo(f32.Pt(s*.88, s*.5))
+		p.LineTo(f32.Pt(s*.68, s*.7))
+		p.MoveTo(f32.Pt(s*.56, s*.2))
+		p.LineTo(f32.Pt(s*.44, s*.8))
+	}
 )

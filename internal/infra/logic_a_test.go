@@ -30,7 +30,7 @@ func fakeTermA(t *testing.T, host string) (*Term, *os.File) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.Close(); w.Close() })
-	return &Term{Host: host, emu: vt.NewEmulator(40, 6), pty: w, proc: doneProcA(t), b: &pos{}}, r
+	return &Term{Host: host, emu: vt.NewEmulator(40, 6), pty: ptyProc{w, doneProcA(t)}, b: &pos{}}, r
 }
 
 func readPipeA(r *os.File) string {
@@ -437,7 +437,7 @@ func TestServeCardsMCPA(t *testing.T) {
 	for _, tl := range rs[2].Result.Tools {
 		names = append(names, tl.Name)
 	}
-	if strings.Join(names, ",") != "alerts,tickets,link,ci,ci_log" {
+	if strings.Join(names, ",") != "alerts,tickets,link,ci,ci_log,add_project,ask_workspace" {
 		t.Errorf("a card gets only the card tools: %v", names)
 	}
 	if r := rs[3].Result; r.IsError || len(r.Content) != 1 || r.Content[0].Text != `DESK-4|alerts|{"x":1} TOKEN=[redacted]` {
@@ -489,8 +489,39 @@ func TestCardMCPA(t *testing.T) {
 	if d := c.MCPServers["desk"]; d.Type != "stdio" || strings.Join(d.Args, " ") != "mcp /run/x.sock card=DESK-2" {
 		t.Errorf("config: %s", cfg)
 	}
-	if strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log" {
+	if strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,mcp__desk__add_project,mcp__desk__ask_workspace" {
 		t.Errorf("allowed: %v", allow)
+	}
+	cfg, allow = WorkspaceMCP("/run/x.sock", "DESK-2")
+	if !strings.Contains(cfg, `"ws=DESK-2"`) || strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,mcp__desk__suggest_to_card" {
+		t.Errorf("workspace: %s %v", cfg, allow)
+	}
+}
+
+// TestWorkspaceMCPA: a workspace Claude's server lists its own tools and
+// calls as "ws:<id>", so desk tells it from the card's main Claude.
+func TestWorkspaceMCPA(t *testing.T) {
+	sock := filepath.Join(runtimeA(t), "w.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		var tc toolCall
+		json.NewDecoder(c).Decode(&tc)
+		json.NewEncoder(c).Encode(toolResult{Text: tc.Card + "|" + tc.Name})
+	}()
+	in := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}` + "\n" + `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"suggest_to_card","arguments":{}}}`
+	var out strings.Builder
+	mcpServe(sock, "ws=c9", strings.NewReader(in), &out)
+	if s := out.String(); !strings.Contains(s, `"suggest_to_card"`) || strings.Contains(s, `"add_project"`) || !strings.Contains(s, "ws:c9|suggest_to_card") {
+		t.Errorf("served: %s", s)
 	}
 }
 
@@ -1853,7 +1884,7 @@ func TestRedialGiveUpA(t *testing.T) {
 	dir := t.TempDir()
 	lost, _ := fakeTermA(t, "local")
 	lost.emu.WriteString("before the drop")
-	lost.exited, lost.code, lost.reached, lost.b = true, 255, true, nil
+	lost.exited, lost.code, lost.dropped, lost.reached, lost.b = true, 255, true, true, nil
 	p := &Pane{id: 1, term: lost, name: "local", dir: dir}
 	tab := &Tab{term: lost, panes: []*Pane{p}}
 	mine, other := portFwd{host: "local", dir: dir, kind: "L", spec: "1:localhost:1"}, portFwd{host: "web2", dir: dir, kind: "L", spec: "1:localhost:1"}

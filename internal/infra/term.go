@@ -40,14 +40,15 @@ type Block struct {
 
 type pos struct{ line, x int } // line is absolute: scrollback + screen
 
-// Term is a PTY running ssh (or local bash) rendered through a vt emulator.
+// Term is a shell on a server (an SSH session, sshconn.go) or here (local
+// bash in a PTY) rendered through a vt emulator.
 type Term struct {
 	Host string
 
 	mu         sync.Mutex
 	emu        *vt.Emulator
-	pty        *os.File
-	proc       *os.Process
+	pty        proc
+	notify     func()
 	blocks     []Block
 	b, c       *pos // start of command / start of output of the open block
 	cAt        time.Time
@@ -55,11 +56,14 @@ type Term struct {
 	typed      bool   // Claude wrote the current prompt line
 	byClaude   bool   // Claude typed into the current prompt
 	injected   bool
-	reached    bool // ssh asked something (password, host key): the server answered
+	reached    bool  // the server asked something (password, host key): it answered
+	up         bool  // the SSH session started: authenticated, the shell running
+	err        error // why the SSH connection couldn't be made
 	started    time.Time
 	integrated bool // saw at least one OSC 133 mark
 	exited     bool
 	hup        bool              // Close hung it up (not a dropped link)
+	dropped    bool              // it ended with the link, not by itself
 	code       int               // the program's exit status, once exited (-1: signaled)
 	cwd        string            // the shell's directory, from OSC 7 at each prompt
 	env, env0  map[string]string // exported environment now, and as the shell started (OSC 6973)
@@ -127,13 +131,53 @@ const shEnvFuncs = `__desk_e(){ local e; e=$( (env -0 2>/dev/null || env) | base
 // promptEnd is how a shell prompt ends: bash $ #, zsh %, fish > ❯.
 var promptEnd = []string{"$", "#", "%", ">", "❯"}
 
-// HostCmd, when set, is the shell a host's pane runs instead of ssh: desk
-// demo's made-up servers.
+// HostCmd, when set, is the shell a host's pane runs instead of an SSH
+// session (nil: SSH after all): desk demo's made-up servers.
 var HostCmd func(host string) *exec.Cmd
 
-// NewTerm starts a shell on host (ssh, or a local bash). prelude, when set,
-// is what the pane had before (a reconnect, a restored session): its text and
-// blocks go above, its directory and environment into the new shell.
+// proc is what a Term runs: a program here in a PTY (ptyProc) or a shell on
+// an SSH session (sshProc).
+type proc interface {
+	io.ReadWriter
+	Resize(w, h int)
+	Hangup() // SIGHUP, and the PTY or session closed
+	// Wait is the exit status once Read failed; dropped says the link went
+	// rather than the program ending.
+	Wait() (code int, dropped bool)
+}
+
+// ptyProc is a local program in a PTY.
+type ptyProc struct {
+	*os.File
+	p *os.Process
+}
+
+func (p ptyProc) Resize(w, h int) {
+	pty.Setsize(p.File, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
+}
+
+// Hangup signals before closing: closing the pty alone leaves the reader
+// blocked and the process alive.
+func (p ptyProc) Hangup() {
+	p.p.Signal(syscall.SIGHUP)
+	p.File.Close()
+}
+
+// Wait: a program here ending with 255 counts as a dropped link, as ssh's
+// 255 did (HostCmd's shells stand in for servers).
+func (p ptyProc) Wait() (int, bool) {
+	st, _ := p.p.Wait()
+	code := -1
+	if st != nil {
+		code = st.ExitCode()
+	}
+	return code, code == 255
+}
+
+// NewTerm starts a shell on host (an SSH session over the workspace's
+// shared connection, or a local bash). prelude, when set, is what the pane
+// had before (a reconnect, a restored session): its text and blocks go
+// above, its directory and environment into the new shell.
 func NewTerm(host, dir string, w, h int, notify func(), prelude paneState) (*Term, error) {
 	var cmd *exec.Cmd
 	switch {
@@ -141,57 +185,48 @@ func NewTerm(host, dir string, w, h int, notify func(), prelude paneState) (*Ter
 		cmd = exec.Command("bash", "--norc", "-i")
 	case HostCmd != nil:
 		cmd = HostCmd(host)
-	default:
-		// every pane of a tab reuses one SSH connection (OpenSSH multiplexing)
-		args := sshArgs(host, dir)
-		if takeAcceptNew(host) { // the user accepted its new host key: this connection saves it
-			args = append([]string{"-o", "StrictHostKeyChecking=accept-new"}, args...)
-		}
-		cmd = exec.Command("ssh", args...)
-		var tgt *askTarget
-		cmd.Env, tgt = askpassEnv(host, dir)
-		cmd.Dir = dir
-		t, err := startTerm(host, cmd, w, h, notify, prelude)
-		if tgt != nil && t != nil {
-			askMu.Lock()
-			tgt.term = t
-			askMu.Unlock()
-		}
-		return t, err
+	}
+	if cmd == nil { // HostCmd may leave a host to SSH
+		p := newSSHProc(w, h)
+		t := startTerm(host, p, w, h, notify, prelude)
+		go t.connect(p, host, dir)
+		return t, nil
 	}
 	cmd.Dir = dir
-	return startTerm(host, cmd, w, h, notify, prelude)
+	return startCmd(host, cmd, w, h, notify, prelude)
 }
 
-func startTerm(host string, cmd *exec.Cmd, w, h int, notify func(), prelude paneState) (*Term, error) {
+// startCmd starts cmd here in a PTY of w×h.
+func startCmd(host string, cmd *exec.Cmd, w, h int, notify func(), prelude paneState) (*Term, error) {
 	cmd.Env = append(append(os.Environ(), cmd.Env...), "TERM=xterm-256color")
 	f, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
 	if err != nil {
 		return nil, err
 	}
-	t := &Term{Host: host, emu: vt.NewEmulator(w, h), pty: f, proc: cmd.Process, started: time.Now()}
+	return startTerm(host, ptyProc{f, cmd.Process}, w, h, notify, prelude), nil
+}
+
+func startTerm(host string, p proc, w, h int, notify func(), prelude paneState) *Term {
+	t := &Term{Host: host, emu: vt.NewEmulator(w, h), pty: p, notify: notify, started: time.Now()}
 	t.emu.RegisterOscHandler(133, t.osc133)
 	t.emu.RegisterOscHandler(7, t.osc7)
 	t.emu.RegisterOscHandler(6973, t.oscEnv)
 	t.replay(prelude)
 
-	go io.Copy(f, t.emu) // keys and terminal replies -> pty
+	go io.Copy(p, t.emu) // keys and terminal replies -> the program
 	go func() {
 		buf := make([]byte, 32*1024)
 		for {
-			n, err := f.Read(buf)
+			n, err := p.Read(buf)
 			t.mu.Lock()
 			if err != nil {
 				if t.rec != nil {
 					t.rec.close()
 				}
 				t.mu.Unlock()
-				st, _ := cmd.Process.Wait()
+				code, dropped := p.Wait()
 				t.mu.Lock()
-				t.exited, t.code = true, -1
-				if st != nil {
-					t.code = st.ExitCode()
-				}
+				t.exited, t.code, t.dropped = true, code, dropped
 				t.mu.Unlock()
 				notify()
 				return
@@ -217,7 +252,7 @@ func startTerm(host string, cmd *exec.Cmd, w, h int, notify func(), prelude pane
 			notify()
 		}
 	}()
-	return t, nil
+	return t
 }
 
 // termTap, when set, gets every byte a terminal's program writes, after the
@@ -246,7 +281,7 @@ func (t *Term) maybeInject() {
 			if t.pending != nil {
 				clear += `; printf '\033]6974\007'` // replayMark: the history goes in after the wipe
 			}
-			t.pty.WriteString(strings.TrimSuffix(shellIntegration, "clear\r") + "__desk_e; " + t.restore + clear + "\r")
+			io.WriteString(t.pty, strings.TrimSuffix(shellIntegration, "clear\r")+"__desk_e; "+t.restore+clear+"\r")
 			return
 		}
 	}
@@ -788,21 +823,30 @@ func (t *Term) Scrollback() int {
 	return t.emu.ScrollbackLen()
 }
 
-// Connected reports that the shell got going: a prompt showed up, or ssh
-// reached the server and asked something.
+// Connected reports that the shell got going: its SSH session started or a
+// prompt showed up, or the server asked something (the user is answering:
+// it isn't a timeout; a connection that fails after all clears it).
 func (t *Term) Connected() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return t.injected || t.integrated || t.reached
+	return t.up || t.injected || t.integrated || t.reached
 }
 
-// Lost says the link dropped: ssh ended with 255 (its own error, not the
-// remote shell's status) after the server had answered, and desk didn't hang
-// it up.
+// Lost says the link dropped (the session ended with the connection, not by
+// the remote shell's exit) after the shell had got going, and desk didn't
+// hang it up.
 func (t *Term) Lost() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return t.exited && !t.hup && t.code == 255 && (t.injected || t.integrated || t.reached)
+	return t.exited && !t.hup && t.dropped && (t.up || t.injected || t.integrated || t.reached)
+}
+
+// Err is why the SSH connection couldn't be made (a *sshc.HostKeyChangedError,
+// a *sshc.NegotiationError…), nil otherwise.
+func (t *Term) Err() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.err
 }
 
 func (t *Term) markReached() {
@@ -858,7 +902,7 @@ func (t *Term) Run(cmd string, timeout time.Duration) toolResult {
 	n := len(t.blocks)
 	if idle {
 		t.byClaude = true
-		t.pty.WriteString("\x05\x15" + cmd + "\r")
+		io.WriteString(t.pty, "\x05\x15"+cmd+"\r")
 	}
 	t.mu.Unlock()
 	if !idle {
@@ -927,7 +971,7 @@ func (t *Term) SudoPrompt() (string, bool) {
 func (t *Term) TypeSecret(s string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.pty.WriteString(s + "\r")
+	io.WriteString(t.pty, s+"\r")
 }
 
 // AtPrompt reports an idle shell prompt (marks seen, nothing running, no
@@ -970,7 +1014,7 @@ func (t *Term) TypeForClaude(s string) {
 		t.emu.Paste(s)
 		return
 	}
-	t.pty.WriteString("\x05\x15" + s)
+	io.WriteString(t.pty, "\x05\x15"+s)
 }
 
 // SendKeys types into whatever owns the terminal (htop, less, a y/n prompt)
@@ -1046,7 +1090,9 @@ func (t *Term) Resize(w, h int) {
 		t.reflowed(mv)
 	}
 	t.ver.Add(1)
-	pty.Setsize(t.pty, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
+	if t.pty != nil {
+		t.pty.Resize(w, h)
+	}
 	if t.rec != nil {
 		t.rec.event("r", fmt.Appendf(nil, "%dx%d", w, h))
 	}
@@ -1069,14 +1115,12 @@ func (t *Term) reflowed(mv func(line, x int) (int, int)) {
 	}
 }
 
-// Close hangs up the shell (or ssh): closing the pty alone leaves the reader
-// blocked and the process alive.
+// Close hangs up the shell (or its SSH session).
 func (t *Term) Close() {
 	t.mu.Lock()
 	t.exited, t.hup = true, true
 	t.mu.Unlock()
-	t.proc.Signal(syscall.SIGHUP)
-	t.pty.Close()
+	t.pty.Hangup()
 }
 
 // wordAt is the run of line around i that a double click selects, [lo, hi):

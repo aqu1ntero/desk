@@ -443,7 +443,7 @@ func TestDiffBlock(t *testing.T) {
 	}
 	m := kanban.ChatMsg{Who: "tool", Path: "/src/main.go", Edits: []kanban.Edit{{Old: strings.Join(old, "\n"), New: strings.Join(new, "\n")}}}
 	sz := image.Pt(600, 2400)
-	w := func(gtx layout.Context) layout.Dimensions { return h.u.diffBlock(gtx, "d1", m) }
+	w := func(gtx layout.Context) layout.Dimensions { return h.u.diffBlock(gtx, "", "d1", m) }
 	folded := h.draw(sz, w)
 	foot := func(d layout.Dimensions) image.Rectangle { return image.Rect(0, d.Size.Y-40, 30, d.Size.Y) } // Show all/less is full width
 	head := image.Rect(0, 0, sz.X, 40)

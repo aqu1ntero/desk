@@ -17,7 +17,7 @@
           pname = "desk";
           inherit version;
           src = ./.;
-          vendorHash = "sha256-ycBVx7YP2sOc8UR7LGXQakP8cO2mp4b0sHJA1YjezDc=";
+          vendorHash = "sha256-1dVJd9uiDtQ8RmuGc7UaH/zI2y1yKi3E5RMrd7SWFig=";
           subPackages = [ "cmd/desk" ];
           tags = [ "nox11" ];
           env.CGO_CFLAGS_ALLOW = "-fno-strict-overflow";

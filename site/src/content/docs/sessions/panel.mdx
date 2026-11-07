@@ -39,12 +39,13 @@ The icons at the right end act on the card:
 
 <figure class="cut">
 
-![The header's icons: full window, edit, terminal, archive and close](../../../assets/shots/sess-panel-icons.png)
+![The header's icons: full window, workspace, edit, terminal, archive and close](../../../assets/shots/sess-panel-icons.png)
 
-<figcaption>From left to right: Open full window, Edit the card (<kbd>E</kbd>), Open in the Claude Code terminal (<kbd>T</kbd>), Archive the card, and Close the panel (<kbd>Esc</kbd>).</figcaption>
+<figcaption>From left to right: Open full window, Open the workspace, Edit the card (<kbd>E</kbd>), Open in the Claude Code terminal (<kbd>T</kbd>), Archive the card, and Close the panel (<kbd>Esc</kbd>).</figcaption>
 </figure>
 
 The [full window](/sessions/full-window/) shows the same session over the whole window.
+The [workspace](/sessions/workspace/) shows its projects' files beside a Claude that reads them with you.
 The [terminal](/sessions/terminal/) opens it in the full Claude Code TUI.
 
 ## Starting a session
@@ -75,8 +76,8 @@ a line for every tool Claude uses.
 A tool line names the tool and its most telling input: the file read, the pattern searched, the
 command run. A shell command adds Claude's plain description of it, and **Explain** has Haiku take
 it apart (see [Shell commands](/sessions/shell/#shell-commands-explained)). A file change shows
-as a [diff](/sessions/diffs/), and a subagent's work shows in the
-[subagents bar](/sessions/subagents/).
+as a [diff](/sessions/diffs/), which opens in the card's [workspace](/sessions/workspace/), and a
+subagent's work shows in the [subagents bar](/sessions/subagents/).
 
 Claude's replies are drawn from their Markdown: headings, lists, tables, quotes, links and code
 with its highlighting.

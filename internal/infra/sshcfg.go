@@ -3,11 +3,10 @@ package infra
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"regexp"
 	"slices"
 	"strconv"
@@ -15,10 +14,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lfdominguez/desk/internal/sshc"
+	"github.com/lfdominguez/desk/internal/sshconfig"
 	deskvault "github.com/lfdominguez/desk/internal/vault"
 )
 
-// sshConfigFor is the ssh_config a pane's dir (its org's infra dir) runs ssh
+// sshConfigFor is the ssh_config a pane's dir (its org's infra dir) connects
 // with: the org's servers file.
 func sshConfigFor(dir string) string { return serversTarget(orgOfInfra(dir)) }
 
@@ -33,32 +34,21 @@ func hostFile(dir, host string) string {
 	return sshConfigFor(dir)
 }
 
-// sshArgs is how desk runs ssh for a host of a pane dir. Keepalives notice a
-// dead link in ~45s so redial can bring it back; an ssh_config that sets
-// ServerAliveInterval itself keeps its own (the command line would win).
-func sshArgs(host, dir string) []string {
-	args := []string{"-o", "ControlMaster=auto", "-o", "ControlPath=" + runtimeDir() + "/ssh-%C", "-o", "ControlPersist=60"}
-	cfg := sshConfigFor(dir)
-	data, err := os.ReadFile(cfg)
-	if !strings.Contains(strings.ToLower(string(data)), "serveraliveinterval") {
-		args = append(args, "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3")
-	}
-	if err == nil {
-		args = append(args, "-F", cfg)
-	}
-	return append(args, host)
-}
-
-// sshCommand is the shell command line for host, the way desk runs it.
+// sshCommand is the shell command line that reaches host as desk does: the
+// servers file and the keepalives desk adds.
 func sshCommand(host, dir string) string {
+	o := sshOpts(host, dir)
 	q := []string{"ssh"}
-	for _, a := range sshArgs(host, dir) {
-		if strings.ContainsAny(a, " '\"$\\*?%") {
-			a = shQuote(a)
-		}
-		q = append(q, a)
+	for _, kv := range o.Overrides {
+		q = append(q, "-o", strings.Replace(kv, " ", "=", 1))
 	}
-	return strings.Join(q, " ")
+	if f := o.File; f != "" {
+		if strings.ContainsAny(f, " '\"$\\*?%") {
+			f = shQuote(f)
+		}
+		q = append(q, "-F", f)
+	}
+	return strings.Join(append(q, host), " ")
 }
 
 // wake sends a Wake-on-LAN magic packet: "MAC" or "MAC broadcast:port"
@@ -99,106 +89,6 @@ func fileExists(p string) bool {
 	return err == nil
 }
 
-// SSH_ASKPASS: ssh runs `desk <prompt>` (with DESK_ASKPASS set) for every
-// question it has; that process asks the running desk over a socket. Passwords
-// come from the vault on the first try; anything else, or a retry, is asked
-// in the ask sheet. The password never touches the terminal, so Claude can't see it.
-
-type askTarget struct {
-	name, dir string
-	password  *SecretRef
-	tries     int
-	term      *Term // set once ssh started
-}
-
-var (
-	askOnce    sync.Once
-	askSock    string
-	askMu      sync.Mutex
-	askTargets = map[string]*askTarget{}
-	askN       int
-)
-
-// askpassEnv registers one ssh connection and returns the env that routes its
-// prompts to this desk.
-func askpassEnv(host, dir string) ([]string, *askTarget) {
-	askOnce.Do(startAskpass)
-	if askSock == "" {
-		return nil, nil
-	}
-	t := &askTarget{name: host, dir: dir, password: passwordRef(dir, host)}
-	askMu.Lock()
-	askN++
-	id := fmt.Sprint(askN)
-	askTargets[id] = t
-	askMu.Unlock()
-	exe, _ := os.Executable()
-	return []string{"SSH_ASKPASS=" + exe, "SSH_ASKPASS_REQUIRE=force", "DESK_ASKPASS=" + askSock, "DESK_ASKPASS_ID=" + id}, t
-}
-
-type askReq struct{ ID, Prompt string }
-type askRes struct {
-	Answer string
-	OK     bool
-}
-
-func startAskpass() {
-	sock := fmt.Sprintf("%s/askpass-%d.sock", runtimeDir(), os.Getpid())
-	os.Remove(sock)
-	ln, err := net.Listen("unix", sock)
-	if err != nil {
-		return
-	}
-	askSock = sock
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			go func() {
-				defer c.Close()
-				var r askReq
-				if json.NewDecoder(c).Decode(&r) == nil {
-					json.NewEncoder(c).Encode(answerAsk(r))
-				}
-			}()
-		}
-	}()
-}
-
-var passwordPrompt = regexp.MustCompile(`(?i)password[^:]*:\s*$`)
-
-func answerAsk(r askReq) askRes {
-	askMu.Lock()
-	t := askTargets[r.ID]
-	askMu.Unlock()
-	if t == nil {
-		return askRes{}
-	}
-	askMu.Lock()
-	if t.term != nil {
-		t.term.markReached() // not a connect timeout: the server is talking
-	}
-	askMu.Unlock()
-	prompt := strings.TrimSpace(r.Prompt)
-	if passwordPrompt.MatchString(prompt) && t.password != nil && t.tries == 0 {
-		t.tries++
-		if pw, err := vaultPassword(t); err == nil {
-			return askRes{pw, true}
-		} else {
-			prompt += "  (vault: " + err.Error() + ")"
-		}
-	} else if passwordPrompt.MatchString(prompt) && t.password != nil {
-		prompt += "  (the vault password was rejected)"
-	}
-	masked := !strings.Contains(prompt, "yes/no")
-	a, ok := askUser("ssh "+t.name+" · "+prompt, masked)
-	return askRes{a, ok}
-}
-
-func vaultPassword(t *askTarget) (string, error) { return serverPassword(t.dir, t.password) }
-
 // passwordRef is where a host's password is (its #@ password in the servers
 // file), or nil.
 func passwordRef(dir, host string) *SecretRef {
@@ -236,28 +126,9 @@ func serverPassword(dir string, ref *SecretRef) (string, error) {
 	return it.Password, err // ponytail: a field other than password is Passbolt/Bitwarden only
 }
 
-// osExit ends the process (a variable so tests can catch it).
-var osExit = os.Exit
-
-// askpassMain is desk run by ssh as SSH_ASKPASS: print the answer, or fail.
-func askpassMain(prompt string) {
-	c, err := net.Dial("unix", os.Getenv("DESK_ASKPASS"))
-	if err != nil {
-		osExit(1)
-	}
-	json.NewEncoder(c).Encode(askReq{os.Getenv("DESK_ASKPASS_ID"), prompt})
-	var r askRes
-	if json.NewDecoder(c).Decode(&r) != nil || !r.OK {
-		osExit(1)
-	}
-	fmt.Println(r.Answer)
-}
-
-// Very old servers only speak algorithms modern OpenSSH turned off; ssh then
-// fails with "Unable to negotiate … Their offer: …". desk turns that into the
+// Very old servers only speak algorithms modern OpenSSH turned off: the
+// connection fails with a *sshc.NegotiationError, which desk turns into the
 // ssh_config lines that re-enable them for that one host.
-
-var negotiate = regexp.MustCompile(`no matching (host key type|key exchange method|cipher|MAC) found\. Their offer: (\S+)`)
 
 // legacyFix re-enables algorithms for one ssh_config keyword.
 type legacyFix struct {
@@ -267,54 +138,23 @@ type legacyFix struct {
 
 func (f legacyFix) String() string { return f.Keyword + " +" + strings.Join(f.Algs, ",") }
 
-var (
-	sshQMu sync.Mutex
-	sshQ   = map[string]map[string]bool{}
-)
-
-// sshSupports lists what the local ssh knows (ssh -Q key|kex|cipher|mac).
-func sshSupports(q string) map[string]bool {
-	sshQMu.Lock()
-	defer sshQMu.Unlock()
-	if s, ok := sshQ[q]; ok {
-		return s
+// legacyFixes is what a failed connection's negotiation error asks for:
+// the algorithms the server offers that desk has but leaves off. None when
+// it offers only ones desk lacks (ssh-dss), or err isn't one.
+func legacyFixes(err error) []legacyFix {
+	var ne *sshc.NegotiationError
+	if !errors.As(err, &ne) {
+		return nil
 	}
-	s := map[string]bool{}
-	out, _ := exec.Command("ssh", "-Q", q).Output()
-	for _, a := range strings.Fields(string(out)) {
-		s[a] = true
+	algs := ne.Fixable()
+	if len(algs) == 0 {
+		return nil
 	}
-	sshQ[q] = s
-	return s
-}
-
-// legacyFixes reads ssh's negotiation errors from the screen. Algorithms the
-// local ssh no longer has (ssh-dss in OpenSSH ≥ 9.8) can't be fixed here and
-// come back in missing.
-func legacyFixes(screen string) (fixes []legacyFix, missing []string) {
-	kinds := map[string][2]string{
-		"host key type": {"HostKeyAlgorithms", "key"}, "key exchange method": {"KexAlgorithms", "kex"},
-		"cipher": {"Ciphers", "cipher"}, "MAC": {"MACs", "mac"},
+	fixes := []legacyFix{{ne.What, algs}}
+	if ne.What == "HostKeyAlgorithms" && slices.Contains(algs, "ssh-rsa") {
+		fixes = append(fixes, legacyFix{"PubkeyAcceptedAlgorithms", []string{"ssh-rsa"}}) // so RSA keys can log in too
 	}
-	for _, m := range negotiate.FindAllStringSubmatch(screen, -1) {
-		k := kinds[m[1]]
-		var algs []string
-		for _, a := range strings.Split(m[2], ",") {
-			if sshSupports(k[1])[a] {
-				algs = append(algs, a)
-			} else {
-				missing = append(missing, a)
-			}
-		}
-		if len(algs) == 0 {
-			continue
-		}
-		fixes = append(fixes, legacyFix{k[0], algs})
-		if k[0] == "HostKeyAlgorithms" && slices.Contains(algs, "ssh-rsa") {
-			fixes = append(fixes, legacyFix{"PubkeyAcceptedAlgorithms", []string{"ssh-rsa"}}) // so RSA keys can log in too
-		}
-	}
-	return fixes, missing
+	return fixes
 }
 
 // applyFixes writes the fixes into host's block of an ssh_config, merging
@@ -423,17 +263,69 @@ func (f portFwd) String() string {
 	return "localhost:" + a + " → " + b + " via " + f.name
 }
 
+// fwdStops stops the forwards running, by forward.
+var fwdStops = struct {
+	sync.Mutex
+	m map[portFwd]func()
+}{m: map[portFwd]func(){}}
+
 // run adds (or with cancel, removes) f on the server's shared connection.
+// A forward lives as long as the connection: it goes when that drops, or
+// lingers out after the server's last pane closed (as ssh -O forward did).
 func (f portFwd) run(cancel bool) error {
-	op := "forward"
+	fwdStops.Lock()
+	defer fwdStops.Unlock()
 	if cancel {
-		op = "cancel"
+		stop := fwdStops.m[f]
+		if stop == nil {
+			return errors.New("no such forward")
+		}
+		delete(fwdStops.m, f)
+		stop()
+		return nil
 	}
-	return runErr(exec.Command("ssh", f.args(op)...))
+	spec, err := f.forward()
+	if err != nil {
+		return err
+	}
+	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
+	defer done()
+	c, release, err := sshClient(ctx, f.host, f.dir)
+	if err != nil {
+		return err
+	}
+	defer release()
+	_, stop, err := c.Forward(f.kind[0], spec)
+	if err != nil {
+		return err
+	}
+	if old := fwdStops.m[f]; old != nil {
+		old() // from a connection gone since: a no-op
+	}
+	fwdStops.m[f] = stop
+	return nil
 }
 
-// args is ssh's command line for control operation op on f's connection.
-func (f portFwd) args(op string) []string {
-	args := sshArgs(f.host, f.dir)
-	return append(append(args[:len(args)-1:len(args)-1], "-O", op, "-"+f.kind, f.spec), f.host)
+// forward is f's spec (port[:host:port], as parseForward makes it) as sshc
+// takes it.
+func (f portFwd) forward() (sshconfig.Forward, error) {
+	ps := strings.Split(f.spec, ":")
+	var fw sshconfig.Forward
+	bad := fmt.Errorf("bad forward %q", f.spec)
+	var err error
+	if fw.ListenPort, err = strconv.Atoi(ps[0]); err != nil {
+		return fw, bad
+	}
+	switch {
+	case f.kind == "D" && len(ps) == 1:
+		fw.ConnectHost = "socks"
+	case f.kind != "D" && len(ps) == 3:
+		fw.ConnectHost = ps[1]
+		if fw.ConnectPort, err = strconv.Atoi(ps[2]); err != nil {
+			return fw, bad
+		}
+	default:
+		return fw, bad
+	}
+	return fw, nil
 }

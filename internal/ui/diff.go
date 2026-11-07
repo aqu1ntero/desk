@@ -409,8 +409,9 @@ func (u *ui) diffOf(id string, m kanban.ChatMsg) []diffLine {
 
 // diffBlock is an Edit's change: the file, its +/- count and the view
 // switch (Auto · Unified · Split · Words), then the rows over their code's
-// highlighting; long ones fold at diffFold rows.
-func (u *ui) diffBlock(gtx layout.Context, id string, m kanban.ChatMsg) layout.Dimensions {
+// highlighting; long ones fold at diffFold rows. Open in workspace shows
+// it in card's workspace (after the frame: it changes the view).
+func (u *ui) diffBlock(gtx layout.Context, card, id string, m kanban.ChatMsg) layout.Dimensions {
 	k := u.k
 	lines := u.diffOf(id, m)
 	var add, del int
@@ -447,6 +448,17 @@ func (u *ui) diffBlock(gtx layout.Context, id string, m kanban.ChatMsg) layout.D
 				layout.Rigid(kit.HGap(6)),
 				layout.Rigid(k.Lbl(fmt.Sprintf("−%d", del), 12, kit.CRed, kit.Semi(kit.Mono))),
 				layout.Rigid(kit.HGap(10)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if card == "" || u.b.Card(card) == nil {
+						return layout.Dimensions{}
+					}
+					d, ok := k.IconBtn(gtx, "diffWS"+id, kit.IcoCode, false)
+					k.Tip(gtx, "diffWS"+id, d, "Open in workspace", false)
+					if ok {
+						u.post = func() { u.wsOpenEdit(card, m.Path, m.Edits) }
+					}
+					return layout.Inset{Right: 6}.Layout(gtx, func(layout.Context) layout.Dimensions { return d })
+				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return u.choice(gtx, "diffMode"+id, diffModes, mode, func(int) color.NRGBA { return color.NRGBA{} }, func(i int) {
 						if i == diffAuto {

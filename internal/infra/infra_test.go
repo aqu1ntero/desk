@@ -28,6 +28,8 @@ import (
 	"github.com/charmbracelet/x/vt"
 
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/sshc"
+	"github.com/lfdominguez/desk/internal/sshconfig"
 )
 
 // TestKeepBackwardsBlock: a block whose lines run backwards (the screen
@@ -341,7 +343,7 @@ func TestShellIntegration(t *testing.T) {
 			if name == "zsh" {
 				cmd.Env = append(os.Environ(), "PS1=%m%# ")
 			}
-			term, err := startTerm("local", cmd, 80, 24, func() {}, paneState{})
+			term, err := startCmd("local", cmd, 80, 24, func() {}, paneState{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -385,7 +387,7 @@ func TestPaneStateRestore(t *testing.T) {
 			start := func(st paneState, w, h int) *Term {
 				cmd := exec.Command(name, sh[:2]...)
 				cmd.Env = append(os.Environ(), "PS1=$ ", "DESK_GONE=1")
-				term, err := startTerm("local", cmd, w, h, func() {}, st)
+				term, err := startCmd("local", cmd, w, h, func() {}, st)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -467,7 +469,7 @@ func TestParseKeys(t *testing.T) {
 }
 
 func TestTermClose(t *testing.T) {
-	term, err := startTerm("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
+	term, err := startCmd("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,7 +488,7 @@ func TestTermClose(t *testing.T) {
 // TestRunStartsFullScreen: run with a short timeout leaves htop-like programs
 // running (here a plain sleep) and send_keys can then talk to them.
 func TestRunLeavesProgramRunning(t *testing.T) {
-	term, err := startTerm("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
+	term, err := startCmd("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -644,26 +646,9 @@ func (f fakeVault) search(context.Context, string) ([]vaultItem, error) {
 }
 func (f fakeVault) get(_ context.Context, id string) (vaultItem, error) { return f[id], nil }
 
-func TestAskpassFromVault(t *testing.T) {
-	g := filepath.Join(t.TempDir(), "Company", infraDir)
-	orgsMu.Lock()
-	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
-		vaults: map[string]vault{"pb": fakeVault{"id1": {ID: "id1", Name: "srv", Password: "s3cret"}}}}
-	orgsMu.Unlock()
-	askMu.Lock()
-	askTargets["t1"] = &askTarget{name: "srv", dir: g, password: &SecretRef{Vault: "pb", Item: "id1"}}
-	askMu.Unlock()
-	if r := answerAsk(askReq{"t1", "deploy@10.0.0.1's password: "}); !r.OK || r.Answer != "s3cret" {
-		t.Errorf("first try: %+v", r)
-	}
-	if r := answerAsk(askReq{"t1", "deploy@10.0.0.1's password: "}); r.OK { // retry goes to the user (no TUI here)
-		t.Errorf("a rejected vault password must not be sent again: %+v", r)
-	}
-}
-
 func TestConnectStatesAndExit(t *testing.T) {
 	mk := func(cmd *exec.Cmd) *Tab {
-		term, err := startTerm("x", cmd, 80, 24, func() {}, paneState{})
+		term, err := startCmd("x", cmd, 80, 24, func() {}, paneState{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -703,17 +688,7 @@ func TestConnectStatesAndExit(t *testing.T) {
 }
 
 func TestLegacyFixes(t *testing.T) {
-	screen := "Unable to negotiate with 203.0.113.7 port 22: no matching host key type found. Their offer: ssh-rsa,ssh-dss\n"
-	fixes, missing := legacyFixes(screen)
-	if !sshSupports("key")["ssh-rsa"] {
-		t.Skip("local ssh has no ssh-rsa")
-	}
-	if len(fixes) != 2 || fixes[0].String() != "HostKeyAlgorithms +ssh-rsa" || fixes[1].String() != "PubkeyAcceptedAlgorithms +ssh-rsa" {
-		t.Errorf("fixes %v", fixes)
-	}
-	if sshSupports("key")["ssh-dss"] == (len(missing) == 1) {
-		t.Errorf("ssh-dss must be reported missing only when ssh lacks it: %v", missing)
-	}
+	fixes := legacyFixes(&sshc.NegotiationError{What: "HostKeyAlgorithms", Theirs: []string{"ssh-rsa"}})
 	cfg := filepath.Join(t.TempDir(), "ssh_config")
 	os.WriteFile(cfg, []byte("Host a\n    HostName 1.1.1.1\n\nHost old\n    HostName 2.2.2.2\n    KexAlgorithms +diffie-hellman-group1-sha1\n\nMatch all\n    Include ~/.ssh/config\n"), 0o600)
 	if err := applyFixes(cfg, "old", append(fixes, legacyFix{"KexAlgorithms", []string{"diffie-hellman-group14-sha1"}})); err != nil {
@@ -728,8 +703,9 @@ func TestLegacyFixes(t *testing.T) {
 	if st, _ := os.Stat(cfg); st.Mode().Perm() != 0o600 {
 		t.Error("keep the file's permissions")
 	}
-	if out, err := exec.Command("ssh", "-G", "-F", cfg, "old").CombinedOutput(); err != nil {
-		t.Errorf("ssh rejects the fixed config: %s", out)
+	c, err := sshconfig.Resolve("old", sshconfig.Options{File: cfg, System: "none", Home: t.TempDir()})
+	if err != nil || !slices.Contains(c.Algorithms("hostkeyalgorithms"), "ssh-rsa") || !slices.Contains(c.Algorithms("kexalgorithms"), "diffie-hellman-group14-sha1") {
+		t.Errorf("the fixed config doesn't read back: %v", err)
 	}
 }
 
@@ -894,7 +870,7 @@ func TestSudoFill(t *testing.T) {
 	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
 		vaults: map[string]vault{"pb": fakeVault{"id9": {ID: "id9", Password: "hunter2"}}}}
 	orgsMu.Unlock()
-	term, err := startTerm("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
+	term, err := startCmd("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -926,7 +902,7 @@ func TestSudoFill(t *testing.T) {
 // or, here, closes it; then Claude is told not to connect again on its own.
 func TestConnectUnreachable(t *testing.T) {
 	dir := t.TempDir()
-	term, err := startTerm("web1", exec.Command("false"), 80, 24, func() {}, paneState{})
+	term, err := startCmd("web1", exec.Command("false"), 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1178,12 +1154,12 @@ func TestParseListing(t *testing.T) {
 }
 
 func TestLocalCopyPipeline(t *testing.T) {
-	// the directory path: tar out, tar in, through pipe's counter
+	// the directory path on the local host: tar out, tar in, through the counter
 	src, dst := t.TempDir(), t.TempDir()
 	os.MkdirAll(filepath.Join(src, "d", "sub"), 0o755)
 	os.WriteFile(filepath.Join(src, "d", "sub", "f"), []byte("hello"), 0o644)
 	var n atomic.Int64
-	err := pipe(exec.Command("tar", "-C", src, "-cf", "-", "d"), exec.Command("tar", "-C", dst, "-xf", "-"), &n, func() {})
+	err := copyFromRemote(context.Background(), "local", t.TempDir(), src, dst, fileEntry{Name: "d", Dir: true}, &n, func() {})
 	if b, _ := os.ReadFile(filepath.Join(dst, "d", "sub", "f")); err != nil || string(b) != "hello" || n.Load() == 0 {
 		t.Errorf("err %v, got %q, %d bytes", err, b, n.Load())
 	}
@@ -1380,6 +1356,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("XDG_STATE_HOME", state)  // nor the user's state: recordings, audit, session
 	os.Setenv("XDG_CONFIG_HOME", state) // nor desk's settings: the folders to search
 	os.Setenv("HOME", state)            // nor the user's home: ~/.claude.json, ~/Secure
+	sshBase.System = "none"             // nor the machine's ssh_config
 	code := m.Run()
 	os.RemoveAll(state)
 	os.Exit(code)
@@ -1561,16 +1538,20 @@ func TestParseForward(t *testing.T) {
 			t.Errorf("parseForward(%q) = %q, %v", q, got, ok)
 		}
 	}
-	f := portFwd{host: "web-01", dir: t.TempDir(), kind: "R", spec: "8080:localhost:80"}
-	args := f.args("forward")
-	if strings.Join(args[len(args)-5:], " ") != "-O forward -R 8080:localhost:80 web-01" {
-		t.Fatalf("args: %q", args)
-	}
-	if !slices.Contains(args, "ServerAliveInterval=15") {
-		t.Errorf("keepalive missing: %q", args)
-	}
-	if c := sshCommand("web-01", "/tmp/my group"); !strings.HasPrefix(c, "ssh -o ControlMaster=auto -o 'ControlPath=") || !strings.HasSuffix(c, " web-01") {
-		t.Errorf("ssh command %q", c)
+	for f, want := range map[portFwd]string{
+		{kind: "R", spec: "8080:localhost:80"}:     "{8080 localhost 80}",
+		{kind: "L", spec: "9000:db.internal:5432"}: "{9000 db.internal 5432}",
+		{kind: "D", spec: "1080"}:                  "{1080 socks 0}",
+		{kind: "D", spec: "1080:x:1"}:              "",
+		{kind: "L", spec: "1080"}:                  "",
+		{kind: "L", spec: "x:a:1"}:                 "",
+		{kind: "L", spec: "1:a:x"}:                 "",
+	} {
+		fw, err := f.forward()
+		got := fmt.Sprintf("{%d %s %d}", fw.ListenPort, fw.ConnectHost, fw.ConnectPort)
+		if (err == nil) != (want != "") || err == nil && got != want || fw.ListenHost != "" {
+			t.Errorf("%v: %s %v", f, got, err)
+		}
 	}
 }
 
@@ -1597,7 +1578,7 @@ func TestWakeOnLAN(t *testing.T) {
 	if len(hs) != 1 || hs[0].wol != "52:54:00:12:34:56 127.0.0.1:0" {
 		t.Fatalf("hosts %+v", hs)
 	}
-	if slices.Contains(sshArgs("nas", dir), "ServerAliveInterval=15") {
+	if o := sshOpts("nas", dir); o.Overrides != nil {
 		t.Error("the config's own ServerAliveInterval must win")
 	}
 	ln, err := net.ListenPacket("udp", "127.0.0.1:0")
@@ -1624,7 +1605,7 @@ func TestWakeOnLAN(t *testing.T) {
 // shows "reconnecting" with its history, and dials again.
 func TestRedial(t *testing.T) {
 	cmd := exec.Command("bash", "--norc", "-c", "echo before the drop; sleep 0.3; exit 255")
-	term, err := startTerm("local", cmd, 80, 24, func() {}, paneState{})
+	term, err := startCmd("local", cmd, 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}

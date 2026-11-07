@@ -1,10 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -80,7 +78,6 @@ func TestFixShell(t *testing.T) {
 // TestSubcommands: peer hands back its exit code, mcp serves
 // the protocol on stdin/stdout.
 func TestSubcommands(t *testing.T) {
-	t.Setenv("DESK_ASKPASS", "")
 	var code int
 	out := stdio(t, "", func() { code = run([]string{"desk", "peer", "help"}) })
 	if code != 0 || !strings.Contains(out, "desk peer:") {
@@ -100,42 +97,8 @@ func TestSubcommands(t *testing.T) {
 	}
 }
 
-// TestAskpass: as ssh's askpass, desk prints the workspace's answer.
-func TestAskpass(t *testing.T) {
-	dir, err := os.MkdirTemp("", "ap") // short: unix socket paths are limited
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	sock := filepath.Join(dir, "s")
-	l, err := net.Listen("unix", sock)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	prompt := make(chan string, 1)
-	go func() {
-		c, err := l.Accept()
-		if err != nil {
-			return
-		}
-		defer c.Close()
-		var r struct{ ID, Prompt string }
-		json.NewDecoder(c).Decode(&r)
-		prompt <- r.Prompt
-		json.NewEncoder(c).Encode(map[string]any{"Answer": "s3cret", "OK": true})
-	}()
-	t.Setenv("DESK_ASKPASS", sock)
-	var code int
-	out := stdio(t, "", func() { code = run([]string{"desk", "Password:"}) })
-	if code != 0 || out != "s3cret\n" || <-prompt != "Password:" {
-		t.Errorf("askpass: %d %q", code, out)
-	}
-}
-
 // TestBadBoard: a board that doesn't load exits 1 before any window.
 func TestBadBoard(t *testing.T) {
-	t.Setenv("DESK_ASKPASS", "")
 	xdg := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", xdg)
 	os.MkdirAll(filepath.Join(xdg, "desk"), 0o755)
@@ -150,7 +113,6 @@ func TestBadBoard(t *testing.T) {
 // TestWindow: the board loads, the crash log is opened beside it, and the
 // window's end is the exit code (1 on error, 0 otherwise).
 func TestWindow(t *testing.T) {
-	t.Setenv("DESK_ASKPASS", "")
 	for _, tc := range []struct {
 		err  error
 		want int

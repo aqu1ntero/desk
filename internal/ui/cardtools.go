@@ -16,10 +16,16 @@ import (
 
 // Card tools: a card's Claude reads its organization's integrations
 // through desk (infra.ServeCards, infra.CardArgs): alerts, tickets, a
-// link's state and description, CI runs and job logs.
+// link's state and description, CI runs and job logs; and its workspace
+// (add_project, ask_workspace; its workspace Claude's suggest_to_card),
+// answered by wsTool.
 
 // cardTool answers card id's tool call, off the UI goroutine.
 func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
+	id, ws := strings.CutPrefix(id, "ws:") // the card's workspace Claude's call
+	if text, ok, done := u.wsTool(id, ws, name, raw); done {
+		return text, ok
+	}
 	var a struct {
 		URL   string `json:"url"`
 		Job   int64  `json:"job"`

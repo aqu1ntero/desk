@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
+	"io"
 	"io/fs"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -26,6 +26,7 @@ import (
 	"github.com/charmbracelet/x/vt"
 
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
+	"github.com/lfdominguez/desk/internal/sshc"
 	deskvault "github.com/lfdominguez/desk/internal/vault"
 )
 
@@ -63,7 +64,7 @@ func lbPipeTerm(t *testing.T, w, h int) (*Term, *os.File) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.Close(); wr.Close() })
-	return &Term{emu: vt.NewEmulator(w, h), pty: wr}, r
+	return &Term{emu: vt.NewEmulator(w, h), pty: ptyProc{File: wr}}, r
 }
 
 func lbReadPipe(t *testing.T, r *os.File, n int) string {
@@ -225,16 +226,25 @@ func TestRunErrAndPipeErrors(t *testing.T) {
 		t.Errorf("success with stderr: %v", err)
 	}
 	var n atomic.Int64
-	err := pipe(exec.Command("sh", "-c", "echo bad >&2; exit 2"), exec.Command("cat"), &n, func() {})
-	if err == nil || !strings.Contains(err.Error(), "exit status 2") || !strings.Contains(err.Error(), "bad") {
+	c := counter{&n, func() {}}
+	sh := func(script string) func(io.Writer) error {
+		return func(w io.Writer) error { return remoteSh(context.Background(), "local", "", script, nil, w) }
+	}
+	read := func(script string) func(io.Reader) error {
+		return func(r io.Reader) error { return remoteSh(context.Background(), "local", "", script, r, nil) }
+	}
+	if err := through(sh("echo bad >&2; exit 2"), read("cat >/dev/null"), c); err == nil || err.Error() != "bad" {
 		t.Errorf("from fails: %v", err)
 	}
-	err = pipe(exec.Command("echo", "hi"), exec.Command("sh", "-c", "cat >/dev/null; echo nope >&2; exit 1"), &n, func() {})
-	if err == nil || err.Error() != "nope" {
+	if err := through(sh("echo hi"), read("cat >/dev/null; echo nope >&2; exit 1"), c); err == nil || err.Error() != "nope" {
 		t.Errorf("to fails: %v", err)
 	}
-	if err := pipe(exec.Command("/no/such/binary"), exec.Command("cat"), &n, func() {}); err == nil {
-		t.Error("a from that can't start must fail")
+	if err := through(sh("yes | head -c 300000"), read("exit 4"), c); err == nil || err.Error() != "exit status 4" {
+		t.Errorf("to stops early: %v", err) // the producer's broken pipe is its fallout
+	}
+	n.Store(0)
+	if err := through(sh("printf hello"), read("cat >/dev/null"), c); err != nil || n.Load() != 5 {
+		t.Errorf("counted %d: %v", n.Load(), err)
 	}
 }
 
@@ -841,98 +851,50 @@ func TestServerPasswordSources(t *testing.T) {
 	}
 }
 
-func TestAskpassSocketAndRemoteSh(t *testing.T) {
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+// TestSSHAskPrompts: each SSH question goes to the ask sheet as
+// "ssh <host> · <prompt>", masked unless it may echo; a raw #@ password
+// answers the first password, then the user is told it was rejected; a
+// vault that fails says why with the question; every question marks the
+// server as answering.
+func TestSSHAskPrompts(t *testing.T) {
+	qs := lbFakeAsk(t, func(i int, q *question) (string, bool) { return fmt.Sprint("answer", i), i < 4 })
 	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host web1\n    HostName 10.0.0.1\n    #@ vault pb\n    #@ password web1-item\n")
-	env, tgt := askpassEnv("web1", dir)
-	if askSock == "" || tgt == nil {
-		t.Skip("no askpass socket")
+	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host srv\n    #@ password-raw fake-raw\nHost vlt\n    #@ vault nope\n    #@ password x\n")
+	asked := 0
+	var o sshc.Options
+	sshAsk(&o, "srv", dir, func() { asked++ })
+	if a, err := o.Prompt("Are you sure you want to continue connecting (yes/no/[fingerprint])? ", true); a != "answer0" || err != nil ||
+		(*qs)[0].title != "ssh srv · Are you sure you want to continue connecting (yes/no/[fingerprint])?" || (*qs)[0].masked {
+		t.Errorf("host key: %q %v %+v", a, err, (*qs)[0])
 	}
-	vars := map[string]string{}
-	for _, e := range env {
-		k, v, _ := strings.Cut(e, "=")
-		vars[k] = v
-	}
-	if vars["SSH_ASKPASS_REQUIRE"] != "force" || vars["DESK_ASKPASS"] != askSock || vars["DESK_ASKPASS_ID"] == "" || vars["SSH_ASKPASS"] == "" {
-		t.Errorf("env %v", env)
-	}
-	askMu.Lock()
-	reg := askTargets[vars["DESK_ASKPASS_ID"]]
-	askMu.Unlock()
-	if reg != tgt || tgt.name != "web1" || tgt.dir != dir || tgt.password == nil || tgt.password.Item != "web1-item" {
-		t.Errorf("target %+v", tgt)
-	}
-	askMu.Lock()
-	tgt.password = &SecretRef{Raw: "fake-pw"}
-	askMu.Unlock()
-	ask := func(prompt string) askRes {
-		c, err := net.Dial("unix", askSock)
-		if err != nil {
-			t.Skipf("askpass socket of an earlier test is gone: %v", err)
-		}
-		defer c.Close()
-		json.NewEncoder(c).Encode(askReq{vars["DESK_ASKPASS_ID"], prompt})
-		var r askRes
-		json.NewDecoder(c).Decode(&r)
-		return r
-	}
-	if r := ask("deploy@10.0.0.1's password: "); r != (askRes{"fake-pw", true}) {
-		t.Errorf("first try: %+v", r)
-	}
-	if r := ask("deploy@10.0.0.1's password: "); r.OK {
-		t.Errorf("a retry goes to the user (none here): %+v", r)
-	}
-
-	cmd := remoteSh(context.Background(), "web1", dir, "echo 'hi'")
-	if a := cmd.Args; a[0] != "ssh" || a[len(a)-2] != "web1" || a[len(a)-1] != `sh -c 'echo '\''hi'\'''` {
-		t.Errorf("args %q", a)
-	}
-	if !strings.Contains(strings.Join(cmd.Env, "\n"), "SSH_ASKPASS_REQUIRE=force") {
-		t.Error("remote commands get askpass")
-	}
-}
-
-func TestAnswerAskPrompts(t *testing.T) {
-	qs := lbFakeAsk(t, func(i int, q *question) (string, bool) { return fmt.Sprint("answer", i), true })
-	tm := &Term{emu: vt.NewEmulator(10, 2)}
-	dir := t.TempDir()
-	askMu.Lock()
-	askTargets["lb-plain"] = &askTarget{name: "srv", dir: dir, term: tm}
-	askTargets["lb-raw"] = &askTarget{name: "srv", dir: dir, password: &SecretRef{Raw: "fake-raw"}}
-	askTargets["lb-vault"] = &askTarget{name: "srv", dir: filepath.Join(t.TempDir(), "Acme", infraDir), password: &SecretRef{Vault: "nope", Item: "x"}}
-	askMu.Unlock()
-	t.Cleanup(func() {
-		askMu.Lock()
-		delete(askTargets, "lb-plain")
-		delete(askTargets, "lb-raw")
-		delete(askTargets, "lb-vault")
-		askMu.Unlock()
-	})
-	if r := answerAsk(askReq{"lb-none", "password: "}); r != (askRes{}) || len(*qs) != 0 {
-		t.Errorf("unknown id: %+v", r)
-	}
-	r := answerAsk(askReq{"lb-plain", "Are you sure you want to continue connecting (yes/no/[fingerprint])? "})
-	if r != (askRes{"answer0", true}) || (*qs)[0].title != "ssh srv · Are you sure you want to continue connecting (yes/no/[fingerprint])?" || (*qs)[0].masked {
-		t.Errorf("host key: %+v %+v", r, (*qs)[0])
-	}
-	if !tm.Connected() {
-		t.Error("a question means the server answered")
-	}
-	answerAsk(askReq{"lb-plain", "Enter passphrase for key '/k': "})
+	o.Prompt("Enter passphrase for key '/k': ", false)
 	if !(*qs)[1].masked || strings.Contains((*qs)[1].title, "vault") {
 		t.Errorf("passphrase: %+v", (*qs)[1])
 	}
-	if r := answerAsk(askReq{"lb-raw", "srv's Password: "}); r != (askRes{"fake-raw", true}) || len(*qs) != 2 {
-		t.Errorf("raw first try: %+v", r)
+	if pw, ok := o.Password(); pw != "fake-raw" || !ok || len(*qs) != 2 {
+		t.Errorf("raw first try: %q %v", pw, ok)
 	}
-	answerAsk(askReq{"lb-raw", "srv's Password: "})
+	o.Prompt("srv's Password: ", false)
 	if q := (*qs)[2]; q.title != "ssh srv · srv's Password:  (the vault password was rejected)" || !q.masked {
 		t.Errorf("retry: %+v", q)
 	}
-	answerAsk(askReq{"lb-vault", "password:"})
-	if q := (*qs)[3]; q.title != `ssh srv · password:  (vault: no vault "nope")` {
+	if asked != 3 {
+		t.Errorf("asked %d", asked)
+	}
+	sshAsk(&o, "vlt", dir, func() {})
+	if _, ok := o.Password(); ok {
+		t.Error("a vault that fails has no password")
+	}
+	o.Prompt("password:", false)
+	if q := (*qs)[3]; q.title != `ssh vlt · password:  (vault: no vault "nope")` {
 		t.Errorf("vault error: %q", q.title)
+	}
+	o.Prompt("Password:", false)
+	if q := (*qs)[4]; q.title != "ssh vlt · Password:" {
+		t.Errorf("the vault's error is said once: %q", q.title)
+	}
+	if _, err := o.Prompt("Password:", false); err == nil {
+		t.Error("a cancelled question is an error")
 	}
 }
 
@@ -946,9 +908,8 @@ func TestWakeLegacyApplyErrors(t *testing.T) {
 	if err := wake("52:54:00:12:34:56 127.0.0.1:notaport"); err == nil {
 		t.Error("bad address must fail")
 	}
-	fixes, missing := legacyFixes("Unable to negotiate with 192.0.2.1 port 22: no matching cipher found. Their offer: lb-bogus-cipher,lb-other\n")
-	if len(fixes) != 0 || strings.Join(missing, ",") != "lb-bogus-cipher,lb-other" {
-		t.Errorf("unsupported: %v %v", fixes, missing)
+	if fixes := legacyFixes(&sshc.NegotiationError{What: "Ciphers", Theirs: []string{"lb-bogus-cipher", "lb-other"}}); len(fixes) != 0 {
+		t.Errorf("unsupported: %v", fixes)
 	}
 	cfg := filepath.Join(t.TempDir(), "ssh_config")
 	if err := applyFixes(cfg, "a", nil); err == nil {
@@ -969,13 +930,6 @@ func TestPortForwardText(t *testing.T) {
 		if s := f.String(); s != want {
 			t.Errorf("%q, want %q", s, want)
 		}
-	}
-	dir := filepath.Join(t.TempDir(), "Acme", infraDir)
-	write(t, filepath.Join(orgOfInfra(dir), ".desk", serversFile), "Host web1\n")
-	a := portFwd{host: "web1", dir: dir, kind: "R", spec: "9000:localhost:3000"}.args("cancel")
-	tail := strings.Join(a[len(a)-5:], " ")
-	if tail != "-O cancel -R 9000:localhost:3000 web1" || strings.Count(strings.Join(a, " "), "web1") != 1 || a[len(a)-7] != "-F" {
-		t.Errorf("args %q", a)
 	}
 }
 

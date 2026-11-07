@@ -39,6 +39,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 🖥️ **Infra workspace** | Live SSH panes of the org's servers, from a plain OpenSSH config (or imported from Ásbrú), shared with an infrastructure Claude that asks before every change. |
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
+| 🧭 **Workspace** | Each card's IDE view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
 | 🔐 **Vaults** | Tokens from Bitwarden/Vaultwarden, Passbolt, env vars or a command. Unlocked keys stay in memory only. |
 | 🪶 **No CLIs needed** | Every provider and vault is spoken to in Go. No `gh`, `glab`, `bw` or `wl-paste`. |
 
@@ -61,7 +62,7 @@ desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…); X11 and ma
 [roadmap](#roadmap). It needs
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`. Optional:
 `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for per-organization Claude
-profiles, and `ssh` for the infra workspace.
+profiles. The infra workspace speaks SSH itself (no `ssh` program needed).
 
 ### Nix
 
@@ -158,8 +159,9 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   **Snooze** (1 hour … 1 week, or your own `2h30m`) hides it until then.
 - **Card tools**: every card's Claude has desk's read-only tools (`mcp__desk__*`): `alerts`,
   `tickets`, `link`, `ci` and `ci_log`, through the org's accounts. They add to the org's own
-  workflow tools; Claude falls back to them when one of the workflow's fails.
-- **Right-click a card** for its menu: open its session or full window, its terminal, edit it,
+  workflow tools; Claude falls back to them when one of the workflow's fails. `add_project` and
+  `ask_workspace` reach the card's workspace.
+- **Right-click a card** for its menu: open its session or full window, its terminal, its workspace, edit it,
   copy its key, move it to another column, archive it.
 - **Desktop notifications** when a card turns to your turn, blocked, failed or done, unless you're
   looking at it.
@@ -216,6 +218,13 @@ runs under.
   **Explain** has Haiku take it apart flag by flag.
 - **Terminals**: **T** opens the card's session in the full Claude Code TUI inside desk (desk
   lets go of the chat's process first). It keeps running while you look at the board.
+- **The workspace**: the header's **`</>`** (or the card menu's **W**) opens the card's projects
+  (its folder, plus the ones its Claude adds with `add_project`, with an Undo toast) in a tree,
+  files in tabs of a code editor (highlighting, line numbers, undo, **Ctrl+S** saves, reloads
+  when Claude edits an open file), and a workspace Claude that only reads: what you have open,
+  selected or the change you're viewing goes with your message, it suggests changes as diffs, and
+  the card's Claude can ask it things (`ask_workspace`). A diff's **`</>`** opens the file on that
+  change, marked in the gutter.
 - **Artifacts** the session publishes are listed under the card's links.
 - **Selecting text**: drag or double-click; Claude's replies select with formatting kept, and
   **Copy** takes a whole reply as Markdown.
@@ -332,8 +341,13 @@ to a card unasked or put follow-up work in To do. Claude Code users outside desk
 through the bundled plugin ([`plugin/`](plugin)).
 
 An organization's servers are one real OpenSSH config, `<Org>/.desk/ssh_config` (or `[servers] file`).
-desk runs `ssh -F <that file> <alias>`, so the same command works from any terminal. desk's own
-data are comment lines OpenSSH ignores, `#@ key value`:
+desk connects with its own SSH client (Go, no `ssh` program), reading that file the way
+`ssh -F <that file> <alias>` would, so the same command works from any terminal. Panes, the files
+split (SFTP, or `sh`/`tar` on servers without it), the `changes` tool and port forwards share one
+connection per server; questions (passwords, passphrases, yes/no) go to desk's ask box, a
+`#@ password` from the vault first. Not supported: GSSAPI/Kerberos, host-based auth, PKCS#11 smart
+cards, FIDO keys outside an agent, X11 forwarding, compression; the pane says so. desk's own data
+are comment lines OpenSSH ignores, `#@ key value`:
 
 <details>
 <summary><b>An annotated <code>ssh_config</code></b></summary>
@@ -372,12 +386,14 @@ Match all
 - Comments go on their own lines (`#@ desc a # b` keeps `a # b`).
 - `password ITEM [FIELD]` fills `{host}`, `{user}` and `{group}` in ITEM and takes it from
   `vault`; `password-raw` is the password itself. The nearest level with either one wins.
-- **A changed host key** (a reinstalled server, rotated keys) stops ssh. The pane's box then shows
-  the key the server sent next to the one in `known_hosts`, by fingerprint. **Accept new key** (A)
-  drops that line and reconnects, and ssh saves the new key; it does nothing if the line no longer
-  holds that key for that host.
+- **A changed host key** (a reinstalled server, rotated keys) stops the connection. The pane's box
+  then shows the key the server sent next to the one in `known_hosts`, by fingerprint. **Accept
+  new key** (A) drops that line, saves the key shown and reconnects; it does nothing if the line
+  no longer holds that key for that host.
+- **Old algorithms**: a server offering only ones modern SSH turns off gets **Fix algorithms** (F),
+  which writes `KexAlgorithms +…` (or `HostKeyAlgorithms`, `Ciphers`, `MACs`) into its Host block.
 - **Includes** resolving inside the org folder count; ones outside it (like `~/.ssh/config`) are
-  ssh's alone, so your personal hosts never list as the org's servers.
+  read when connecting but never listed, so your personal hosts never show as the org's servers.
 - **Dynamic inventory**: `#@ hosts-cmd PATH` runs at start and on reload and keeps what it prints
   (ssh_config text or `name user@host:port` lines) in `<Org>/.desk/servers-dynamic.conf`.
 - Every tab of the org works in `<Org>/.desk/infra/`: its Claude's cwd, with `runbooks/` and its
@@ -493,7 +509,8 @@ Planned, not there yet:
 - [Gio](https://gioui.org) for the GUI, [charmbracelet](https://github.com/charmbracelet)'s
   `x/vt` and `ultraviolet` for the terminals (patched copies in [`third_party/`](third_party)),
   [goldmark](https://github.com/yuin/goldmark) and [chroma](https://github.com/alecthomas/chroma)
-  for the conversation, [fzf](https://github.com/junegunn/fzf)'s matching algorithm for every
+  for the conversation, [gvcode](https://github.com/oligo/gvcode) for the workspace's editor,
+  [fzf](https://github.com/junegunn/fzf)'s matching algorithm for every
   search box, [go-adf](https://github.com/nyactl/go-adf) and
   [go-passbolt](https://github.com/passbolt/go-passbolt).
 - Fonts: [Manrope](https://github.com/sharanda/manrope) and

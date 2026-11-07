@@ -10,9 +10,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 - **Linux under Wayland**: Hyprland, Sway, KDE, GNOME and other Wayland compositors. X11 and macOS are on the roadmap, not there yet.
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: the `claude` command on your `PATH`. Every card runs it.
 - **Optional: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login.
-- **Optional: `ssh`** (OpenSSH). The infra workspace opens its server panes with it.
-
-desk talks to GitHub, GitLab, Bitbucket, Jira, Nagios and the password vaults itself. You don't need `gh`, `glab`, `bw` or `wl-paste`.
+desk talks to GitHub, GitLab, Bitbucket, Jira, Nagios, the password vaults and your servers (SSH) itself. You don't need `gh`, `glab`, `bw`, `wl-paste` or `ssh`: the infra workspace reads your OpenSSH config and keys, and uses your `ssh-agent` when one runs, but never runs the `ssh` program.
 
 ## Install it
 
@@ -56,7 +54,7 @@ Download `desk_<version>_amd64.deb` from the [latest release](https://github.com
 sudo apt install ./desk_<version>_amd64.deb
 ```
 
-It pulls in the Wayland, EGL, xkbcommon and PipeWire libraries it needs. Claude Code, `bwrap` and `ssh` you install yourself.
+It pulls in the Wayland, EGL, xkbcommon and PipeWire libraries it needs. Claude Code and `bwrap` you install yourself.
 
 </TabItem>
 <TabItem label="Arch Linux (AUR)">

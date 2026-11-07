@@ -38,6 +38,7 @@ Right-click a card to open it.
 |---|---|
 | <kbd>Enter</kbd> | Open its session. |
 | <kbd>T</kbd> | Its Claude Code terminal. |
+| <kbd>W</kbd> | Its [workspace](/sessions/workspace/). |
 | <kbd>E</kbd> | Edit it. |
 | <kbd>Ctrl</kbd>+<kbd>C</kbd> | Copy its key (`DESK-12`). |
 | <kbd>1</kbd>…<kbd>9</kbd> | Move it to that column. |
@@ -135,6 +136,17 @@ The full Claude Code TUI (<kbd>T</kbd>). Every key goes to Claude Code, includin
 | <kbd>Ctrl</kbd>+<kbd>V</kbd> | An image on the clipboard is saved and its path pasted. Otherwise <kbd>Ctrl</kbd>+<kbd>V</kbd> goes to Claude Code. |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> | The same for an image; otherwise pastes the clipboard's text. |
 
+## Card workspace
+
+A card's [workspace](/sessions/workspace/). Board keys don't work here.
+
+| Keys | What they do |
+|---|---|
+| <kbd>Ctrl</kbd>+<kbd>S</kbd> (in the editor) | Save the file. |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (in the editor) | Undo, redo. |
+| <kbd>Enter</kbd> (in the message box) | Send to the workspace Claude, with what you're looking at. <kbd>Shift</kbd>+<kbd>Enter</kbd> is a new line. |
+| <kbd>Esc</kbd> | Back to the card's session, from the editor too. |
+
 ## Infra workspace
 
 In an organization's **Servers** view. These work everywhere in the workspace, terminal panes included.
@@ -221,7 +233,7 @@ The box over a pane that isn't connected. While it's up, the pane's keys go to t
 | Keep waiting | <kbd>W</kbd> or <kbd>Enter</kbd> | The server isn't answering yet. |
 | Reconnect / Retry now | <kbd>R</kbd> | It failed, or is reconnecting. |
 | Accept new key | <kbd>A</kbd> | The server's host key changed. See [Host keys](/servers/host-keys/). |
-| Fix algorithms | <kbd>F</kbd> | The server offers only algorithms your ssh turned off. |
+| Fix algorithms | <kbd>F</kbd> | The server offers only algorithms modern SSH turns off. |
 
 ### Files split
 

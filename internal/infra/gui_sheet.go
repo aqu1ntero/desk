@@ -90,7 +90,7 @@ func (u *ui) sheets(gtx layout.Context) {
 
 // askView is how the ask sheet shows a question's title. Vault unlocks
 // ("Master password · acme-vault") read as Unlock acme-vault with the kind
-// above the field; ssh's askpass ("ssh web-01 · deploy@web-01's password:
+// above the field; an SSH connection's question ("ssh web-01 · deploy@web-01's password:
 // (the vault password was rejected)") as what the host asks, its
 // parenthesized note as the error. A one-time code gets the code boxes.
 type askView struct {

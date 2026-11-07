@@ -35,17 +35,19 @@ import (
 // what it was when the floor was set, rounded down. Raise one when its
 // tests grow; never lower one to let a change in.
 var floors = map[string]float64{
-	"github.com/lfdominguez/desk/internal/claude": 99,
-	"github.com/lfdominguez/desk/internal/clip":   100,
-	"github.com/lfdominguez/desk/internal/fzf":    100,
-	"github.com/lfdominguez/desk/internal/infra":  99,
-	"github.com/lfdominguez/desk/internal/kanban": 100,
-	"github.com/lfdominguez/desk/internal/links":  99,
-	"github.com/lfdominguez/desk/internal/orgs":   99,
-	"github.com/lfdominguez/desk/internal/term":   98,
-	"github.com/lfdominguez/desk/internal/ui":     99,
-	"github.com/lfdominguez/desk/internal/ui/kit": 99,
-	"github.com/lfdominguez/desk/internal/vault":  100,
+	"github.com/lfdominguez/desk/internal/claude":    99,
+	"github.com/lfdominguez/desk/internal/clip":      100,
+	"github.com/lfdominguez/desk/internal/fzf":       100,
+	"github.com/lfdominguez/desk/internal/infra":     99,
+	"github.com/lfdominguez/desk/internal/kanban":    100,
+	"github.com/lfdominguez/desk/internal/links":     99,
+	"github.com/lfdominguez/desk/internal/orgs":      99,
+	"github.com/lfdominguez/desk/internal/sshc":      95,
+	"github.com/lfdominguez/desk/internal/sshconfig": 97,
+	"github.com/lfdominguez/desk/internal/term":      98,
+	"github.com/lfdominguez/desk/internal/ui":        99,
+	"github.com/lfdominguez/desk/internal/ui/kit":    99,
+	"github.com/lfdominguez/desk/internal/vault":     100,
 }
 
 var tags = []string{"-tags", "nox11"}
