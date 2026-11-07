@@ -67,9 +67,12 @@ func (u *ui) projects(c *kanban.Card) []string {
 	return append([]string{orgs.Dir(u.root, c.Org, c.Dir)}, c.Projects...)
 }
 
+// wsRedraw marks a workspace change for sig, so the frame draws it again.
+func (u *ui) wsRedraw() { u.wsGen++ }
+
 // wsToggle expands folder dir in the tree (reading it) or collapses it.
 func (u *ui) wsToggle(st *wsState, dir string) {
-	u.wsGen++
+	u.wsRedraw()
 	if st.open[dir] {
 		delete(st.open, dir)
 		delete(st.kids, dir) // read again when expanded: the folder may have changed
@@ -154,7 +157,7 @@ func (u *ui) wsChanged(id string) {
 	if st := u.ws[id]; st != nil && st.proc != nil {
 		st.stale = true
 	}
-	u.wsGen++
+	u.wsRedraw()
 }
 
 // wsStart starts card id's workspace Claude: the card's account, in its
@@ -209,7 +212,7 @@ func (u *ui) wsAsk(id, prompt, from string) error {
 		return err
 	}
 	st.from = append(st.from, from)
-	u.wsGen++
+	u.wsRedraw()
 	return nil
 }
 
@@ -229,7 +232,7 @@ func (u *ui) wsEvent(id string, p session, e claude.Event) {
 	if st == nil || st.proc != p {
 		return
 	}
-	u.wsGen++
+	u.wsRedraw()
 	key := wsKey(id)
 	switch e.Kind {
 	case claude.KindInit:

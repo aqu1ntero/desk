@@ -98,7 +98,7 @@ func (u *ui) wsOpen(st *wsState, path string) *wsTab {
 		if t.path == path {
 			st.cur = i
 			u.wsCheck(t)
-			u.wsGen++
+			u.wsRedraw()
 			return t
 		}
 	}
@@ -116,7 +116,7 @@ func (u *ui) wsOpen(st *wsState, path string) *wsTab {
 	})
 	st.tabs = append(st.tabs, t)
 	st.cur = len(st.tabs) - 1
-	u.wsGen++
+	u.wsRedraw()
 	return t
 }
 
@@ -165,7 +165,7 @@ func (u *ui) wsSave(t *wsTab) {
 		t.mtime = fi.ModTime()
 	}
 	t.dirty, t.disk, t.closing = false, false, false
-	u.wsGen++
+	u.wsRedraw()
 	u.showToast("Saved "+filepath.Base(t.path), false)
 }
 
@@ -176,7 +176,7 @@ func (u *ui) wsCheck(t *wsTab) {
 	if err != nil || fi.ModTime().Equal(t.mtime) {
 		return
 	}
-	u.wsGen++
+	u.wsRedraw()
 	if t.dirty {
 		t.disk = true
 		return
@@ -198,7 +198,7 @@ func (u *ui) wsReload(t *wsTab) {
 	t.diff.ClearDiff()
 	t.edit, t.note = nil, ""
 	t.gen++
-	u.wsGen++
+	u.wsRedraw()
 }
 
 // wsKeepMine leaves t's edits over the file's change on disk.
@@ -207,7 +207,7 @@ func (u *ui) wsKeepMine(t *wsTab) {
 		t.mtime = fi.ModTime()
 	}
 	t.disk = false
-	u.wsGen++
+	u.wsRedraw()
 }
 
 // wsTouched is the main session's edit to path done: its open tabs check it.
@@ -306,12 +306,12 @@ func (u *ui) wsCloseTab(st *wsState, i int) {
 	if t.dirty && !t.closing {
 		t.closing = true
 		u.showToast(filepath.Base(t.path)+" has changes not saved: Ctrl+S saves them, × again drops them", false)
-		u.wsGen++
+		u.wsRedraw()
 		return
 	}
 	st.tabs = append(st.tabs[:i], st.tabs[i+1:]...)
 	if st.cur >= i && st.cur > 0 {
 		st.cur--
 	}
-	u.wsGen++
+	u.wsRedraw()
 }
