@@ -135,7 +135,7 @@ jobs:
   #   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD  notarytool's login (an app-specific password)
   macos:
     needs: package
-    runs-on: macos-14
+    runs-on: macos-latest
     env:
       VERSION: ${{ needs.package.outputs.version }}
       APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
