@@ -42,6 +42,7 @@ On Linux, desk needs a Wayland session (Hyprland, Sway, KDE, GNOME…). It's bui
 - **"desk.app cannot be opened because Apple cannot check it".** The release's app is ad-hoc signed, not with an Apple Developer ID, so Gatekeeper stops it the first time. Right-click it in Finder, choose **Open**, then **Open** again, or run `xattr -dr com.apple.quarantine /Applications/desk.app` once. "desk.app is damaged and can't be opened" is the same quarantine flag on a copy that lost its signature: the `xattr` command fixes it too.
 - **Sessions fail with `claude` not found.** An app opened from Finder or the Dock doesn't get your terminal's `PATH`, only the system's (`/usr/bin:/bin:/usr/sbin:/sbin`), so `claude` in `~/.local/bin` or `/opt/homebrew/bin` is out of reach. desk reads the `PATH` of your login shell (`$SHELL -l`) at start, so whatever your shell's profile adds is found. If your profile only sets it for interactive shells (fish's `if status is-interactive`, zsh's `.zshrc`), move that line to the login part (`config.fish` outside the block, `.zprofile`).
 - **No notifications.** macOS delivers them only to an app bundle: run `desk.app`, not a bare `desk` binary (a `go build`, or `nix run`). The first one asks for permission; if you said no, allow desk in System Settings → Notifications.
+- **desk quits as it opens, in a virtual machine.** desk draws with the GPU through Metal. A macOS VM without a virtual GPU (a plain 800×600 display, "No Kext Loaded" under Graphics/Displays in System Information) has no Metal, and desk can't open its window there.
 - **The virtual camera is missing.** Sharing a terminal as a webcam needs PipeWire and v4l2loopback, which are Linux-only; the rest of the infra workspace works.
 
 ## $SHELL points at a shell that isn't there
@@ -64,7 +65,7 @@ On macOS there is no bwrap: a profile's sessions run `claude` with `CLAUDE_CONFI
 
 On Linux, <kbd>Ctrl</kbd>+<kbd>V</kbd> of an image reads the clipboard straight from the compositor, through the Wayland data-control protocol (`ext-data-control` or wlroots' `wlr-data-control`). Hyprland, Sway, other wlroots compositors and KDE have it. On macOS, <kbd>⌘</kbd>+<kbd>V</kbd> reads the pasteboard's PNG or TIFF image.
 
-On a compositor without it, desk can't see the image, and <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes the clipboard's text (if any) without an error. Save the image to a file and put its path in the message instead. On macOS desk reads the system pasteboard (`NSPasteboard`), which always has the image.
+On a compositor without it, desk can't see the image, and <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes the clipboard's text (if any) without an error. Save the image to a file and put its path in the message instead.
 
 ## A link says "no GitHub account"
 

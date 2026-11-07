@@ -93,7 +93,7 @@ Prefix a scene's shots with its section, and use them in a page as `![alt](../..
 
 ## Releases
 
-Releases are dated, not semver (desk is an app, not a library): `2026.11.03`, and another the same day `2026.11.03.1`, `.2`… Pushing such a tag builds the `.deb` and the AppImage, publishes them as a GitHub release, and updates the AUR package `desk-kanban`. The workflow refuses a tag that isn't a real date in that form.
+Releases are dated, not semver (desk is an app, not a library): `2026.11.03`, and another the same day `2026.11.03.1`, `.2`… Pushing such a tag builds the `.deb`, the AppImage and the macOS zip (`desk.app`, from `packaging/macos/build-app.sh`), publishes them as a GitHub release, and updates the AUR package `desk-kanban`. The workflow refuses a tag that isn't a real date in that form.
 
 ```sh
 git tag 2026.11.03 && git push origin 2026.11.03
@@ -101,7 +101,7 @@ git tag 2026.11.03 && git push origin 2026.11.03
 
 The version reaches the binary as `-X main.version=…`. `desk --version` and the Settings say which one runs; a build between releases says `dev-<commit>`.
 
-Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly) with that commit's `.deb` and AppImage, versioned like `2026.11.04~git1a2b3c4`.
+Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly) with that commit's `.deb`, AppImage and macOS zip, versioned like `2026.11.04~git1a2b3c4`.
 
 ## Vendored dependencies
 

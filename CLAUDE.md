@@ -19,7 +19,8 @@ Without the flake, the same through
 `nix-shell -p go pkg-config wayland libxkbcommon libGL vulkan-headers pipewire --run 'CGO_CFLAGS_ALLOW=-fno-strict-overflow GOTOOLCHAIN=local go test -tags nox11 ./...'`.
 
 Packaging: `.github/workflows/release.yml` builds the `.deb` and the AppImage on every push, from
-`packaging/` (desktop file, icon). On a release tag its `aur` job also publishes
+`packaging/` (desktop file, icon), and its `macos` job the universal `desk.app` zip
+(`packaging/macos/build-app.sh`; Developer ID signing and notarization only with the `APPLE_*` secrets). On a release tag its `aur` job also publishes
 `packaging/aur/PKGBUILD` (AUR `desk-kanban`: "desk" is taken there) with that tag's `pkgver` and
 source checksum, given the `AUR_SSH_PRIVATE_KEY` secret. Releases are dated tags, `2026.11.03` then `2026.11.03.1`, `.2`…
 the same day (checked by the workflow, which publishes them); the version reaches the binary as
