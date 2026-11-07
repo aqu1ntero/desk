@@ -1,15 +1,15 @@
 ---
 title: Install
-description: Every way to install desk on Linux, and what it needs to run.
+description: Every way to install desk on Linux and macOS, and what it needs to run.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Requirements
 
-- **Linux under Wayland**: Hyprland, Sway, KDE, GNOME and other Wayland compositors. X11 and macOS are on the roadmap, not there yet.
+- **Linux under Wayland** (Hyprland, Sway, KDE, GNOME and other Wayland compositors; X11 is on the roadmap), or **macOS 12 or later** (Apple silicon or Intel).
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: the `claude` command on your `PATH`. Every card runs it.
-- **Optional: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login.
+- **Optional, on Linux: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login. macOS needs nothing for that: there each profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`.
 desk talks to GitHub, GitLab, Bitbucket, Jira, Nagios, the password vaults and your servers (SSH) itself. You don't need `gh`, `glab`, `bw`, `wl-paste` or `ssh`: the infra workspace reads your OpenSSH config and keys, and uses your `ssh-agent` when one runs, but never runs the `ssh` program.
 
 ## Install it
@@ -31,7 +31,7 @@ inputs.desk.url = "github:lfdominguez/desk";
 environment.systemPackages = [ inputs.desk.packages.${pkgs.system}.default ];
 ```
 
-The flake builds for `x86_64-linux` and `aarch64-linux`. A flake build reports its version as `dev-<commit>`.
+The flake builds for `x86_64-linux`, `aarch64-linux` and `aarch64-darwin` (Apple silicon; nixpkgs no longer builds for Intel Macs, so take the macOS download there). A flake build reports its version as `dev-<commit>`. On macOS it is the bare `desk` binary, not `desk.app`, so it shows no notifications: macOS only delivers them to an app bundle.
 
 **Off NixOS** (Ubuntu, Fedora…), nixpkgs' graphics libraries can't find your system's GPU driver: they only look in `/run/opengl-driver`. When that folder is missing, the `desk` wrapper points them at nixpkgs' own Mesa instead. That covers Intel, AMD and nouveau; anything else (NVIDIA's own driver, for example) gets llvmpipe, Mesa's software renderer. If you set `__EGL_VENDOR_LIBRARY_FILENAMES`, `LIBGL_DRIVERS_PATH` or `GBM_BACKENDS_PATH` yourself, your value wins. See [Troubleshooting](/reference/troubleshooting/#nix-run-off-nixos).
 
@@ -74,9 +74,29 @@ makepkg -si
 It builds the tagged release from source and installs `desk`. The AUR's own `desk` package is another program (a shell workspace manager), so the two conflict. Claude Code is the AUR's `claude-code`; `bubblewrap` and `openssh` are listed as optional dependencies.
 
 </TabItem>
+<TabItem label="macOS">
+
+Download `desk-<version>-macos.zip` from the [latest release](https://github.com/lfdominguez/desk/releases/latest). It holds `desk.app`, one universal app for Apple silicon and Intel. Unzip it and move it to Applications:
+
+```sh
+unzip desk-*-macos.zip
+mv desk.app /Applications/
+```
+
+The app is not signed with an Apple Developer ID, so the first time Gatekeeper says it "cannot be opened because Apple cannot check it". Right-click `desk.app` in Finder, choose **Open**, then **Open** again; after that it opens normally. Or clear the download's quarantine flag once:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/desk.app
+```
+
+`desk --version` and the other subcommands are the app's binary: `/Applications/desk.app/Contents/MacOS/desk --version`. Link it onto your `PATH` if you want the short name (`ln -s /Applications/desk.app/Contents/MacOS/desk ~/.local/bin/desk`).
+
+What stays Linux-only: the infra workspace's virtual camera (sharing a terminal as a webcam needs PipeWire and v4l2loopback). Everything else works the same; desk keeps its files in the same places as on Linux, `~/.config/desk` and `~/.local/share/desk`.
+
+</TabItem>
 <TabItem label="From source">
 
-You need Go (the version in `go.mod`), cgo, and the Wayland, xkbcommon, EGL and PipeWire headers:
+**Linux:** you need Go (the version in `go.mod`), cgo, and the Wayland, xkbcommon, EGL and PipeWire headers:
 
 ```sh
 git clone https://github.com/lfdominguez/desk.git
@@ -86,14 +106,24 @@ CGO_CFLAGS_ALLOW=-fno-strict-overflow go build -tags nox11 -o desk ./cmd/desk
 
 With Nix, `nix develop` gives you a shell with all of that. See [Development](/reference/development/).
 
+**macOS:** you need Go and the Xcode command line tools (`xcode-select --install`), nothing else. Build `desk.app` (universal, ad-hoc signed) and its zip into `dist/`:
+
+```sh
+git clone https://github.com/lfdominguez/desk.git
+cd desk
+packaging/macos/build-app.sh
+```
+
+`ARCHS=arm64` builds only your Mac's architecture, which is faster; `VERSION=…` stamps a version. A plain `go build -tags nox11 -o desk ./cmd/desk` works too, but only the app shows notifications.
+
 </TabItem>
 </Tabs>
 
 ## Releases and nightly
 
-Releases are dated, not numbered: `2026.11.03`, and a second one the same day `2026.11.03.1`, then `.2`… Each one publishes a `.deb` and an AppImage on the [releases page](https://github.com/lfdominguez/desk/releases), and updates the AUR package.
+Releases are dated, not numbered: `2026.11.03`, and a second one the same day `2026.11.03.1`, then `.2`… Each one publishes a `.deb`, an AppImage and the macOS zip on the [releases page](https://github.com/lfdominguez/desk/releases), and updates the AUR package.
 
-Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly): a `.deb` and an AppImage of that commit. Its version reads like `2026.11.04~git1a2b3c4`. Use it to try what's coming; use a dated release otherwise.
+Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly): a `.deb`, an AppImage and a macOS zip of that commit. Its version reads like `2026.11.04~git1a2b3c4`. Use it to try what's coming; use a dated release otherwise.
 
 To see which version you run:
 
