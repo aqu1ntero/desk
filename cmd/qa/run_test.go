@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -84,22 +85,101 @@ func TestCover(t *testing.T) {
 
 	floors = map[string]float64{"desk/internal/a": 90}
 	var err error
-	stdout(t, func() { err = cover() })
+	stdout(t, func() { err = cover(nil) })
 	if err == nil || !strings.Contains(err.Error(), "desk/internal/a: 80.0% is under its floor 90%") ||
 		!strings.Contains(err.Error(), "desk/internal/b: 100.0%, no floor") {
 		t.Errorf("under floor: %v", err)
 	}
 
 	floors = map[string]float64{"desk/internal/a": 80, "desk/internal/b": 100}
-	out := stdout(t, func() { err = cover() })
+	out := stdout(t, func() { err = cover(nil) })
 	if err != nil || !strings.Contains(out, "every package at or over its coverage floor") {
 		t.Errorf("at floor: %v %q", err, out)
 	}
 
 	failing(t, dir)
-	stdout(t, func() { err = cover() })
+	stdout(t, func() { err = cover(nil) })
 	if err == nil || err.Error() != "tests failed" {
 		t.Errorf("failing tests: %v", err)
+	}
+}
+
+// TestCoverBase: -base checks the lines changed since a git ref: none, an
+// untested new func, then a test for it; test files and lines without
+// statements don't count.
+func TestCoverBase(t *testing.T) {
+	dir := module(t)
+	old := floors
+	defer func() { floors = old }()
+	floors = map[string]float64{"desk/internal/a": 0, "desk/internal/b": 0}
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	git("init", "-q")
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+
+	var err error
+	out := stdout(t, func() { err = cover([]string{"-base", "HEAD"}) })
+	if err != nil || !strings.Contains(out, "no changed lines with statements since HEAD") {
+		t.Errorf("no change: %v %q", err, out)
+	}
+
+	a := filepath.Join(dir, "internal/a/a.go")
+	src, _ := os.ReadFile(a)
+	os.WriteFile(a, append(src, "\n// Sub is x-y.\nfunc Sub(x, y int) int {\n\treturn x - y\n}\n"...), 0o644)
+	git("commit", "-qam", "sub")
+	os.WriteFile(filepath.Join(dir, "internal/a/sub_test.go"), []byte("package a\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) {}\n"), 0o644)
+	stdout(t, func() { err = cover([]string{"-base", "HEAD~1"}) })
+	if err == nil || !strings.Contains(err.Error(), "0.0% covered (0 of 3), under 98%") || !strings.Contains(err.Error(), "internal/a/a.go:15") {
+		t.Errorf("untested: %v", err)
+	}
+	stdout(t, func() { err = cover([]string{"-base", "HEAD~1", "-min", "0"}) })
+	if err != nil {
+		t.Errorf("-min 0: %v", err)
+	}
+
+	os.WriteFile(filepath.Join(dir, "internal/a/sub_test.go"), []byte("package a\n\nimport \"testing\"\n\nfunc TestSub(t *testing.T) { Sub(2, 1) }\n"), 0o644)
+	out = stdout(t, func() { err = cover([]string{"-base", "HEAD~1"}) })
+	if err != nil || !strings.Contains(out, "changed lines since HEAD~1: 100.0% covered (3 of 3)") {
+		t.Errorf("tested: %v %q", err, out)
+	}
+
+	stdout(t, func() { err = cover([]string{"-base", "nope"}) })
+	if err == nil || !strings.Contains(err.Error(), "git merge-base nope HEAD") {
+		t.Errorf("bad ref: %v", err)
+	}
+	if err = cover([]string{"-bogus"}); err == nil {
+		t.Error("bad flag: no error")
+	}
+}
+
+// TestProfileLines: lines that aren't profile blocks are skipped, and a
+// go.mod without a module line is an error.
+func TestProfileLines(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	prof := filepath.Join(dir, "c.out")
+	os.WriteFile(prof, []byte("mode: set\nm/x.go:1.1,2.2 1 0\nm/x.go:junk\n"), 0o644)
+	if _, _, err := profileLines(prof); err == nil {
+		t.Error("no go.mod: no error")
+	}
+	os.WriteFile("go.mod", []byte("go 1.26\n"), 0o644)
+	if _, err := modulePath(); err == nil || err.Error() != "go.mod has no module line" {
+		t.Errorf("no module: %v", err)
+	}
+	os.WriteFile("go.mod", []byte("module m\n"), 0o644)
+	stmts, ran, err := profileLines(prof)
+	if err != nil || !stmts["x.go"][1] || !stmts["x.go"][2] || ran["x.go"][1] {
+		t.Errorf("profile: %v %v %v", stmts, ran, err)
+	}
+	if _, _, err := profileLines(filepath.Join(dir, "missing")); err == nil {
+		t.Error("missing profile: no error")
 	}
 }
 

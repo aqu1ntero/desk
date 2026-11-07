@@ -3,11 +3,10 @@ name: Docs
 # The documentation site (site/, Starlight) on GitHub Pages. Its screenshots
 # are desk's own window drawn on a headless GPU (Mesa's software renderer)
 # over the demo world, made here on every build: they always show this
-# commit's UI. Pull requests build it without deploying.
+# commit's UI.
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -66,7 +65,6 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     environment:
       name: github-pages

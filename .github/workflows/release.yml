@@ -1,13 +1,13 @@
 name: Build
 
-# Every push and PR builds the .deb, the AppImage and the macOS zip as workflow artifacts;
+# Every push to main builds the .deb, the AppImage and the macOS zip as workflow artifacts
+# (pull requests run ci.yml instead);
 # a release tag also publishes them as a GitHub release. Releases are dated:
 # 2026.11.03, and a later one the same day 2026.11.03.1, .2…
 on:
   push:
     branches: [main]
     tags: ["[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]*"]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,20 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+
+      # A release's notes are its section in CHANGELOG.md ("## [<tag>] - <date>"):
+      # a tag without one fails here, before anything is built.
+      - name: Release notes
+        if: github.ref_type == 'tag'
+        run: |
+          awk -v v="$GITHUB_REF_NAME" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && (/^## \[/ || /^\[[^]]+\]: /) { exit }
+            on { print }' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            echo "::error file=CHANGELOG.md::no '## [$GITHUB_REF_NAME]' section: write the release's notes there before tagging"
+            exit 1
+          fi
 
       - uses: actions/setup-go@v5
         with:
@@ -110,7 +124,7 @@ jobs:
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "desk $GITHUB_REF_NAME" --generate-notes dist/*.deb dist/*.AppImage
+        run: gh release create "$GITHUB_REF_NAME" --title "desk $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" dist/*.deb dist/*.AppImage
 
       # Every push to main replaces the rolling "nightly" pre-release (and
       # moves its tag to this commit); dated tags stay the real releases.

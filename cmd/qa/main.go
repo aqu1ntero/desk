@@ -1,6 +1,7 @@
 // Command qa checks desk's tests themselves, with only the Go toolchain:
 //
 //	go run ./cmd/qa cover            each package's coverage against its floor
+//	go run ./cmd/qa cover -base REF  ... and the new lines since REF covered >= 98%
 //	go run ./cmd/qa mutate [-j N] [-file S] ./internal/fzf ...
 //
 // mutate makes one small change at a time to a package's code (== to !=,
@@ -19,11 +20,13 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,14 +60,14 @@ var exit = os.Exit
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: qa cover | qa mutate [-j N] [-file S] PKGDIR...")
+		fmt.Fprintln(os.Stderr, "usage: qa cover [-base REF] [-min PCT] | qa mutate [-j N] [-file S] PKGDIR...")
 		exit(2)
 		return
 	}
 	var err error
 	switch os.Args[1] {
 	case "cover":
-		err = cover()
+		err = cover(os.Args[2:])
 	case "mutate":
 		err = mutate(os.Args[2:])
 	default:
@@ -79,9 +82,29 @@ func main() {
 var coverLine = regexp.MustCompile(`^ok\s+(\S+)\s.*coverage: ([\d.]+)% of statements`)
 
 // cover runs every package's tests with coverage and fails when one is
-// under its floor, or has no floor yet.
-func cover() error {
-	cmd := exec.Command("go", append(append([]string{"test", "-count=1", "-cover"}, tags...), "./internal/...")...)
+// under its floor, or has no floor yet. With -base REF it also fails when
+// the code lines changed since REF (its merge base with HEAD, plus what isn't
+// committed) are covered under -min percent: a pull request's new code.
+func cover(args []string) error {
+	fs := flag.NewFlagSet("cover", flag.ContinueOnError)
+	base := fs.String("base", "", "also check the lines changed since this git ref")
+	min := fs.Float64("min", 98, "the changed lines' least coverage (%), with -base")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	targs := append([]string{"test", "-count=1", "-cover"}, tags...)
+	prof := ""
+	if *base != "" {
+		f, err := os.CreateTemp("", "qa-cover-*.out")
+		if err != nil {
+			return err
+		}
+		f.Close()
+		prof = f.Name()
+		defer os.Remove(prof)
+		targs = append(targs, "-coverprofile="+prof)
+	}
+	cmd := exec.Command("go", append(targs, "./internal/...")...)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	os.Stdout.Write(out)
@@ -107,7 +130,141 @@ func cover() error {
 		return fmt.Errorf("coverage:\n  %s", strings.Join(bad, "\n  "))
 	}
 	fmt.Println("qa: every package at or over its coverage floor")
+	if *base != "" {
+		return newCover(*base, prof, *min)
+	}
 	return nil
+}
+
+// newCover checks the changed lines' coverage: of the lines changed since
+// base that hold statements (in prof, a go test -coverprofile), at least min
+// percent ran. Lines outside ./internal (cmd/) and in files this OS doesn't
+// build count for nothing.
+func newCover(base, prof string, min float64) error {
+	changed, err := changedLines(base)
+	if err != nil {
+		return err
+	}
+	stmts, ran, err := profileLines(prof)
+	if err != nil {
+		return err
+	}
+	var total, hit int
+	var missed []string
+	for _, f := range slices.Sorted(maps.Keys(changed)) {
+		for _, l := range changed[f] {
+			if !stmts[f][l] {
+				continue
+			}
+			total++
+			if ran[f][l] {
+				hit++
+			} else {
+				missed = append(missed, fmt.Sprintf("%s:%d", f, l))
+			}
+		}
+	}
+	if total == 0 {
+		fmt.Println("qa: no changed lines with statements since " + base)
+		return nil
+	}
+	pct := 100 * float64(hit) / float64(total)
+	if pct < min {
+		return fmt.Errorf("changed lines since %s: %.1f%% covered (%d of %d), under %.0f%%; not run:\n  %s",
+			base, pct, hit, total, min, strings.Join(missed, "\n  "))
+	}
+	fmt.Printf("qa: changed lines since %s: %.1f%% covered (%d of %d)\n", base, pct, hit, total)
+	return nil
+}
+
+var hunk = regexp.MustCompile(`^@@ -\S+ \+(\d+)(?:,(\d+))? @@`)
+
+// changedLines is, by file, the lines of non-test Go files added or changed
+// since base's merge base with HEAD, the working tree included.
+func changedLines(base string) (map[string][]int, error) {
+	mb, err := exec.Command("git", "merge-base", base, "HEAD").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git merge-base %s HEAD: %v", base, err)
+	}
+	out, err := exec.Command("git", "diff", "-U0", "--no-color", "--no-renames", strings.TrimSpace(string(mb)), "--", "*.go").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git diff: %v", err)
+	}
+	lines := map[string][]int{}
+	file := ""
+	for _, l := range strings.Split(string(out), "\n") {
+		if f, ok := strings.CutPrefix(l, "+++ "); ok {
+			file = ""
+			if f, ok := strings.CutPrefix(f, "b/"); ok && !strings.HasSuffix(f, "_test.go") {
+				file = f
+			}
+			continue
+		}
+		m := hunk.FindStringSubmatch(l)
+		if m == nil || file == "" {
+			continue
+		}
+		start, _ := strconv.Atoi(m[1])
+		n := 1
+		if m[2] != "" {
+			n, _ = strconv.Atoi(m[2])
+		}
+		for i := range n {
+			lines[file] = append(lines[file], start+i)
+		}
+	}
+	return lines, nil
+}
+
+// profileLines reads a coverprofile: by file (relative to the module), the
+// lines inside a statement block, and those inside one that ran.
+func profileLines(prof string) (stmts, ran map[string]map[int]bool, err error) {
+	mod, err := modulePath()
+	if err != nil {
+		return nil, nil, err
+	}
+	data, err := os.ReadFile(prof)
+	if err != nil {
+		return nil, nil, err
+	}
+	stmts, ran = map[string]map[int]bool{}, map[string]map[int]bool{}
+	for _, l := range strings.Split(string(data), "\n") {
+		// path/file.go:L1.C1,L2.C2 statements count
+		var file string
+		var l1, c1, l2, c2, n, count int
+		i := strings.LastIndex(l, ".go:")
+		if i < 0 {
+			continue
+		}
+		file = strings.TrimPrefix(l[:i+3], mod+"/")
+		if _, err := fmt.Sscanf(l[i+4:], "%d.%d,%d.%d %d %d", &l1, &c1, &l2, &c2, &n, &count); err != nil {
+			continue
+		}
+		if stmts[file] == nil {
+			stmts[file], ran[file] = map[int]bool{}, map[int]bool{}
+		}
+		for x := l1; x <= l2; x++ {
+			stmts[file][x] = true
+			if count > 0 {
+				ran[file][x] = true
+			}
+		}
+	}
+	return stmts, ran, nil
+}
+
+// modulePath is go.mod's module.
+func modulePath() (string, error) {
+	data, err := os.ReadFile("go.mod")
+	if err != nil {
+		return "", err
+	}
+	for _, l := range strings.Split(string(data), "\n") {
+		if m, ok := strings.CutPrefix(strings.TrimSpace(l), "module "); ok {
+			return strings.TrimSpace(m), nil
+		}
+	}
+	return "", fmt.Errorf("go.mod has no module line")
 }
 
 // mutant is one change: in file, the bytes [off, off+n) become to.

@@ -27,11 +27,31 @@ the same day (checked by the workflow, which publishes them); the version reache
 `-X main.version=…` (`ui.Version`, shown in the settings' nav and by `desk --version`; without it,
 `dev-<commit>`).
 
+Pull requests run `.github/workflows/ci.yml` only: `go test ./cmd/...` and
+`go run ./cmd/qa cover -base origin/<base> -min 98`. Builds and the docs site run on pushes to main.
+
+Releases are always tagged through Claude, with `CHANGELOG.md` as their notes (the release job
+publishes the tag's section and fails without one). To release:
+
+1. Pick the tag: today's date, or `.1`, `.2`… after one already made today (`git tag`).
+2. Read every commit since the last release tag (`git log <last>..HEAD`, the diffs where a subject
+   is unclear) and rewrite `## [Unreleased]` as `## [<tag>] - <YYYY-MM-DD>`, for users, not a
+   commit list: `### Added` (new features), `### Changed`, `### Fixed`, `### Removed`, and
+   `### Security` when there's one; leave out tests, refactors, CI and docs-only commits unless a
+   user notices them. Lead an entry with the feature in bold when it's a big one. Start a new empty
+   `## [Unreleased]` above it, and update the compare links at the bottom.
+3. Commit (`Release <tag>`), then tag and push: `git tag <tag> && git push origin main <tag>`.
+
+Between releases, add user-visible changes under `## [Unreleased]` as they land.
+
 The tests' own checks (`cmd/qa`, Go toolchain only), under the same shell:
 
 - `go run ./cmd/qa cover`: every package's coverage against its floor (`floors` in cmd/qa). It fails
   under a floor or for a package without one. Raise a floor when tests grow; never lower one to land
-  a change.
+  a change. `-base <ref>` also fails when the non-test lines changed since that ref (its merge base,
+  plus uncommitted work) are covered under `-min` (98 by default): what CI runs on a pull request.
+  Lines only built on another OS (`runtime.GOOS == "darwin"` branches) can't run on Linux, so keep
+  them few.
 - `go run ./cmd/qa mutate [-j N] [-file S] ./internal/fzf …`: mutation testing. One small change
   at a time (`==`↔`!=`, `<`↔`>=`, `&&`↔`||`, `+`↔`-`, a `!` dropped, `true`↔`false`, `++`↔`--`),
   the package's tests run on it through `go test -overlay` (the tree is never touched), then the

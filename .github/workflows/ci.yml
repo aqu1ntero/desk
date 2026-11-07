@@ -1,0 +1,45 @@
+name: CI
+
+# Pull requests run the tests and the coverage checks only (cmd/qa):
+# every package at or over its floor, and the lines the PR adds or changes
+# covered at 98% or more. Builds and the docs site run on main (release.yml,
+# docs.yml).
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      CGO_CFLAGS_ALLOW: -fno-strict-overflow
+      GOFLAGS: -tags=nox11
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      EGL_PLATFORM: surfaceless # no display on the runner: the window tests draw offscreen
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the PR's base, for the changed lines
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libwayland-dev libxkbcommon-dev \
+            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libegl-mesa0 libgl1-mesa-dri \
+            fish zsh
+
+      - name: Tests
+        run: go test -count=1 ./cmd/...
+
+      - name: Tests and coverage
+        run: go run ./cmd/qa cover -base "origin/$GITHUB_BASE_REF" -min 98
