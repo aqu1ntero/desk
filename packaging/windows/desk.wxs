@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  desk's MSI, built by packaging/windows/build.sh with wixl (msitools; WiX v3 syntax):
+  desk.exe in Program Files\desk, on the system PATH (Claude sessions run `desk peer`),
+  and a Start Menu shortcut. Per-machine, so it asks for elevation once.
+
+  UpgradeCode is desk's forever: MajorUpgrade finds older installs by it and removes them.
+  Never change it. ProductVersion comes from build.sh (msiVersion: 2026.11.05.1 → 26.11.501).
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="desk" Language="1033" Version="$(var.Version)" Manufacturer="desk"
+           UpgradeCode="0d8bb4a7-0f31-4192-94bd-81a155b9518c">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"
+             Description="desk: a Kanban board where every card is a Claude Code session"
+             Comments="https://github.com/lfdominguez/desk"/>
+    <Media Id="1" Cabinet="desk.cab" EmbedCab="yes"/>
+    <!-- AllowSameVersionUpgrades: a nightly and that day's release share a version -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer desk is already installed."/>
+
+    <Icon Id="desk.ico" SourceFile="$(var.Icon)"/>
+    <Property Id="ARPPRODUCTICON" Value="desk.ico"/>
+    <Property Id="ARPURLINFOABOUT" Value="https://desk.domivega.com/"/>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="desk">
+          <Component Id="desk.exe" Guid="7c3d5b0e-4f3a-4d1e-9a52-2b8f6c1e9d40" Win64="yes">
+            <File Id="desk.exe" Name="desk.exe" Source="$(var.Exe)" KeyPath="yes"/>
+            <File Id="LICENSE.txt" Name="LICENSE.txt" Source="$(var.License)"/>
+            <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Action="set" Part="last"
+                         System="yes" Permanent="no"/>
+          </Component>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Component Id="shortcut" Guid="e1b7a8c2-6d4f-4b39-8f0e-5a9c3d2b7e61" Win64="yes">
+          <Shortcut Id="desk.lnk" Name="desk" Description="A Kanban board of Claude Code sessions"
+                    Target="[INSTALLDIR]desk.exe" WorkingDirectory="INSTALLDIR" Icon="desk.ico"/>
+          <RegistryValue Root="HKLM" Key="Software\desk" Name="shortcut" Type="integer" Value="1"
+                         KeyPath="yes"/>
+        </Component>
+      </Directory>
+    </Directory>
+
+    <Feature Id="desk" Level="1">
+      <ComponentRef Id="desk.exe"/>
+      <ComponentRef Id="shortcut"/>
+    </Feature>
+  </Product>
+</Wix>
