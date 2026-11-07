@@ -152,16 +152,22 @@ func parseMarkdown(src string) []mdBlock {
 					}
 					first := true
 					for part := item.FirstChild(); part != nil; part = part.NextSibling() {
-						if _, ok := part.(*ast.List); ok {
-							node(part, depth+1) // nested list
-							continue
-						}
 						b := mdBlock{kind: "li", level: depth}
 						if first {
 							b.mark, first = mark, false
 						}
-						inline(part, mdSpan{}, &b.spans)
-						blocks = append(blocks, b)
+						switch part.(type) {
+						case *ast.Paragraph, *ast.TextBlock:
+							inline(part, mdSpan{}, &b.spans)
+							blocks = append(blocks, b)
+							continue
+						}
+						// part: a nested list, code or any other block, drawn by its
+						// own case; an item that starts with one still shows its mark.
+						if b.mark != "" {
+							blocks = append(blocks, b)
+						}
+						node(part, depth+1)
 					}
 				}
 			case *ast.Blockquote:
@@ -178,7 +184,9 @@ func parseMarkdown(src string) []mdBlock {
 					seg := lines.At(i)
 					sb.Write(seg.Value(source))
 				}
-				b := mdBlock{kind: "code", code: strings.TrimRight(sb.String(), "\n")}
+				// level: inside a list, its item's depth + 1 (0 outside), so it
+				// draws under the item's text.
+				b := mdBlock{kind: "code", level: depth, code: strings.TrimRight(sb.String(), "\n")}
 				if f, ok := c.(*ast.FencedCodeBlock); ok {
 					b.lang = string(f.Language(source))
 				}
@@ -316,6 +324,11 @@ func (u *ui) markdown(gtx layout.Context, id, src string) layout.Dimensions {
 							}))
 					})
 				case "code":
+					if b.level > 0 { // the item's text column: li's 4+16*depth inset plus its 18dp mark
+						return layout.Inset{Left: unit.Dp(6 + 16*b.level)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return u.codeBlock(gtx, bid, b)
+						})
+					}
 					return u.codeBlock(gtx, bid, b)
 				case "table":
 					return u.table(gtx, bid, b)
@@ -385,6 +398,7 @@ func highlight(code, lang string) []richtext.SpanStyle {
 	if s, ok := hlCache[key]; ok {
 		return s
 	}
+	code = strings.ReplaceAll(code, "\t", "    ") // the fonts draw no tab (Copy keeps them: it copies b.code)
 	lx := lexers.Get(lang)
 	if lx == nil {
 		lx = lexers.Fallback

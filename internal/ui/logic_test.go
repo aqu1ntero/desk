@@ -223,7 +223,7 @@ func TestTableCells(t *testing.T) {
 	}
 }
 
-// TestHighlight: code keeps its text, its keywords get a color of their
+// TestHighlight: code keeps its text (tabs as spaces), its keywords get a color of their
 // own, an unknown language still reads.
 func TestHighlight(t *testing.T) {
 	join := func(ss []richtext.SpanStyle) string {
@@ -235,7 +235,7 @@ func TestHighlight(t *testing.T) {
 	}
 	code := "func main() {\n\treturn\n}"
 	hl := highlight(code, "go")
-	if join(hl) != code || hl[0].Content != "func" || hl[0].Color == kit.CText || hl[0].Font.Typeface != kit.Mono.Typeface {
+	if join(hl) != strings.ReplaceAll(code, "\t", "    ") /* no tab glyph */ || hl[0].Content != "func" || hl[0].Color == kit.CText || hl[0].Font.Typeface != kit.Mono.Typeface {
 		t.Fatalf("%+v", hl)
 	}
 	if again := highlight(code, "go"); &again[0] != &hl[0] {
