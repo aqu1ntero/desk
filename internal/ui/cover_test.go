@@ -2415,8 +2415,8 @@ func TestCoverCodeCopy(t *testing.T) {
 	sz := image.Pt(600, 300)
 	md := func(gtx layout.Context) layout.Dimensions { return h.u.markdown(gtx, "m", "```go\nx := 1\n```") }
 	h.clickIn(sz, image.Rectangle{Max: sz}, md, "m-0copy")
-	if _, b, ok := h.r.WriteClipboard(); !ok || string(b) != "x := 1" || h.u.toast != "Copied" {
-		t.Fatalf("clipboard %q, toast %q", b, h.u.toast)
+	if _, b, ok := h.r.WriteClipboard(); !ok || string(b) != "x := 1" || h.u.toast != "Copied" || h.u.toastBad {
+		t.Fatalf("clipboard %q, toast %q (bad %v)", b, h.u.toast, h.u.toastBad)
 	}
 	m := kanban.ChatMsg{Who: "claude", Text: "**done**"}
 	tools := func(gtx layout.Context) layout.Dimensions { return h.u.msgTools(gtx, "r1", m) }
