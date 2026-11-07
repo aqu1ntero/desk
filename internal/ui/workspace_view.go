@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gioui.org/io/key"
+	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -28,7 +29,7 @@ func (u *ui) openWS(id string) {
 	for _, t := range u.wsOf(id).tabs {
 		u.wsCheck(t)
 	}
-	u.wsGen++
+	u.wsRedraw()
 }
 
 // wsSend sends the user's message to the workspace Claude, with what they
@@ -100,7 +101,7 @@ func (u *ui) wsView(gtx layout.Context) layout.Dimensions {
 					d, ok := k.IconBtn(gtx, "wsBack", kit.IcoChat, false)
 					k.Tip(gtx, "wsBack", d, "Back to the session (Esc)", true)
 					if ok {
-						act = func() { u.view, u.blur = "sess:"+id, true }
+						act = func() { u.view = "sess:" + id } // no blur: Gio drops the focus of editors no longer laid out
 					}
 					return d
 				}))
@@ -133,7 +134,7 @@ func (u *ui) wsRows(c *kanban.Card, st *wsState) []wsRow {
 	walk = func(dir string, depth int) {
 		for _, e := range st.kids[dir] {
 			rows = append(rows, wsRow{e: e, depth: depth})
-			if e.dir && st.open[e.path] {
+			if st.open[e.path] { // only folders open
 				walk(e.path, depth+1)
 			}
 		}
@@ -161,7 +162,8 @@ func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, act *func()
 			r := rows[i]
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			fill, fg, face := color.NRGBA{}, kit.CText2, kit.Sans
-			if r.e.path == cur {
+			on := r.e.path == cur
+			if on {
 				fill, fg = kit.CAccSoft, kit.CText
 			}
 			if r.root > 0 {
@@ -176,6 +178,7 @@ func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, act *func()
 			}
 			row := layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				d, ok := k.Button(gtx, "wsRow"+r.e.path, fill, kit.CHover, kit.RCtl, layout.Inset{Top: 3, Bottom: 3, Left: unit.Dp(8 + 12*r.depth), Right: 6}, func(gtx layout.Context) layout.Dimensions {
+					semantic.SelectedOp(on).Add(gtx.Ops) // the file shown, for screen readers
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(k.Lbl(mark, 12, kit.CText3, kit.Mono)),
@@ -230,7 +233,7 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 		if _, ok := ev.(gvcode.ChangeEvent); ok {
 			t.dirty, t.closing = true, false
 			t.gen++
-			u.wsGen++
+			u.wsRedraw()
 		}
 	}
 	if t.tokGen != t.gen { // tokens per text generation: an edit, a reload
@@ -253,6 +256,7 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 					name += " ●"
 				}
 				d, ok := k.Button(gtx, "wsTab"+tb.path, fill, kit.CHover, 0, layout.Inset{Top: 7, Bottom: 7, Left: 12, Right: 4}, func(gtx layout.Context) layout.Dimensions {
+					semantic.SelectedOp(on).Add(gtx.Ops) // the tab shown, for screen readers
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(k.Lbl(name, 12, fg, kit.Medium(kit.Sans))), layout.Rigid(kit.HGap(6)),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -269,7 +273,7 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 					*act = func() {
 						st.cur = n
 						u.wsCheck(st.tabs[n])
-						u.wsGen++
+						u.wsRedraw()
 					}
 				}
 				return d
@@ -313,12 +317,12 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 					st.in.SetText(changeText(t.path, e) + "\n\n")
 					st.in.SetCaret(st.in.Len(), st.in.Len())
 					u.focusLater = &st.in
-					u.wsGen++
+					u.wsRedraw()
 				}),
 				btn("wsDoneChange", "Done", func() {
 					t.edit, t.note = nil, ""
 					t.diff.ClearDiff()
-					u.wsGen++
+					u.wsRedraw()
 				}))
 		}))
 	}
@@ -328,7 +332,7 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 			if w := t.want; w != nil { // now that its text is shaped; the next frame scrolls to it
 				t.want = nil
 				t.ed.SetCaret(w[0], w[1])
-				u.wsGen++
+				u.wsRedraw()
 			}
 			return d
 		})
