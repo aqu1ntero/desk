@@ -133,7 +133,10 @@ server's shared SSH connection, so no new login. A server without the sftp subsy
 works: desk then runs `sh`, `ls`/`find`, `cat` and `tar` there, so the server needs nothing
 installed. Copies keep each file's permissions. One split per tab. On Windows, a local pane's
 split browses this machine on both sides, with Windows paths, and desk does its copies itself
-(no `sh` there); a mode for **chmod** has to be octal.
+(no `sh` there). **Chmod** there takes octal (`644`) and symbolic modes (`u+x`, `go-w`, `a=rX`)
+as on Linux, but Windows files have no permission bits, only a read-only flag: removing the
+owner's write (`u-w`, `a-w`, `444`) makes a file read-only, giving it back (`u+w`, `644`) clears
+that, and the rest of a mode changes nothing.
 
 | Key | What it does |
 |---|---|

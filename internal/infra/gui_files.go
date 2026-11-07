@@ -2,18 +2,15 @@ package infra
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -757,30 +754,21 @@ func (u *ui) chmod(fv *filesView, mode string) {
 	fv.mu.Lock()
 	s := fv.sides[fv.active]
 	ch, dirPath := s.chosen(), s.path
+	var ps []string
+	for _, e := range ch {
+		ps = append(ps, s.join(e.Name))
+	}
 	fv.mu.Unlock()
 	if !chmodMode.MatchString(mode) {
 		u.showToast("Not a mode: use octal like 644 or symbolic like u+x", true)
 		return
 	}
+	host := fv.host
+	if !s.remote {
+		host = "local" // this machine's side: chmod as for the local host (in Go under localGo)
+	}
 	go func() {
-		var err error
-		if s.remote {
-			var ps []string
-			for _, e := range ch {
-				ps = append(ps, path.Join(dirPath, e.Name))
-			}
-			err = chmodRemote(fv.ctx, fv.host, fv.dir, mode, ps)
-		} else if n, perr := strconv.ParseUint(mode, 8, 32); perr == nil {
-			for _, e := range ch {
-				err = errors.Join(err, os.Chmod(filepath.Join(dirPath, e.Name), os.FileMode(n)))
-			}
-		} else {
-			var ps []string
-			for _, e := range ch {
-				ps = append(ps, filepath.Join(dirPath, e.Name))
-			}
-			err = runErr(exec.Command("chmod", append([]string{"--", mode}, ps...)...))
-		}
+		err := chmodRemote(fv.ctx, host, fv.dir, mode, ps)
 		if err != nil {
 			u.showToast("Chmod failed: "+err.Error(), true)
 		} else {

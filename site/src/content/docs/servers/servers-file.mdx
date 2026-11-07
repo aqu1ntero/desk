@@ -192,7 +192,9 @@ ssh alias, so other hosts can use it, for example a bastion behind `ProxyJump`.
 come from somewhere else: a cloud API, a CMDB, a script.
 
 - PATH is the program, run directly (no shell, no arguments) from its own folder. A relative
-  path is relative to the organization's folder; `~/` works.
+  path is relative to the organization's folder; `~/` works. On Windows it runs through
+  `cmd /C`, as `token_cmd` does, so it can be a `.bat`, `.cmd` or `.exe` (a PowerShell script
+  needs a `.cmd` beside it that runs `powershell -NoProfile -File inventory.ps1`).
 - It runs when desk starts and on every reload, with a 10-second timeout.
 - desk keeps what it prints in `<Org>/.desk/servers-dynamic.conf` (one inside a group:
   `servers-dynamic-<group>.conf`, with `/` as `-`).

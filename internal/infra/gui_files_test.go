@@ -1255,7 +1255,8 @@ func TestFilesChmod(t *testing.T) {
 	h.waitToast("Chmod failed")
 	h.settle()
 	h.u.toast = ""
-	h.fv.sides[1].sel = 99 // nothing selected, but local.txt marked
+	h.fv.sides[1].sel = 99 // nothing selected, but local.txt marked (still listed, though gone)
+	h.fv.sides[1].entries = append(h.fv.sides[1].entries, fileEntry{Name: "local.txt"})
 	h.fv.sides[1].marked["local.txt"] = true
 	h.u.chmod(h.fv, "g-w")
 	h.waitToast("Chmod failed")

@@ -557,6 +557,9 @@ var openLocal = func(p string) error { return exec.Command(Opener, p).Start() }
 // chmodRemote sets mode (octal, or symbolic like u+x) on paths. A symbolic
 // mode needs the server's chmod to read it: the script then.
 func chmodRemote(ctx context.Context, host, dir, mode string, paths []string) error {
+	if len(paths) == 0 { // chmod with no file fails
+		return nil
+	}
 	if host == "local" && localGo {
 		return chmodLocal(mode, paths)
 	}

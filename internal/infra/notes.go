@@ -84,13 +84,19 @@ docker ps -a --format '{{.Names}}  {{.Status}}  {{.Image}}' 2>/dev/null | head -
 true`
 
 // changes runs changesScript on pane p's server over the shared connection
-// (not in the user's terminal: it's read-only and long).
+// (not in the user's terminal: it's read-only and long), or in Go on the
+// local host under localGo (changesLocal).
 func (t *Tab) changes(p *Pane, hours int) toolResult {
 	hours = max(1, min(720, hours))
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	var b bytes.Buffer
-	err := remoteSh(ctx, p.term.Host, p.dir, "sh -c "+shQuote(changesScript)+" changes "+fmt.Sprint(hours), nil, &b)
+	var err error
+	if p.term.Host == "local" && localGo {
+		b.WriteString(changesLocal(ctx, hours))
+	} else {
+		err = remoteSh(ctx, p.term.Host, p.dir, "sh -c "+shQuote(changesScript)+" changes "+fmt.Sprint(hours), nil, &b)
+	}
 	out := b.Bytes()
 	audit(auditEntry{Org: t.org, Group: t.group, Host: p.name, Event: "command", By: "claude", Cmd: fmt.Sprintf("(changes tool, last %dh)", hours)})
 	if err != nil && len(out) == 0 {

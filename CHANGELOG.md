@@ -21,8 +21,11 @@ day). A release's section here is its notes on GitHub. The format follows
   installer, `desk-<version>-windows-amd64.msi` (Program Files, `PATH`, Start Menu; a newer one
   replaces the old install), and a portable `desk-<version>-windows-amd64.zip`.
   - Terminals run in a Windows pseudo console (ConPTY). Local panes and `!` commands use PowerShell
-    7 (`pwsh`) when it's on `PATH`, else Windows PowerShell, with command blocks; `token_cmd` runs
-    with `cmd /C`.
+    7 (`pwsh`) when it's on `PATH`, else Windows PowerShell, with command blocks; a restored
+    PowerShell pane gets its folder and environment variables back. `token_cmd` and a servers
+    file's `#@ hosts-cmd` run with `cmd /C`.
+  - The local file panel and Claude's `changes` tool work without `sh`; chmod takes octal and
+    symbolic modes, though only the read-only flag means anything on Windows.
   - An organization's Claude profile runs with `CLAUDE_CONFIG_DIR` instead of bubblewrap.
   - Files live where they do on Linux, under your user folder (`.config\desk`, `.local\share\desk`).
   - Neither file is code-signed: SmartScreen asks the first time (More info → Run anyway).

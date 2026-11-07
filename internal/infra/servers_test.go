@@ -3,6 +3,8 @@ package infra
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -21,6 +23,29 @@ func orgWith(t *testing.T, toml string) string {
 	infra := filepath.Join(t.TempDir(), "Acme", infraDir)
 	write(t, filepath.Join(orgOfInfra(infra), ".desk", "desk.toml"), toml)
 	return infra
+}
+
+// TestHostsCmdHere: a hosts-cmd runs the way this OS runs programs: by its
+// #! line, or on Windows through cmd /C (a .bat), from a folder with a space.
+func TestHostsCmdHere(t *testing.T) {
+	org := filepath.Join(t.TempDir(), "Acme")
+	inv, body := filepath.Join(org, "my bin", "inv.sh"), "#!/bin/sh\necho 'pi deploy@192.0.2.7'\n"
+	if runtime.GOOS == "windows" {
+		inv, body = filepath.Join(org, "my bin", "inv.bat"), "@echo pi deploy@192.0.2.7\r\n"
+		if a := hostsCmdArgs(inv); !slices.Equal(a, []string{"cmd", "/C", inv}) {
+			t.Errorf("args %q", a)
+		}
+	}
+	write(t, inv, body)
+	os.Chmod(inv, 0o755)
+	file := filepath.Join(org, ".desk", "ssh_config")
+	write(t, file, "#@ hosts-cmd "+strings.TrimPrefix(inv, org+string(filepath.Separator))+"\n")
+	if _, err := parseServers(file, org, true); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(dynamicFile(org, "")); !strings.Contains(string(b), "Host pi") || !strings.Contains(string(b), "192.0.2.7") {
+		t.Errorf("kept %q", b)
+	}
 }
 
 // TestServersFileMoves: an org's old ssh_config moves to .desk/ssh_config
