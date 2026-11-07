@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.07] - 2026-11-07
+
+desk now runs on macOS and Windows as well as Linux. Both are new and not fully tested: Windows
+was tested under Wine and Proton on Linux, and macOS in a QEMU VM without a GPU, where the window
+can't open. If something breaks on either, please
+[open an issue](https://github.com/lfdominguez/desk/issues).
+
 ### Added
 
 - **macOS.** desk runs on macOS 12 and newer, as a universal `desk.app` (Apple Silicon and Intel)
@@ -44,6 +51,8 @@ day). A release's section here is its notes on GitHub. The format follows
 - The Ásbrú import drops algorithms desk's SSH client doesn't support.
 - Shortcut hints in messages show the keys as symbols (<kbd>⌃⇧K</kbd>, or <kbd>⌘K</kbd> on
   macOS).
+- Everything desk starts finds `desk` first on its `PATH` (desk's own folder), so card sessions
+  can run `desk peer` from a portable or unpacked desk too.
 
 ### Fixed
 
@@ -56,6 +65,9 @@ day). A release's section here is its notes on GitHub. The format follows
   second pane.
 - A broken settings file is kept as it is, instead of being overwritten when you zoom.
 - Demo mode: the servers' Files tab and the `changes` tool work.
+- Two cards made in the same instant could get the same id.
+- Changing permissions with no file selected in the Files panel failed with "missing operand"; it
+  now does nothing.
 
 ## [2026.11.05.1] - 2026-11-05
 
@@ -83,7 +95,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.05.1...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.07...HEAD
+[2026.11.07]: https://github.com/lfdominguez/desk/compare/2026.11.05.1...2026.11.07
 [2026.11.05.1]: https://github.com/lfdominguez/desk/compare/2026.11.05...2026.11.05.1
 [2026.11.05]: https://github.com/lfdominguez/desk/compare/2026.11.04...2026.11.05
 [2026.11.04]: https://github.com/lfdominguez/desk/releases/tag/2026.11.04
