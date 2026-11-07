@@ -93,7 +93,7 @@ Prefix a scene's shots with its section, and use them in a page as `![alt](../..
 
 ## Releases
 
-Releases are dated, not semver (desk is an app, not a library): `2026.11.03`, and another the same day `2026.11.03.1`, `.2`… Pushing such a tag builds the `.deb`, the AppImage and the macOS zip (`desk.app`, from `packaging/macos/build-app.sh`), publishes them as a GitHub release, and updates the AUR package `desk-kanban`. The workflow refuses a tag that isn't a real date in that form. A release's notes on GitHub are its section in [`CHANGELOG.md`](https://github.com/lfdominguez/desk/blob/main/CHANGELOG.md), `## [2026.11.03] - 2026-11-03`; a tag without one fails before anything is built, so write the section and commit it before tagging.
+Releases are dated, not semver (desk is an app, not a library): `2026.11.03`, and another the same day `2026.11.03.1`, `.2`… Pushing such a tag builds the `.deb`, the AppImage, the macOS zip (`desk.app`, from `packaging/macos/build-app.sh`) and the Windows zip and MSI (from `packaging/windows/build.sh`), publishes them as a GitHub release, and updates the AUR package `desk-kanban`. The workflow refuses a tag that isn't a real date in that form. A release's notes on GitHub are its section in [`CHANGELOG.md`](https://github.com/lfdominguez/desk/blob/main/CHANGELOG.md), `## [2026.11.03] - 2026-11-03`; a tag without one fails before anything is built, so write the section and commit it before tagging.
 
 Pull requests run only the tests and the coverage checks (`.github/workflows/ci.yml`): every package at or over its floor, and the lines the pull request adds or changes covered at 98% or more (`go run ./cmd/qa cover -base origin/main` checks the same locally).
 
@@ -103,7 +103,21 @@ git tag 2026.11.03 && git push origin 2026.11.03
 
 The version reaches the binary as `-X main.version=…`. `desk --version` and the Settings say which one runs; a build between releases says `dev-<commit>`.
 
-Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly) with that commit's `.deb`, AppImage and macOS zip, versioned like `2026.11.04~git1a2b3c4`.
+Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly) with that commit's `.deb`, AppImage, macOS zip and Windows zip and MSI, versioned like `2026.11.04~git1a2b3c4`.
+
+### Windows packages
+
+`packaging/windows/build.sh` cross-builds both from Linux (Gio needs no cgo on Windows), so the release's `windows` job runs on Ubuntu:
+
+```sh
+VERSION=2026.11.03 packaging/windows/build.sh   # dist/desk-2026.11.03-windows-amd64.{zip,msi}
+```
+
+It needs Go, `rsvg-convert`, ImageMagick, `wixl` (msitools) and `zip`; with Nix, `nix shell nixpkgs#librsvg nixpkgs#imagemagick nixpkgs#zip nixpkgs#msitools` (if nixpkgs' msitools fails its build, take a release's, e.g. `github:NixOS/nixpkgs/nixos-25.05#msitools`). It makes `desk.ico` from `packaging/desk.svg`, links it and the version info into `desk.exe` through a `.syso` from [go-winres](https://github.com/tc-hib/go-winres) (`go run`, not a module dependency), builds with `-H windowsgui`, then the zip and the MSI from `packaging/windows/desk.wxs` (WiX v3 syntax, which wixl reads).
+
+The MSI installs per machine to `Program Files\desk`, adds it to the system `PATH` and adds a Start Menu shortcut. Its `UpgradeCode` in `desk.wxs` never changes: that's how a newer MSI finds and replaces an older install. MSI versions are three numbers (at most 255.255.65535, a fourth is ignored when comparing), so a release's date maps to `YY.MM.(DD×100+N)`: `2026.11.05` is `26.11.500`, `2026.11.05.1` is `26.11.501`. A nightly gets its day's number, and that day's release, the same version, still replaces it. `desk.exe`'s own file version is the full date, `2026.11.5.1`.
+
+Neither file is signed. Given `SIGN_PFX` (a `.pfx`) and `SIGN_PASSWORD`, the script Authenticode-signs both with `osslsigncode`; the workflow does that when the `WINDOWS_CERT_PFX` (base64 of the `.pfx`) and `WINDOWS_CERT_PASSWORD` secrets exist. To try the packages without Windows, Wine runs them: `wine desk.exe --version`, `wine msiexec /i desk-….msi /qn`.
 
 ## Vendored dependencies
 
