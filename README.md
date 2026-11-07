@@ -68,8 +68,8 @@ workspace speaks SSH itself (no `ssh` program needed).
 ### macOS
 
 Download `desk-<version>-macos.zip` from the [latest release](https://github.com/lfdominguez/desk/releases/latest)
-(one universal `desk.app`), unzip it into Applications. It isn't signed with an Apple Developer ID,
-so open it the first time with right-click → **Open**, or clear the quarantine flag:
+(one universal `desk.app`), unzip it into Applications. It isn't signed with an Apple Developer ID
+(see [Roadmap](#roadmap)), so open it the first time with right-click → **Open**, or clear the quarantine flag:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/desk.app
@@ -522,9 +522,11 @@ Planned, not there yet:
 
 - **X11.** Gio, the UI toolkit, can draw on X11, but desk builds with `-tags nox11`, and pasting
   images reads the Wayland clipboard itself (`internal/clip`).
-- **macOS signing and Homebrew.** desk runs on macOS (see [Install](#macos)); the release's
-  `desk.app` is ad-hoc signed until it has a Developer ID and notarization, and there's no Homebrew
-  cask yet. The virtual camera stays Linux-only (PipeWire / v4l2loopback).
+- **Apple signing and Homebrew.** macOS support is done (see [Install](#macos)), but the release's
+  `desk.app` is only ad-hoc signed: signing it with a Developer ID and notarizing it needs an Apple
+  Developer account, which the developer doesn't have and doesn't plan to get for now. The release
+  workflow already has the signing steps, ready for when an account exists. No Homebrew cask yet
+  either. The virtual camera stays Linux-only (PipeWire / v4l2loopback).
 
 ## Acknowledgements
 
