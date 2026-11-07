@@ -6,6 +6,17 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The Team view is now a canvas.** A card's full window switches **Canvas | Conversation**, and
+  the canvas draws the card's process as nodes and wires, as Blender draws nodes: the card, its
+  tickets and the workspace Claude feed the session, the session hands work to its subagents and
+  shells, its pull requests and commits go to their CI, and all of it to Done. Each Claude's node
+  shows its avatar and what it's on. Drag or scroll to pan, Ctrl/⌘+scroll to zoom, Fit to see it
+  all; a click on a node opens it (a conversation, a shell's output, the workspace, a link). Any
+  card can show it; a card that runs as an agent opens on it. The handoffs list is behind
+  **Handoffs**, and a question Claude asks now shows over the canvas too.
+
 ## [2026.11.07] - 2026-11-07
 
 desk now runs on macOS and Windows as well as Linux. Both are new and not fully tested: Windows

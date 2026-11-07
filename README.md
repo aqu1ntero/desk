@@ -254,8 +254,10 @@ runs under.
   opens a rail with each one (model, task, tools, tokens, time) and their history. A held subagent
   says why: **Waiting on \<its shell\>**, **Running \<tool\>** over 30 s, **No activity** after 2
   minutes.
-- **The team view**: a card that runs as an agent shows its session as a team: the lead in the
-  middle, the agents it handed work to on a ring around it, and the briefs and results in order.
+- **The canvas**: a card's full window draws its process as a node graph (Canvas | Conversation):
+  the card, its tickets and the workspace Claude feed the session, the session hands work to its
+  subagents and shells, its pull requests go to their CI and on to Done; each Claude shows where
+  it is and what it's on. Pan, zoom, and click a node to open it.
 - **File changes**: every Edit shows as a diff (unified, split or word diff, picked per block),
   over the code's highlighting. A Write shows its size.
 - **Shell commands, explained**: Claude describes every command it runs in plain words;

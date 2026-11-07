@@ -41,7 +41,7 @@ export default defineConfig({
 						'sessions/questions',
 						'sessions/shell',
 						'sessions/subagents',
-						'sessions/team',
+						'sessions/canvas',
 						'sessions/diffs',
 						'sessions/workspace',
 						'sessions/terminal',
