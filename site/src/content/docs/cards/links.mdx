@@ -106,6 +106,9 @@ An account with `sync = false` is left out. See [desk.toml](/reference/desk-toml
 
 ## Artifacts
 
+A card's session has Claude Code's claude.ai Artifact tools (desk turns them on
+with `CLAUDE_CODE_ARTIFACT=1`: Claude Code leaves them off in the stream-json mode
+desk runs it in), as long as the account allows artifacts.
 When a card's session publishes an artifact (a page Claude made), desk lists it
 under the card's links in the session panel: **Artifact _id_ · open in the browser**.
 Click it to open it.

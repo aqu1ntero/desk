@@ -47,9 +47,12 @@ func TestParseUsage(t *testing.T) {
 	if e[0].Window != 200000 {
 		t.Fatalf("%+v", e)
 	}
-	e = Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","content":"Published: https://claude.ai/code/artifact/0b1c-2d and https://claude.ai/code/artifact/0b1c-2d"}]}}`))
-	if len(e) != 2 || e[0].Kind != KindToolDone || e[1].Kind != KindArtifact || e[1].Text != "https://claude.ai/code/artifact/0b1c-2d" {
+	e = Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu9","content":"Published: https://claude.ai/code/artifact/0b1c-2d and https://claude.ai/code/artifact/0b1c-2d"}]}}`))
+	if len(e) != 2 || e[0].Kind != KindToolDone || e[1].Kind != KindArtifact || e[1].Text != "https://claude.ai/code/artifact/0b1c-2d" || e[1].ToolID != "tu9" {
 		t.Fatalf("%+v", e)
+	}
+	if e := Parse([]byte(`{"type":"assistant","message":{"content":[{"type":"text","text":"see https://claude.ai/code/artifact/0b1c-2d"}]}}`)); len(e) != 1 || e[0].Kind != KindText {
+		t.Fatalf("Claude's text publishes nothing: %+v", e)
 	}
 }
 

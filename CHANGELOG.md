@@ -44,6 +44,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Fixed
 
+- A card's session has the claude.ai Artifact tools (Claude Code turns them off for
+  stream-json sessions unless asked).
+- A card lists only the artifacts its session published with the Artifact tool, not every
+  artifact link that shows up in a command's output or Claude's reply.
 - Chat code blocks draw tabs, and code blocks inside list items stay in the item.
 - Closing a server pane while another pane of the same server was still connecting broke the
   second pane.

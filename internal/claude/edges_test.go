@@ -79,6 +79,9 @@ func TestStart(t *testing.T) {
 	if err != nil || p == nil {
 		t.Fatalf("%v %v", p, err)
 	}
+	if !slices.Contains(p.cmd.Env, "CLAUDE_CODE_ARTIFACT=1") {
+		t.Fatal("a card's session should have the Artifact tools")
+	}
 	if e := <-got; e.Kind != KindInit || e.Session != "s1" {
 		t.Fatalf("%+v", e)
 	}
@@ -107,6 +110,30 @@ func TestStart(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if _, err := Start(Options{Home: t.TempDir()}, func(Event) {}); err == nil {
 		t.Fatal("no claude should be an error")
+	}
+}
+
+// TestStartArtifacts: only the Artifact tool's result publishes; a link in
+// another tool's output (a grep over test fixtures) is not an artifact.
+func TestStartArtifacts(t *testing.T) {
+	fakeClaude(t, false)
+	t.Setenv("FAKE_OUT", `{"type":"assistant","message":{"content":[{"type":"tool_use","id":"b1","name":"Bash","input":{}},{"type":"tool_use","id":"a1","name":"Artifact","input":{}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"b1","content":"https://claude.ai/code/artifact/fake"},{"type":"tool_result","tool_use_id":"a1","content":"https://claude.ai/code/artifact/real"}]}}`)
+	got := make(chan Event, 20)
+	if _, err := Start(Options{Home: t.TempDir(), Dir: t.TempDir()}, func(e Event) { got <- e }); err != nil {
+		t.Fatal(err)
+	}
+	var arts []string
+	for e := range got {
+		if e.Kind == KindArtifact {
+			arts = append(arts, e.Text)
+		}
+		if e.Kind == KindExit {
+			break
+		}
+	}
+	if !slices.Equal(arts, []string{"https://claude.ai/code/artifact/real"}) {
+		t.Fatalf("%q", arts)
 	}
 }
 

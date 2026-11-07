@@ -41,8 +41,9 @@ const (
 // It reads the raw JSON, where Windows' backslashes come doubled.
 var shellOut = regexp.MustCompile(`with ID: (\w+)\. Output is being written to: ((?:[^\s"\\]|\\\\)+)`)
 
-// artifactURL is a published claude.ai artifact's link, wherever it shows
-// (the Artifact tool's result, Claude's text).
+// artifactURL is a published claude.ai artifact's link, taken only from the
+// Artifact tool's result (Start): any other tool's output (a grep over tests)
+// or Claude's text may quote one that was never published.
 var artifactURL = regexp.MustCompile(`https://claude\.ai/(?:code/)?artifact/[A-Za-z0-9-]+`)
 
 type Event struct {
@@ -57,7 +58,8 @@ type Event struct {
 	Context int      // usage: tokens in the context (input and cache, the last call's)
 	Window  int      // result: the model's context window, tokens
 	Parent  string   // text, tool: the subagent's (its Agent tool use id) when not the session's own
-	ToolID  string   // tool: the tool use's id
+	ToolID  string   // tool: the tool use's id; artifact: the tool use whose result has it
+	Tool    string   // tool: the tool's name
 	To      string   // tool: SendMessage's addressee, a subagent (its task id) it resumes: its messages then name this tool use
 	Cmd     string   // tool: a Bash call's whole command (Text cuts it short)
 	Detail  string   // tool: a Bash call's description, Claude's words for what it does
@@ -220,6 +222,9 @@ func Parse(line []byte) []Event {
 					continue
 				}
 				out = append(out, Event{Kind: KindToolDone, ToolID: c.ToolUseID, Parent: ev.Parent})
+				for _, u := range slices.Compact(artifactURL.FindAllString(string(c.Content), -1)) {
+					out = append(out, Event{Kind: KindArtifact, Text: u, ToolID: c.ToolUseID})
+				}
 				if m := shellOut.FindStringSubmatch(string(c.Content)); m != nil {
 					out = append(out, Event{Kind: KindTask, Task: &Task{ID: m[1], Output: strings.ReplaceAll(strings.TrimSuffix(m[2], "."), `\\`, `\`)}})
 				}
@@ -234,7 +239,7 @@ func Parse(line []byte) []Event {
 						out = append(out, Event{Kind: KindText, Text: c.Text, Parent: ev.Parent})
 					}
 				case "tool_use":
-					e := Event{Kind: KindTool, Text: toolLine(c.Name, c.Input), Parent: ev.Parent, ToolID: c.ID}
+					e := Event{Kind: KindTool, Text: toolLine(c.Name, c.Input), Parent: ev.Parent, ToolID: c.ID, Tool: c.Name}
 					switch c.Name {
 					case "SendMessage":
 						e.To, _ = c.Input["to"].(string)
@@ -288,11 +293,6 @@ func Parse(line []byte) []Event {
 		}
 		return nil
 	}()
-	if ev.Type != "control_request" { // a permission request names the tool's input, not a result
-		for _, u := range slices.Compact(artifactURL.FindAllString(string(line), -1)) {
-			out = append(out, Event{Kind: KindArtifact, Text: u})
-		}
-	}
 	return out
 }
 
@@ -368,6 +368,9 @@ func Start(o Options, on func(Event)) (*Proc, error) {
 		return nil, err
 	}
 	cmd.Dir = o.Dir
+	// CLAUDE_CODE_ARTIFACT: stream-json makes Claude Code an SDK session
+	// (entrypoint sdk-cli), whose claude.ai Artifact tools are off unless asked for.
+	cmd.Env = append(cmd.Env, "CLAUDE_CODE_ARTIFACT=1")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -384,8 +387,15 @@ func Start(o Options, on func(Event)) (*Proc, error) {
 	go func() {
 		sc := bufio.NewScanner(stdout)
 		sc.Buffer(make([]byte, 64*1024), 16<<20)
+		published := map[string]bool{} // the Artifact tool's uses: only their results publish
 		for sc.Scan() {
 			for _, e := range Parse(sc.Bytes()) {
+				if e.Kind == KindTool && e.Tool == "Artifact" {
+					published[e.ToolID] = true
+				}
+				if e.Kind == KindArtifact && !published[e.ToolID] {
+					continue
+				}
 				on(e)
 			}
 		}
