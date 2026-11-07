@@ -2,17 +2,23 @@ package ui
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"io"
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/lfdominguez/desk/internal/infra"
+	"github.com/lfdominguez/desk/internal/sshc"
+	"github.com/lfdominguez/desk/internal/sshconfig"
 )
 
 // TestDemoInfra: the demo's servers file is Globex's, its hosts are a bash
@@ -25,7 +31,8 @@ func TestDemoInfra(t *testing.T) {
 	if err := demoInfra(dir); err != nil {
 		t.Fatal(err)
 	}
-	if b, _ := os.ReadFile(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config")); string(b) != demoServers {
+	if b, _ := os.ReadFile(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config")); !strings.HasSuffix(string(b), "\n"+demoServers) ||
+		strings.Count(string(b), "Match originalhost ") != 4 {
 		t.Fatalf("servers file %q", b)
 	}
 	c := infra.HostCmd("web-02")
@@ -62,6 +69,78 @@ func TestDemoInfra(t *testing.T) {
 	}
 }
 
+// TestDemoSSH: over SSH (as the files split and the changes tool connect),
+// each demo host is its own server: sftp from its user's home over its own
+// tree, the changes script's canned answer, any other command 127.
+func TestDemoSSH(t *testing.T) {
+	defer func() { infra.HostCmd, infra.ClaudeCmd = nil, nil }()
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "home", "Work", "Globex", ".desk"), 0o755)
+	if err := demoInfra(dir); err != nil {
+		t.Fatal(err)
+	}
+	dial := func(host string) *sshc.Client {
+		t.Helper()
+		c, err := sshc.Dial(context.Background(), host, sshc.Options{Options: sshconfig.Options{
+			File: filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config"), System: "none",
+			Home: filepath.Join(dir, "home"), LocalUser: "me", RelativeToFile: true}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { c.Close() })
+		return c
+	}
+	for host, want := range map[string]string{"web-02": "/home/deploy/deploy.sh", "db-01": "/var/lib/postgresql/backup.sh"} {
+		c := dial(host)
+		s, err := c.SFTP()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if wd, _ := s.Getwd(); wd != path.Dir(want) {
+			t.Errorf("%s starts in %q", host, wd)
+		}
+		if fi, err := s.Stat(want); err != nil || fi.Size() < 20 {
+			t.Errorf("%s: %v", host, err)
+		}
+		s.Close()
+	}
+	out, _, code, err := dial("web-02").Run(context.Background(), "sh -c 'echo \"== packages\"'", nil)
+	if err != nil || code != 0 || !strings.Contains(string(out), "billing-api.service: Failed") {
+		t.Errorf("changes on web-02: %d %v %q", code, err, out)
+	}
+	if out, _, _, _ := dial("web-01").Run(context.Background(), "== packages", nil); strings.Contains(string(out), "billing-api") {
+		t.Error("web-01's changes are web-02's")
+	}
+	if _, eout, code, _ := dial("web-01").Run(context.Background(), "uname", nil); code != 127 || len(eout) == 0 {
+		t.Errorf("other command: %d %q", code, eout)
+	}
+	s, err := dial("db-02").Client.NewSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if ok, _ := s.SendRequest("pty-req", true, nil); ok {
+		t.Error("a pty granted")
+	}
+	if s.RequestSubsystem("nope") == nil {
+		t.Error("a subsystem other than sftp")
+	}
+	if _, err := dial("db-02").Client.Dial("tcp", "192.0.2.1:80"); err == nil {
+		t.Error("a forward through the demo's server")
+	}
+	b, _ := os.ReadFile(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config"))
+	port := regexp.MustCompile(`Port (\d+)`).FindSubmatch(b)
+	if c, err := net.Dial("tcp", "127.0.0.1:"+string(port[1])); err == nil { // no SSH: dropped
+		c.Write([]byte("GET / HTTP/1.0\r\n\r\n"))
+		c.SetReadDeadline(time.Now().Add(5 * time.Second))
+		io.Copy(io.Discard, c)
+		c.Close()
+	}
+	if _, err := dial("web-01").SFTP(); err != nil {
+		t.Errorf("still serving: %v", err)
+	}
+}
+
 // TestDemoInfraFails: a world it can't write says so.
 func TestDemoInfraFails(t *testing.T) {
 	defer func() { infra.HostCmd, infra.ClaudeCmd = nil, nil }()
@@ -71,6 +150,12 @@ func TestDemoInfraFails(t *testing.T) {
 	}
 	if err := demoInfra(filepath.Join(dir, "missing")); err == nil {
 		t.Error("rc in a missing folder")
+	}
+	dir = t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "home", "Work", "Globex", ".desk"), 0o755)
+	os.WriteFile(filepath.Join(dir, "home", ".ssh"), nil, 0o644)
+	if err := demoInfra(dir); err == nil {
+		t.Error("known_hosts under a file")
 	}
 }
 

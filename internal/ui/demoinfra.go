@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/lfdominguez/desk/internal/infra"
@@ -70,7 +71,17 @@ func demoInfra(dir string) error {
 	if err := os.WriteFile(rc, []byte(demoHostRC), 0o644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config"), []byte(demoServers), 0o644); err != nil {
+	var hosts []string
+	for _, l := range strings.Split(demoServers, "\n") {
+		if h, ok := strings.CutPrefix(l, "Host "); ok {
+			hosts = append(hosts, h)
+		}
+	}
+	match, err := demoSSH(filepath.Join(dir, "home"), hosts)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "home", "Work", "Globex", ".desk", "ssh_config"), []byte(match+demoServers), 0o644); err != nil {
 		return err
 	}
 	infra.HostCmd = func(host string) *exec.Cmd {
