@@ -5,9 +5,11 @@
 
   outputs = { self, nixpkgs }:
     let
-      systems = [ "x86_64-linux" "aarch64-linux" ];
+      # no x86_64-darwin: nixos-unstable dropped it (26.11); Intel Macs take the release's desk.app
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAll = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
-      libs = pkgs: with pkgs; [ wayland libxkbcommon libGL vulkan-headers pipewire ];
+      # macOS needs none: Gio links Cocoa and Metal from the SDK stdenv brings
+      libs = pkgs: pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux (with pkgs; [ wayland libxkbcommon libGL vulkan-headers pipewire ]);
       # releases are dated tags (2026.11.03, 2026.11.03.1); a flake build names its commit
       version = "dev-${self.shortRev or self.dirtyShortRev or "unknown"}";
     in
@@ -25,7 +27,8 @@
           buildInputs = libs pkgs;
           ldflags = [ "-s" "-w" "-X main.version=${version}" ];
           doCheck = false; # the tests start shells and terminals: run them with `go test` in the dev shell
-          postInstall = ''
+          # On macOS the package is the bare binary: desk.app comes from packaging/macos/build-app.sh
+          postInstall = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
             install -Dm644 packaging/desk.desktop $out/share/applications/desk.desktop
             install -Dm644 packaging/desk.svg $out/share/icons/hicolor/scalable/apps/desk.svg
           '';
@@ -33,7 +36,7 @@
           # it only looks in /run/opengl-driver. There, use nixpkgs' Mesa
           # (Intel, AMD, nouveau; llvmpipe on anything else, e.g. NVIDIA's
           # own driver). A driver the user points at still wins.
-          postFixup = ''
+          postFixup = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
             wrapProgram $out/bin/desk --run '
             if [ ! -e /run/opengl-driver/lib ]; then
               export __EGL_VENDOR_LIBRARY_FILENAMES="''${__EGL_VENDOR_LIBRARY_FILENAMES:-${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json}"
@@ -46,7 +49,7 @@
             homepage = "https://github.com/lfdominguez/desk";
             license = pkgs.lib.licenses.mit;
             mainProgram = "desk";
-            platforms = pkgs.lib.platforms.linux;
+            platforms = pkgs.lib.platforms.linux ++ pkgs.lib.platforms.darwin;
           };
         };
         default = desk;
