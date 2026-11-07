@@ -24,10 +24,10 @@ func TestSignInAgain(t *testing.T) {
 		return claude.Draft{}, errors.New("Failed to authenticate: OAuth session expired and could not be refreshed. Please run /login")
 	}
 	var account string
-	script, own := "exit 0", false
+	script, own := []string{"exit:0"}, false
 	loginCmd = func(_, acct string) (*exec.Cmd, bool, error) {
 		account = acct
-		return exec.Command("sh", "-c", script), own, nil
+		return prog(script...), own, nil
 	}
 	defer func() { loginCmd = claude.Login }()
 	h.u.newCard(0)
@@ -49,14 +49,14 @@ func TestSignInAgain(t *testing.T) {
 		t.Fatalf("toast %q (bad %v)", h.u.toast, h.u.toastBad)
 	}
 
-	script = "exit 3"
+	script = []string{"exit:3"}
 	h.u.startSignIn(s, "Acme", func() { t.Fatal("a failed sign-in improved again") })
 	h.pumpUntil("the failure", func() bool { return h.u.login == nil })
 	if h.u.toast != "Sign-in didn't finish: try again" || !h.u.toastBad {
 		t.Fatalf("toast %q (bad %v)", h.u.toast, h.u.toastBad)
 	}
 
-	script = "echo Paste code here; read x" // waits for the code
+	script = []string{"out:Paste code here\n", "read"} // waits for the code
 	h.u.startSignIn(s, "Acme", func() { t.Fatal("an ended sign-in improved again") })
 	tt := h.u.login.tt
 	g := h.u.termGen.Load()
@@ -85,7 +85,7 @@ func TestSignInAgain(t *testing.T) {
 	s.org.SetText("Acme")
 	s.optErr = "OAuth session expired"
 	long := "https://claude.com/cai/oauth/authorize?code=true&state=" + strings.Repeat("x", 300)
-	script, own = "echo 'Opening browser to sign in…'; echo \"If the browser didn't open, visit: "+long+"\"; printf 'Paste code here if prompted > '; read x", true
+	script, own = []string{"out:Opening browser to sign in…\nIf the browser didn't open, visit: " + long + "\n", "out:Paste code here if prompted > ", "read"}, true
 	h.u.startSignIn(s, "Acme", func() {})
 	h.pumpUntil("the link", func() bool { h.frame(); return h.u.login != nil && h.u.login.url != "" })
 	if h.u.login.url != long || h.u.login.tt.cols != loginCols {
@@ -96,8 +96,7 @@ func TestSignInAgain(t *testing.T) {
 		t.Fatalf("toast %q", h.u.toast)
 	}
 	// the code goes to claude whole, with its enter; a wrong one says why
-	check := `printf 'Paste code here if prompted > '; read x; [ "$x" = CODE ] && exit 0; echo "Login failed: That code wasn't accepted."; exit 1`
-	script = check
+	script = []string{"out:Paste code here if prompted > ", "code:CODE"}
 	h.u.login.tt.t.Close() // the link's sign-in, replaced
 	signed := false
 	h.u.startSignIn(s, "Acme", func() { signed = true })

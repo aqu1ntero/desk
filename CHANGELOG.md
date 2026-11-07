@@ -17,6 +17,16 @@ day). A release's section here is its notes on GitHub. The format follows
   - Files live where they do on Linux (`~/.config/desk`, `~/.local/share/desk`).
   - The app is ad-hoc signed, not with an Apple Developer ID: Gatekeeper asks the first time.
   - The infra workspace's virtual camera stays Linux-only.
+- **Windows.** desk runs on Windows 10 (1809 or newer) and 11, x64: each release has an
+  installer, `desk-<version>-windows-amd64.msi` (Program Files, `PATH`, Start Menu; a newer one
+  replaces the old install), and a portable `desk-<version>-windows-amd64.zip`.
+  - Terminals run in a Windows pseudo console (ConPTY). Local panes and `!` commands use PowerShell
+    7 (`pwsh`) when it's on `PATH`, else Windows PowerShell, with command blocks; `token_cmd` runs
+    with `cmd /C`.
+  - An organization's Claude profile runs with `CLAUDE_CONFIG_DIR` instead of bubblewrap.
+  - Files live where they do on Linux, under your user folder (`.config\desk`, `.local\share\desk`).
+  - Neither file is code-signed: SmartScreen asks the first time (More info → Run anyway).
+  - The infra workspace's virtual camera stays Linux-only.
 - **A card's workspace:** its projects in a tree, an editor, and a read-only Claude that answers
   about the code.
 - **desk's own SSH client.** Server panes, file transfers and port forwards no longer run the `ssh`

@@ -48,6 +48,7 @@ var floors = map[string]float64{
 	"github.com/lfdominguez/desk/internal/sshc":      95,
 	"github.com/lfdominguez/desk/internal/sshconfig": 97,
 	"github.com/lfdominguez/desk/internal/term":      98,
+	"github.com/lfdominguez/desk/internal/tty":       100,
 	"github.com/lfdominguez/desk/internal/ui":        99,
 	"github.com/lfdominguez/desk/internal/ui/kit":    99,
 	"github.com/lfdominguez/desk/internal/vault":     100,

@@ -1,6 +1,9 @@
 package term
 
 import (
+	"bufio"
+	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -9,11 +12,45 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
+// TestMain doubles as the program the tests run (so they need no shell, on
+// any OS): DESK_TERM_HELPER says what it does.
+func TestMain(m *testing.M) {
+	switch os.Getenv("DESK_TERM_HELPER") {
+	case "":
+		// A -cover test binary run without GOCOVERDIR (qa mutate's runs)
+		// would end each helper with a warning on its screen.
+		if os.Getenv("GOCOVERDIR") == "" {
+			d, _ := os.MkdirTemp("", "desk-term-cover")
+			os.Setenv("GOCOVERDIR", d)
+			code := m.Run()
+			os.RemoveAll(d)
+			os.Exit(code)
+		}
+		os.Exit(m.Run())
+	case "echo":
+		fmt.Println("hi")
+		l, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		fmt.Println("got:" + strings.TrimSpace(l))
+	case "env":
+		fmt.Printf("%s:%s:%s", os.Getenv("FOO"), os.Getenv("DESK_TERM_TEST"), os.Getenv("TERM"))
+	case "sleep":
+		time.Sleep(30 * time.Second)
+	}
+	os.Exit(0)
+}
+
+// helper is the test binary as a program doing what.
+func helper(what string) *exec.Cmd {
+	c := exec.Command(os.Args[0])
+	c.Env = append(os.Environ(), "DESK_TERM_HELPER="+what)
+	return c
+}
+
 // TestEcho: what the program prints lands on the grid, typed keys reach
 // it, and its exit is seen.
 func TestEcho(t *testing.T) {
 	changed := make(chan struct{}, 64)
-	tm, err := Start(exec.Command("sh", "-c", "printf 'hi\\n'; read x; echo got:$x"), 40, 5, func() {
+	tm, err := Start(helper("echo"), 40, 5, func() {
 		select {
 		case changed <- struct{}{}:
 		default:

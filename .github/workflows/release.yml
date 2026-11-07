@@ -1,6 +1,7 @@
 name: Build
 
-# Every push to main builds the .deb, the AppImage and the macOS zip as workflow artifacts
+# Every push to main builds the .deb, the AppImage, the macOS zip and the Windows zip and MSI
+# as workflow artifacts
 # (pull requests run ci.yml instead);
 # a release tag also publishes them as a GitHub release. Releases are dated:
 # 2026.11.03, and a later one the same day 2026.11.03.1, .2…
@@ -213,6 +214,72 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload nightly --clobber dist/*.zip
+
+  # desk for Windows (amd64): desk-<version>-windows-amd64.zip (portable) and .msi, cross-built
+  # on Linux by packaging/windows/build.sh (Gio needs no cgo there; the MSI is wixl's, from
+  # msitools) with the package job's version, then added to the release (or nightly) that job
+  # made. Unsigned, so SmartScreen warns on first run. With these secrets desk.exe and the MSI
+  # are Authenticode-signed (osslsigncode) instead:
+  #   WINDOWS_CERT_PFX       base64 of the code signing certificate with its key (.pfx)
+  #   WINDOWS_CERT_PASSWORD  that .pfx's password
+  windows:
+    needs: package
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+      WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+      WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends msitools librsvg2-bin imagemagick zip osslsigncode
+
+      # Optional: only with the owner's code signing certificate
+      - name: Signing certificate
+        if: env.WINDOWS_CERT_PFX != ''
+        run: |
+          echo "$WINDOWS_CERT_PFX" | base64 --decode > "$RUNNER_TEMP/cert.pfx"
+          echo "SIGN_PFX=$RUNNER_TEMP/cert.pfx" >> "$GITHUB_ENV"
+          echo "SIGN_PASSWORD=$WINDOWS_CERT_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: desk.exe, zip and MSI
+        run: packaging/windows/build.sh
+
+      # No Windows to run it on: the version must be in the binary and the MSI's ProductVersion set
+      - name: Check the version
+        run: |
+          grep -qaF "$VERSION" dist/windows/desk.exe
+          msiinfo export "dist/desk-$VERSION-windows-amd64.msi" Property | grep -q '^ProductVersion'
+
+      - name: Forget the certificate
+        if: always() && env.WINDOWS_CERT_PFX != ''
+        run: rm -f "$RUNNER_TEMP/cert.pfx"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desk-${{ env.VERSION }}-windows
+          path: |
+            dist/*.zip
+            dist/*.msi
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/*.zip dist/*.msi
+
+      - name: Nightly
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload nightly --clobber dist/*.zip dist/*.msi
 
   # The AUR package desk-kanban, from packaging/aur/PKGBUILD with this tag's
   # version and source checksum. Needs the AUR_SSH_PRIVATE_KEY secret (the

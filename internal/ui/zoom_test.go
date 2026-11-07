@@ -85,7 +85,7 @@ func TestZoomSettings(t *testing.T) {
 func TestZoomTerminal(t *testing.T) {
 	h := newHarness(t)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})

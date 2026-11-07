@@ -195,7 +195,7 @@ func gmTerm(t *testing.T, host string, w, h int) (*Term, *gmSink) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	term := &Term{Host: host, emu: vt.NewEmulator(w, h), pty: ptyProc{wp, doneProcA(t)}}
+	term := &Term{Host: host, emu: vt.NewEmulator(w, h), pty: pipeProc{wp}}
 	term.emu.RegisterOscHandler(133, term.osc133)
 	sink := &gmSink{}
 	go io.Copy(sink, term.emu)

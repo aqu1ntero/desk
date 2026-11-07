@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -486,8 +487,15 @@ func TestParseKeys(t *testing.T) {
 	}
 }
 
+// infraHelper is the test binary as a program doing what (TestMain).
+func infraHelper(what string) *exec.Cmd {
+	c := exec.Command(os.Args[0])
+	c.Env = []string{"DESK_INFRA_HELPER=" + what} // startCmd adds desk's
+	return c
+}
+
 func TestTermClose(t *testing.T) {
-	term, err := startCmd("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
+	term, err := startCmd("local", infraHelper("sleep"), 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -495,8 +503,9 @@ func TestTermClose(t *testing.T) {
 	for i := 0; i < 100 && term.code == 0; i++ {
 		time.Sleep(20 * time.Millisecond)
 	}
-	if term.code == 0 || term.Lost() {
-		t.Error("bash should have been hung up")
+	// Signaled; on Windows STATUS_CONTROL_C_EXIT, but under Wine 0.
+	if runtime.GOOS != "windows" && term.code == 0 || term.Lost() {
+		t.Error("the program should have been hung up")
 	}
 	if _, exited := term.State(); !exited {
 		t.Error("closed term must report exited")
@@ -1380,6 +1389,15 @@ func TestNotifyOnlyWhenElsewhere(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	switch os.Getenv("DESK_INFRA_HELPER") { // the test binary as a pane's program: no shell needed, on any OS
+	case "sleep":
+		time.Sleep(30 * time.Second)
+		os.Exit(0)
+	case "drop":
+		fmt.Println("before the drop")
+		time.Sleep(300 * time.Millisecond)
+		os.Exit(255)
+	}
 	desktopNotify = func(string, string) {} // tests never reach the desktop
 	state, _ := os.MkdirTemp("", "desk-test-state")
 	os.Setenv("XDG_STATE_HOME", state)  // nor the user's state: recordings, audit, session
@@ -1635,8 +1653,7 @@ func TestWakeOnLAN(t *testing.T) {
 // TestRedial: a pane whose ssh drops (exit 255 after it was up) is kept,
 // shows "reconnecting" with its history, and dials again.
 func TestRedial(t *testing.T) {
-	cmd := exec.Command("bash", "--norc", "-c", "echo before the drop; sleep 0.3; exit 255")
-	term, err := startCmd("local", cmd, 80, 24, func() {}, paneState{})
+	term, err := startCmd("local", infraHelper("drop"), 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
 	}

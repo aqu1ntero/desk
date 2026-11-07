@@ -52,7 +52,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -90,10 +89,6 @@ type Vault struct {
 	Insecure bool   `toml:"insecure_tls"` // hashicorp: skip TLS verification
 }
 
-// Shell runs a configured command line (token_cmd): sh -c, or cmd /C on
-// Windows, which has no sh.
-var Shell = map[bool][2]string{true: {"cmd", "/C"}, false: {"sh", "-c"}}[runtime.GOOS == "windows"]
-
 // Get reads the token, when it is not in a vault (see links.secret); ""
 // without an error means none is configured.
 func (s Secret) Get() (string, error) {
@@ -106,7 +101,7 @@ func (s Secret) Get() (string, error) {
 	case s.TokenCmd != "":
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		out, err := exec.CommandContext(ctx, Shell[0], Shell[1], s.TokenCmd).Output()
+		out, err := exec.CommandContext(ctx, tokenShell[0], tokenShell[1], s.TokenCmd).Output()
 		if err != nil {
 			return "", fmt.Errorf("token_cmd: %w", err)
 		}

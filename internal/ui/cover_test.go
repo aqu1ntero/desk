@@ -22,7 +22,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -122,14 +124,63 @@ func jiraLink(srv *httptest.Server, key string) kanban.Link {
 	return kanban.Link{URL: srv.URL + "/browse/" + key, Kind: links.KindJira, Ref: key}
 }
 
-// fakeBin puts an executable script name on a PATH of its own.
+// fakeBin puts an executable script name on a PATH of its own. Windows has
+// no sh: there name.exe is this test binary (a hard link, else a copy),
+// which TestMain plays the script with (fakeScript).
 func fakeBin(t *testing.T, name, script string) string {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
-		t.Fatal(err)
+	if runtime.GOOS != "windows" {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		exe := filepath.Join(dir, name+".exe")
+		if os.Link(os.Args[0], exe) != nil {
+			b, err := os.ReadFile(os.Args[0])
+			if err == nil {
+				err = os.WriteFile(exe, b, 0o755)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("DESK_UI_FAKE_"+name, script)
 	}
-	t.Setenv("PATH", dir+":/usr/bin:/bin:"+os.Getenv("PATH"))
+	sep := string(os.PathListSeparator)
+	t.Setenv("PATH", dir+sep+"/usr/bin"+sep+"/bin"+sep+os.Getenv("PATH"))
 	return dir
+}
+
+// fakeScript is fakeBin's script played by the test binary on Windows,
+// for the few the tests use: exit N, cat >/dev/null, exec cat, and
+// echo "$1" > or >> a file.
+func fakeScript(script string, args []string) int {
+	switch {
+	case strings.HasPrefix(script, "exit "):
+		n, _ := strconv.Atoi(strings.TrimPrefix(script, "exit "))
+		return n
+	case script == "cat >/dev/null":
+		io.Copy(io.Discard, os.Stdin)
+		return 0
+	case script == "exec cat":
+		io.Copy(os.Stdout, os.Stdin)
+		return 0
+	case strings.HasPrefix(script, `echo "$1" >`):
+		rest := strings.TrimPrefix(script, `echo "$1" >`)
+		flag := os.O_TRUNC
+		if strings.HasPrefix(rest, ">") {
+			rest, flag = rest[1:], os.O_APPEND
+		}
+		f, err := os.OpenFile(strings.TrimSpace(rest), os.O_CREATE|os.O_WRONLY|flag, 0o644)
+		if err != nil || len(args) == 0 {
+			return 1
+		}
+		fmt.Fprintln(f, args[0])
+		f.Close()
+		return 0
+	}
+	fmt.Fprintln(os.Stderr, "fakeScript: unknown script", script)
+	return 2
 }
 
 // ---- sessions ----
@@ -520,7 +571,7 @@ func TestCoverUnlockCode(t *testing.T) {
 func TestCoverTerminalCells(t *testing.T) {
 	h := newHarness(t)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", `printf '\033[1mB\033[0m \033[2mF\033[0m \033[3mI\033[0m \033[7mR\033[0m \033[41mX\033[0m\n'; cat`), w, ht, notify)
+		return term.Start(prog("out:\033[1mB\033[0m \033[2mF\033[0m \033[3mI\033[0m \033[7mR\033[0m \033[41mX\033[0m\n", "cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -572,7 +623,7 @@ func TestCoverTerminalCells(t *testing.T) {
 func TestCoverTerminalPaste(t *testing.T) {
 	h := newHarness(t)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -861,7 +912,7 @@ func TestCoverPanelHeader(t *testing.T) {
 	opened := filepath.Join(t.TempDir(), "opened")
 	fakeBin(t, infra.Opener, `echo "$1" >> `+opened)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	art := "https://claude.ai/artifact/0123456789abcdef"
@@ -1227,7 +1278,7 @@ func TestCoverPushNoAccount(t *testing.T) {
 func TestCoverCardMenu(t *testing.T) {
 	h := newHarness(t)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -2519,7 +2570,7 @@ func TestCoverShellEnds(t *testing.T) {
 	if !strings.Contains(h.u.toast, "a command is still running") {
 		t.Fatalf("toast %q", h.u.toast)
 	}
-	exit := exec.Command("sh", "-c", "exit 4").Run()
+	exit := prog("exit:4").Run()
 	release <- exit
 	h.pumpUntil("the end", func() bool { return h.u.shellStop[c.ID] == nil })
 	ms := h.u.chat(c.ID)
@@ -2527,7 +2578,7 @@ func TestCoverShellEnds(t *testing.T) {
 		t.Fatalf("detail %q, text starts %q", m.Detail, m.Text[:3])
 	}
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	h.u.shell(c.ID, "make")

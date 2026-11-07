@@ -64,7 +64,7 @@ func lbPipeTerm(t *testing.T, w, h int) (*Term, *os.File) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.Close(); wr.Close() })
-	return &Term{emu: vt.NewEmulator(w, h), pty: ptyProc{File: wr}}, r
+	return &Term{emu: vt.NewEmulator(w, h), pty: pipeProc{wr}}, r
 }
 
 func lbReadPipe(t *testing.T, r *os.File, n int) string {
@@ -961,9 +961,12 @@ func TestTermWritesToProgram(t *testing.T) {
 	if s := out("\x1b[201~"); !strings.Contains(s, "\x1b[200~xyz\x1b[201~") {
 		t.Errorf("bracketed paste: %q", s)
 	}
-	r.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
-	if n, _ := r.Read(make([]byte, 8)); n != 0 {
-		t.Error("a paste must not go straight to the pty")
+	// Windows' pipes take no deadline, so a read there would wait forever:
+	// the check is the other OSes'
+	if r.SetReadDeadline(time.Now().Add(50*time.Millisecond)) == nil {
+		if n, _ := r.Read(make([]byte, 8)); n != 0 {
+			t.Error("a paste must not go straight to the pty")
+		}
 	}
 
 	if tm.WheelToApp(uv.MouseWheelEvent{X: 1, Y: 1, Button: uv.MouseWheelUp}) {

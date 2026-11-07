@@ -1163,7 +1163,7 @@ func TestTerminal(t *testing.T) {
 	var got []string
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
 		got = cmd.Args
-		return term.Start(exec.Command("sh", "-c", "printf 'ready\\n'; cat"), w, ht, notify)
+		return term.Start(prog("out:ready\n", "cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})

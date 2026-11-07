@@ -17,13 +17,12 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 	"unicode"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/vt"
-	"github.com/creack/pty"
+	"github.com/lfdominguez/desk/internal/tty"
 )
 
 // Block is one prompt: the command line and its output, delimited by OSC 133 marks.
@@ -129,6 +128,18 @@ const shellIntegration = ` test -n "$BASH_VERSION" && eval '__desk_d(){ printf "
 // fish has its own above.
 const shEnvFuncs = `__desk_e(){ local e; e=$( (env -0 2>/dev/null || env) | base64 | tr -d "\n"); [ "$e" = "$__desk_le" ] || { __desk_le=$e; printf "\033]6973;%s\007" "$e"; }; }; __desk_u(){ unset "$@"; }; `
 
+// psIntegration is shellIntegration for PowerShell (5.1 and 7), whose
+// default prompt is "PS C:\path> ": the prompt function wraps the one it had
+// with D;exit and B, and with PSReadLine (always there when interactive)
+// its ReadLine is followed by C. Then Clear-Host.
+// ponytail: no OSC 7 or environment report (osc7 and the restore's cd and
+// exports speak POSIX paths and shells), so a PowerShell pane doesn't keep
+// its directory or exports over a restart; older conhosts (before Windows
+// 11 22H2) may swallow the marks, which leaves the pane without blocks.
+const psIntegration = `$global:__deskP = $function:prompt; function global:prompt { $e = if ($?) { 0 } elseif ($global:LASTEXITCODE) { $global:LASTEXITCODE } else { 1 }; ` +
+	`"$([char]27)]133;D;$e$([char]7)" + (& $global:__deskP) + "$([char]27)]133;B$([char]7)" }; ` +
+	`if (Get-Module PSReadLine) { function global:PSConsoleHostReadLine { $l = [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace, $ExecutionContext); [Console]::Write("$([char]27)]133;C$([char]7)"); $l } }; Clear-Host`
+
 // promptEnd is how a shell prompt ends: bash $ #, zsh %, fish > ❯.
 var promptEnd = []string{"$", "#", "%", ">", "❯"}
 
@@ -148,30 +159,12 @@ type proc interface {
 }
 
 // ptyProc is a local program in a PTY.
-type ptyProc struct {
-	*os.File
-	p *os.Process
-}
-
-func (p ptyProc) Resize(w, h int) {
-	pty.Setsize(p.File, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
-}
-
-// Hangup signals before closing: closing the pty alone leaves the reader
-// blocked and the process alive.
-func (p ptyProc) Hangup() {
-	p.p.Signal(syscall.SIGHUP)
-	p.File.Close()
-}
+type ptyProc struct{ *tty.PTY }
 
 // Wait: a program here ending with 255 counts as a dropped link, as ssh's
 // 255 did (HostCmd's shells stand in for servers).
 func (p ptyProc) Wait() (int, bool) {
-	st, _ := p.p.Wait()
-	code := -1
-	if st != nil {
-		code = st.ExitCode()
-	}
+	code := p.PTY.Wait()
 	return code, code == 255
 }
 
@@ -200,22 +193,44 @@ func NewTerm(host, dir string, w, h int, notify func(), prelude paneState) (*Ter
 
 // localShell is the local pane's shell, without rc files: bash, but on
 // macOS only a bash ≥ 4.4 on PATH (/bin/bash is 3.2, without the PS0 that
-// marks a command's start), else zsh, which shellIntegration speaks too.
+// marks a command's start), else zsh, which shellIntegration speaks too;
+// PowerShell on Windows (psIntegration).
 func localShell(goos string) []string {
-	if goos != "darwin" || exec.Command("bash", "-c", "((BASH_VERSINFO[0]*100+BASH_VERSINFO[1] >= 404))").Run() == nil {
+	switch {
+	case goos == "windows":
+		return []string{powerShell(), "-NoLogo", "-NoProfile"}
+	case goos != "darwin" || exec.Command("bash", "-c", "((BASH_VERSINFO[0]*100+BASH_VERSINFO[1] >= 404))").Run() == nil:
 		return []string{"bash", "--norc", "-i"}
 	}
 	return []string{"zsh", "-f", "-i"}
 }
 
+// powerShell is PowerShell 7 (pwsh) when it's on PATH, else the Windows
+// PowerShell every Windows has.
+func powerShell() string {
+	if _, err := exec.LookPath("pwsh"); err == nil {
+		return "pwsh"
+	}
+	return "powershell"
+}
+
+// ShellArgs is how a one-off command line runs here: bash -c, or
+// PowerShell's -Command on Windows.
+func ShellArgs(goos, cmd string) []string {
+	if goos == "windows" {
+		return []string{powerShell(), "-NoLogo", "-NoProfile", "-Command", cmd}
+	}
+	return []string{"bash", "-c", cmd}
+}
+
 // startCmd starts cmd here in a PTY of w×h.
 func startCmd(host string, cmd *exec.Cmd, w, h int, notify func(), prelude paneState) (*Term, error) {
 	cmd.Env = append(append(os.Environ(), cmd.Env...), "TERM=xterm-256color")
-	f, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
+	f, err := tty.Start(cmd, w, h)
 	if err != nil {
 		return nil, err
 	}
-	return startTerm(host, ptyProc{f, cmd.Process}, w, h, notify, prelude), nil
+	return startTerm(host, ptyProc{f}, w, h, notify, prelude), nil
 }
 
 func startTerm(host string, p proc, w, h int, notify func(), prelude paneState) *Term {
@@ -289,6 +304,14 @@ func (t *Term) maybeInject() {
 	for _, e := range promptEnd {
 		if strings.HasSuffix(l, e) {
 			t.injected = true
+			if e == ">" && strings.HasPrefix(l, "PS ") {
+				mark := ""
+				if t.pending != nil {
+					mark = `; [Console]::Write("$([char]27)]6974$([char]7)")` // replayMark
+				}
+				io.WriteString(t.pty, psIntegration+mark+"\r")
+				return
+			}
 			clear := "clear" // ED 3: the motd and our line go, scrollback too
 			if t.pending != nil {
 				clear += `; printf '\033]6974\007'` // replayMark: the history goes in after the wipe

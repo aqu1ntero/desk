@@ -48,7 +48,10 @@ on the focused pane's server, in the same tab. Panes stack top to bottom.
 ## Command blocks
 
 desk adds a small shell integration to bash, zsh and fish when the first prompt shows. From
-then on each command you or Claude run becomes a **block**, numbered from #1 in the gutter:
+then on each command you or Claude run becomes a **block**, numbered from #1 in the gutter.
+On Windows, the local pane runs PowerShell (`pwsh` when it's on your `PATH`, else Windows
+PowerShell), which gets blocks too, but doesn't keep its folder or exported variables over a
+restart:
 
 <figure class="cut">
 
