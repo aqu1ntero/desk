@@ -145,17 +145,20 @@ func (h *asbruHost) set(k, v string) {
 
 // AsbruConfig turns Ásbrú's file data into servers file text: only the hosts
 // under group (a path like "Prod" or "Prod/Web", "" for all), their groups
-// relative to it, aliases not in taken. It returns the aliases written and
-// one line per host left out, saying why.
-func AsbruConfig(data []byte, group string, taken map[string]bool) (string, []string, []string, error) {
+// relative to it. taken is the servers file's hosts, alias → where they
+// connect (asbruWhere); a host already there under one of the aliases it
+// could get is left out, and a name another host has gets its group in
+// front. It returns the aliases written and one line per host left out,
+// saying why.
+func AsbruConfig(data []byte, group string, taken map[string]string) (string, []string, []string, error) {
 	t, err := readAsbru(data)
 	if err != nil {
 		return "", nil, nil, err
 	}
 	ids := slices.Sorted(maps.Keys(t.nodes))
-	file, used := map[string]bool{}, map[string]bool{} // the servers file's aliases, this import's
-	for a, in := range taken {
-		file[strings.ToLower(a)] = in
+	file, used := map[string]string{}, map[string]bool{} // the servers file's aliases, this import's
+	for a, w := range taken {
+		file[strings.ToLower(a)] = w
 	}
 	var hosts []*asbruHost
 	var skipped []string
@@ -180,7 +183,7 @@ func AsbruConfig(data []byte, group string, taken map[string]bool) (string, []st
 			skipped = append(skipped, where+": "+why)
 			continue
 		}
-		h.alias = asbruAlias(n.name, rel, file, used)
+		h.alias = asbruAlias(n.name, p, h.where(), file, used) // p: a group imported alone still names its hosts
 		if h.alias == "" {
 			skipped = append(skipped, where+": already in the servers file")
 			continue
@@ -244,13 +247,53 @@ func asbruUnder(path, group string) (string, bool) {
 	return "", false
 }
 
+// asbruWhere is what a host connects to, as an import tells hosts apart:
+// its address (the alias when it has no HostName) and port.
+func asbruWhere(alias, addr, port string) string {
+	if port == "" || port == "0" {
+		port = "22"
+	}
+	return strings.ToLower(cmpOr(addr, alias)) + ":" + port
+}
+
+// where is h's asbruWhere.
+func (h *asbruHost) where() string {
+	var addr, port string
+	for _, l := range h.lines {
+		switch l[0] {
+		case "HostName":
+			addr = l[1]
+		case "Port":
+			port = l[1]
+		}
+	}
+	return asbruWhere(h.alias, addr, port)
+}
+
+// asbruAccents are the letters with marks a slug keeps as their plain one.
+var asbruAccents = map[rune]rune{}
+
+func init() {
+	for plain, marked := range map[rune]string{'a': "áàâäãå", 'e': "éèêë", 'i': "íìîï", 'o': "óòôöõ", 'u': "úùûü", 'n': "ñ", 'c': "ç", 'y': "ýÿ",
+		'A': "ÁÀÂÄÃÅ", 'E': "ÉÈÊË", 'I': "ÍÌÎÏ", 'O': "ÓÒÔÖÕ", 'U': "ÚÙÛÜ", 'N': "Ñ", 'C': "Ç", 'Y': "Ý"} {
+		for _, r := range marked {
+			asbruAccents[r] = plain
+		}
+	}
+}
+
 // asbruAlias is a Host alias for name: no spaces or patterns, unique (the
-// group's last name in front, then a number); "" when the plain name is
-// taken by the file already (that host was imported before).
-func asbruAlias(name, group string, file, used map[string]bool) string {
+// group's last name in front, then a number); "" when the file has the host
+// (where) under one of those aliases already: a former import's. A name
+// the file gives another host is not this one: Ásbrú repeats names across
+// groups (each client its "db"), which an import group by group meets.
+func asbruAlias(name, group, where string, file map[string]string, used map[string]bool) string {
 	slug := func(s string) string {
 		s = strings.Join(strings.Fields(s), "-")
 		return strings.Map(func(r rune) rune {
+			if p, ok := asbruAccents[r]; ok {
+				return p
+			}
 			if r == '-' || r == '.' || r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' {
 				return r
 			}
@@ -258,9 +301,6 @@ func asbruAlias(name, group string, file, used map[string]bool) string {
 		}, s)
 	}
 	a := cmpOr(slug(name), "host")
-	if file[strings.ToLower(a)] {
-		return ""
-	}
 	try := []string{a}
 	if g := slug(filepath.Base(group)); g != "" && g != "." {
 		try = append(try, g+"-"+a)
@@ -269,7 +309,12 @@ func asbruAlias(name, group string, file, used map[string]bool) string {
 		try = append(try, fmt.Sprintf("%s-%d", a, i))
 	}
 	for _, c := range try {
-		if !used[strings.ToLower(c)] && !file[strings.ToLower(c)] {
+		if w, ok := file[strings.ToLower(c)]; ok && w == where {
+			return ""
+		}
+	}
+	for _, c := range try {
+		if _, ok := file[strings.ToLower(c)]; !ok && !used[strings.ToLower(c)] {
 			used[strings.ToLower(c)] = true
 			return c
 		}
@@ -278,7 +323,7 @@ func asbruAlias(name, group string, file, used map[string]bool) string {
 }
 
 // host is node's Host block (its alias still to give), or nil and why not.
-func (t *asbruTree) host(n *asbruNode, group string, jumps map[string]*asbruHost, taken map[string]bool) (*asbruHost, string) {
+func (t *asbruTree) host(n *asbruNode, group string, jumps map[string]*asbruHost, taken map[string]string) (*asbruHost, string) {
 	f := func(k string) string { return strings.TrimSpace(asbruStr(n.v[k])) }
 	ip, user, port := f("ip"), f("user"), f("port")
 	if f("auth type") == "publickey" && f("passphrase user") != "" { // Ásbrú logs in as it then (and blanks user)
@@ -336,7 +381,7 @@ func (t *asbruTree) host(n *asbruNode, group string, jumps map[string]*asbruHost
 // asbruJump is the alias of the hidden Host block a jump host gets, one per
 // address, port, user and key, for ProxyJump. One the servers file has
 // already (a former import's) is used as it is.
-func asbruJump(ip, port, user, key string, jumps map[string]*asbruHost, taken map[string]bool) string {
+func asbruJump(ip, port, user, key string, jumps map[string]*asbruHost, taken map[string]string) string {
 	k := strings.Join([]string{ip, port, user, key}, "\x00")
 	if j := jumps[k]; j != nil {
 		return j.alias
@@ -348,7 +393,8 @@ func asbruJump(ip, port, user, key string, jumps map[string]*asbruHost, taken ma
 	for n := 2; slices.ContainsFunc(slices.Collect(maps.Values(jumps)), func(o *asbruHost) bool { return o.alias == alias }); n++ { // another user or key there
 		alias = strings.TrimSuffix(alias, "-"+strconv.Itoa(n-1)) + "-" + strconv.Itoa(n)
 	}
-	j := &asbruHost{alias: alias, old: taken[alias], lines: [][2]string{{"HostName", ip}, {"#@ hidden", ""}}}
+	_, old := taken[alias]
+	j := &asbruHost{alias: alias, old: old, lines: [][2]string{{"HostName", ip}, {"#@ hidden", ""}}}
 	if user != "" {
 		j.set("User", user)
 	}
@@ -414,20 +460,24 @@ func asbruOptions(h *asbruHost, opts string) {
 
 // ImportAsbru adds the SSH hosts of Ásbrú's file (under group, "" all) to
 // the servers file of the organization folder org, making it when it has
-// none; hosts whose alias is there already are left out. It returns the file
+// none; hosts it has already (same address and port) are left out, and a
+// name another host has gets the group in front. It returns the file
 // and what ImportAsbru added and skipped.
 func ImportAsbru(org, file, group string) (string, []string, []string, error) {
+	if err := AsbruCurrent(file); err != nil {
+		return "", nil, nil, err
+	}
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return "", nil, nil, err
 	}
 	path := serversTarget(org)
-	taken := map[string]bool{}
+	taken := map[string]string{}
 	old, err := os.ReadFile(path)
 	if err == nil {
 		hs, _ := parseServers(path, org, false)
 		for _, h := range hs {
-			taken[h.alias] = true
+			taken[h.alias] = asbruWhere(h.alias, h.addr, h.port)
 		}
 	} else if !os.IsNotExist(err) {
 		return "", nil, nil, err
@@ -475,7 +525,10 @@ func ServersMain(args []string, out, errw io.Writer) int {
 	var err error
 	if *org == "" {
 		var data []byte
-		if data, err = os.ReadFile(file); err == nil {
+		if err = AsbruCurrent(file); err == nil {
+			data, err = os.ReadFile(file)
+		}
+		if err == nil {
 			var text string
 			text, added, skipped, err = AsbruConfig(data, *group, nil)
 			fmt.Fprint(out, text)

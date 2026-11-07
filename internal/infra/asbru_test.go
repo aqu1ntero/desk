@@ -145,7 +145,7 @@ func writeTemp(t *testing.T, s string) string {
 // its subgroups relative; names the file has are left out; nothing left is
 // no text.
 func TestAsbruConfigGroup(t *testing.T) {
-	text, added, _, err := AsbruConfig([]byte(asbruSample), "/Prod/", map[string]bool{"web-01": true})
+	text, added, _, err := AsbruConfig([]byte(asbruSample), "/Prod/", map[string]string{"web-01": "192.0.2.11:22"})
 	if err != nil || !slices.Equal(added, []string{"web-02"}) || !strings.Contains(text, "#@ group Web\n") || strings.Contains(text, "192.0.2.60") || strings.Contains(text, "192.0.2.11") {
 		t.Fatalf("%q %v\n%s", added, err, text)
 	}
@@ -219,7 +219,7 @@ environments:
 	if strings.Count(text, "Host jump-192.0.2.9") != 2 || !strings.Contains(text, "ProxyJump jump-192.0.2.9-2") {
 		t.Errorf("one jump block per jump host:\n%s", text)
 	}
-	text, _, _, _ = AsbruConfig([]byte(y), "", map[string]bool{"jump-192.0.2.9": true})
+	text, _, _, _ = AsbruConfig([]byte(y), "", map[string]string{"jump-192.0.2.9": "192.0.2.9:22"})
 	if strings.Contains(text, "Host jump-192.0.2.9\n") || !strings.Contains(text, "ProxyJump jump-192.0.2.9\n") {
 		t.Errorf("the file's jump host is used, not written again:\n%s", text)
 	}
@@ -286,8 +286,8 @@ func TestAsbruEdges(t *testing.T) {
 	if g, _ := AsbruGroups([]byte(exp)); !slices.Equal(g, []string{"Exported"}) {
 		t.Errorf("an export's group: %q", g)
 	}
-	if text, _, _, _ := AsbruConfig([]byte(y), "", map[string]bool{"a": false}); !strings.Contains(text, "Host a\n") {
-		t.Error("a name the file doesn't have is not taken")
+	if text, _, _, _ := AsbruConfig([]byte(y), "", map[string]string{"A": "192.0.2.99:22"}); !strings.Contains(text, "Host a-2\n    HostName 192.0.2.3\n") {
+		t.Errorf("a name the file gives another host:\n%s", text)
 	}
 	h := &asbruHost{}
 	asbruOptions(h, "word")
@@ -307,24 +307,72 @@ func TestAsbruValues(t *testing.T) {
 	if p := tr.path("h"); p != "B/A" {
 		t.Errorf("loop: %q", p)
 	}
-	used, none := map[string]bool{}, map[string]bool{}
+	used, none := map[string]bool{}, map[string]string{}
 	for range 101 {
-		asbruAlias("x", "", none, used)
+		asbruAlias("x", "", "w", none, used)
 	}
-	if a := asbruAlias("x", "", none, used); a != "" {
+	if a := asbruAlias("x", "", "w", none, used); a != "" {
 		t.Errorf("no name left: %q", a)
 	}
-	if a := asbruAlias("ü !", "g/h", none, map[string]bool{}); a != "-" {
+	if a := asbruAlias("ñ !", "g/h", "w", none, map[string]bool{}); a != "n-" {
 		t.Errorf("slug %q", a)
 	}
-	if a := asbruAlias("ü", "", none, map[string]bool{}); a != "host" {
+	if a := asbruAlias("€", "", "w", none, map[string]bool{}); a != "host" {
 		t.Errorf("nothing left of the name: %q", a)
 	}
-	if a := asbruAlias("db", "eu/g", map[string]bool{"g-db": true}, map[string]bool{"db": true}); a != "db-2" {
+	if a := asbruAlias("Señal Ü", "Multiseñal", "w", map[string]string{"senal-u": "v"}, map[string]bool{}); a != "Multisenal-Senal-U" {
+		t.Errorf("letters with marks as their plain one: %q", a)
+	}
+	if a := asbruAlias("db", "eu/g", "w", map[string]string{"g-db": "v"}, map[string]bool{"db": true}); a != "db-2" {
 		t.Errorf("past the file's and this import's names: %q", a)
 	}
-	if a := asbruAlias("DB", "", map[string]bool{"db": true}, none); a != "" {
+	if a := asbruAlias("DB", "", "w", map[string]string{"db": "w"}, map[string]bool{}); a != "" {
 		t.Errorf("the file has it (any case): %q", a)
+	}
+	if a := asbruAlias("db", "eu/g", "w", map[string]string{"db": "v", "g-db": "w"}, map[string]bool{}); a != "" {
+		t.Errorf("the file has it under its group's name: %q", a)
+	}
+	if a := asbruAlias("db", "eu/g", "w", map[string]string{"db": "v", "db-3": "w"}, map[string]bool{}); a != "" {
+		t.Errorf("the file has it numbered, past a free name: %q", a)
+	}
+	for w, want := range map[[3]string]string{{"h", "", ""}: "h:22", {"h", "192.0.2.1", "0"}: "192.0.2.1:22", {"h", "Box.Example.com", "2210"}: "box.example.com:2210"} {
+		if got := asbruWhere(w[0], w[1], w[2]); got != want {
+			t.Errorf("asbruWhere%q = %q", w, got)
+		}
+	}
+}
+
+// TestImportAsbruRepeatedNames: Ásbrú's clients each have a "tracker",
+// imported a group at a time; each comes, with its group in front when the
+// name is another's, ports on one address are two hosts, and importing
+// again adds none.
+func TestImportAsbruRepeatedNames(t *testing.T) {
+	y := `environments:
+  g1: {_is_group: 1, name: Acme}
+  g2: {_is_group: 1, name: Globex}
+  a1: {name: tracker, ip: 192.0.2.10, method: SSH, parent: g1}
+  b1: {name: tracker, ip: 192.0.2.20, method: SSH, parent: g2}
+  b2: {name: lsp 1, ip: 192.0.2.30, port: 2210, method: SSH, parent: g2}
+  b3: {name: lsp 1, ip: 192.0.2.30, port: 2211, method: SSH, parent: g2}
+`
+	org := filepath.Join(t.TempDir(), "Initech")
+	src := filepath.Join(t.TempDir(), "asbru.yml")
+	write(t, src, y)
+	if _, added, _, err := ImportAsbru(org, src, "Acme"); err != nil || !slices.Equal(added, []string{"tracker"}) {
+		t.Fatalf("Acme: %q %v", added, err)
+	}
+	_, added, skipped, err := ImportAsbru(org, src, "Globex")
+	if err != nil || !slices.Equal(added, []string{"Globex-lsp-1", "Globex-tracker", "lsp-1"}) || len(skipped) != 0 {
+		t.Fatalf("Globex: %q %q %v", added, skipped, err)
+	}
+	for _, g := range []string{"Acme", "Globex", ""} {
+		if _, added, _, err := ImportAsbru(org, src, g); err != nil || added != nil {
+			t.Errorf("again %q: %q %v", g, added, err)
+		}
+	}
+	hs, _ := parseServers(serversTarget(org), org, false)
+	if len(hs) != 4 || hostByAlias(hs, "Globex-tracker").addr != "192.0.2.20" || hostByAlias(hs, "Globex-lsp-1").port != "2211" {
+		t.Fatalf("%+v", hs)
 	}
 }
 
@@ -368,7 +416,7 @@ func TestImportAsbru(t *testing.T) {
 	write(t, filepath.Join(other, "infra", "hosts.conf"), "Host web-01\n    HostName 192.0.2.99") // no newline at its end
 	file, added, _, err = ImportAsbru(other, src, "")
 	b, _ := os.ReadFile(file)
-	if err != nil || file != filepath.Join(other, "infra", "hosts.conf") || slices.Contains(added, "web-01") || !strings.HasPrefix(string(b), "Host web-01\n    HostName 192.0.2.99\n\n# Imported") {
+	if err != nil || file != filepath.Join(other, "infra", "hosts.conf") || !slices.Contains(added, "Web-web-01") || !strings.HasPrefix(string(b), "Host web-01\n    HostName 192.0.2.99\n\n# Imported") {
 		t.Fatalf("%q %q %v\n%s", file, added, err, b)
 	}
 	if _, _, _, err := ImportAsbru(org, filepath.Join(t.TempDir(), "none.yml"), ""); err == nil {
@@ -391,6 +439,7 @@ func TestImportAsbru(t *testing.T) {
 // TestServersMain: desk servers import-asbru prints the file, or adds it to
 // an organization's; its usage and failures exit non-zero.
 func TestServersMain(t *testing.T) {
+	fakeProcs(t)
 	src := writeTemp(t, asbruSample)
 	var out, errw bytes.Buffer
 	if c := ServersMain([]string{"import-asbru", "-group", "Prod/Web", src}, &out, &errw); c != 0 || !strings.Contains(out.String(), "Host web-02") {

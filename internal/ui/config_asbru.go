@@ -15,6 +15,10 @@ import (
 // asbruFile is Ásbrú Connection Manager's config; tests point it elsewhere.
 var asbruFile = infra.AsbruPath
 
+// asbruCurrent says when Ásbrú's file can't be trusted yet: Ásbrú is open
+// (a var tests replace).
+var asbruCurrent = infra.AsbruCurrent
+
 // cfgServers is an organization page's Servers part, under its accounts:
 // where its servers file is, and Import from Ásbrú, which lists Ásbrú's
 // top-level groups to take one, or all of them (d.asbru while it is open).
@@ -72,6 +76,10 @@ func (d *cfgDialog) asbruHint() string {
 
 // openAsbru reads Ásbrú's groups for the page's picker.
 func (u *ui) openAsbru() {
+	if err := asbruCurrent(asbruFile()); err != nil {
+		u.showToast(err.Error(), true)
+		return
+	}
 	data, err := os.ReadFile(asbruFile())
 	if err != nil {
 		u.showToast("No Ásbrú connections: "+err.Error(), true)

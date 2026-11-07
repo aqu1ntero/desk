@@ -11,7 +11,9 @@ groups, users, ports, keys and jump hosts. Passwords stay behind.
 
 :::caution[Close Ásbrú first]
 desk reads `~/.config/asbru/asbru.yml` (or the folder in `$ASBRU_CFG`). Ásbrú writes that file
-when it closes cleanly, so close it before importing, or desk may read an older copy.
+when it closes cleanly, so close it (its menu or tray icon, Quit) before importing. While it
+runs, desk doesn't read that file: the import says "Ásbrú is open: close it first…". An export
+you give the command is read anyway.
 :::
 
 <Tabs>
@@ -109,8 +111,10 @@ For each SSH connection:
   Wildcards count as unknown in `Ciphers`, `MACs` and `KexAlgorithms` (only key lists take
   them). A list left with nothing goes; a `-` list stays as it is, since its names aren't
   checked. Such a host may still not connect, if the algorithm was the only one it has.
-- Names become ssh aliases: spaces turn into `-`, and only letters, digits, `.`, `_` and `-`
-  stay. Two hosts with the same name get the group's name in front, then `-2`, `-3`…
+- Names become ssh aliases: spaces turn into `-`, letters with accents lose them (`ñ` is `n`), and
+  only letters, digits, `.`, `_` and `-` stay. Two hosts with the same name get their group's name
+  in front, then `-2`, `-3`… This holds across imports too: a `tracker` in Globex, imported after
+  Acme's, comes as `Globex-tracker`.
 
 The import starts with a comment line saying when and how many. Ásbrú's Prod group, with a Web
 group inside, a build host and an RDP connection, imported with `-group Prod`:
@@ -141,8 +145,9 @@ Host build
 - **Hosts written with Ásbrú's variables** (`<GV:…>`, `<ENV:…>`) in the address, user or port:
   "uses Ásbrú variables (…)".
 - **Connections with no address**: "no address".
-- **Hosts the file has already**, by name (Includes inside the organization's folder count):
-  "already in the servers file". Importing again only adds the new ones.
+- **Hosts the file has already**: the same address and port under the name it would get (Includes
+  inside the organization's folder count): "already in the servers file". Importing again only
+  adds the new ones. A host the file has under another address is not this one.
 
 The toast and the shell list which ones were skipped and why.
 

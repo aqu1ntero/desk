@@ -463,7 +463,8 @@ desk servers import-asbru > ssh_config                   # or just print the fil
 ```
 
 It reads `~/.config/asbru/asbru.yml` (or `$ASBRU_CFG`; give another file, such as an export, as the
-last argument). Ásbrú writes that file when it closes cleanly, so close it before importing.
+last argument). Ásbrú writes that file when it closes cleanly, so close it before importing: while it runs, desk
+refuses its file and says so (an export is read anyway).
 
 - Groups become `#@ group` paths, relative to the group you picked.
 - For each host it brings the address, user (the key's user for a key login), port and key.
@@ -477,7 +478,9 @@ last argument). Ásbrú writes that file when it closes cleanly, so close it bef
 - Passwords stay behind: an ssh_config can't hold them. Point `#@ password` at your vault instead.
 - Connections that aren't SSH (RDP, VNC, Telnet…) are skipped, and so are hosts written with Ásbrú's
   variables (`<GV:…>`, `<ENV:…>`). The toast and the shell say which ones.
-- A host the file already has (by name) is left as it is, so importing again only adds the new ones.
+- A host the file already has (same address and port, under its name or the one it would get) is left
+  as it is, so importing again only adds the new ones. A name the file gives another host gets the
+  host's group in front (`acme-tracker`), even when you import one group at a time.
 
 ## Keys
 
