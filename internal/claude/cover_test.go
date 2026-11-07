@@ -255,6 +255,18 @@ func TestOptimizeMore(t *testing.T) {
 	}
 }
 
+// TestOptimizeCancelledMidRun: a run cancelled while Claude works says it
+// was cancelled, not that the killed process failed.
+func TestOptimizeCancelledMidRun(t *testing.T) {
+	bin := fakeClaude(t, false)
+	os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\nwhile :; do :; done\n"), 0o755)
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	if _, err := Optimize(ctx, Ask{Home: t.TempDir(), Dir: t.TempDir()}, nil); err != context.DeadlineExceeded {
+		t.Fatalf("%v", err)
+	}
+}
+
 // TestLimitsErrors: an unreachable endpoint, a non-200 and a broken body are errors.
 func TestLimitsErrors(t *testing.T) {
 	home := t.TempDir()

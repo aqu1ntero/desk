@@ -225,9 +225,6 @@ func partialString(js, key string) string {
 		if json.Unmarshal([]byte(`"`+seg+`"`), &s) == nil {
 			return s
 		}
-		if seg == "" {
-			break
-		}
 		seg = seg[:len(seg)-1]
 	}
 	return ""

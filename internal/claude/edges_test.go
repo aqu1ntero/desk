@@ -487,6 +487,8 @@ func TestPartialString(t *testing.T) {
 		{`{"title": 3}`, ""},
 		{`{"titl`, ""},
 		{`{"title" "x"}`, ""},
+		{`{"title":"\qwertyuiop`, ""}, // a bad escape no trimming mends
+		{`{"title":"ab\q`, "ab"},
 	} {
 		if got := partialString(c.js, "title"); got != c.want {
 			t.Errorf("%s: %q, want %q", c.js, got, c.want)
