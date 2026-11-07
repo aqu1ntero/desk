@@ -124,6 +124,12 @@ func TestCanvasDraws(t *testing.T) {
 		if got := at(n.r.Min.X+3, n.r.Max.Y-3); !near(got, cvNodeBG, 3) {
 			t.Errorf("%s body %v", n.id, got)
 		}
+		if got := at(n.r.Min.X, n.r.Min.Y+cvHeadH-1); !near(got, hc, 3) { // square at the foot, only the top rounds
+			t.Errorf("%s header's foot corner %v, want %v", n.id, got, hc)
+		}
+		if got := at(n.r.Min.X+3, n.r.Min.Y+cvHeadH+2); !near(got, cvNodeBG, 3) {
+			t.Errorf("%s under its header %v", n.id, got)
+		}
 		x := n.r.Min.X + n.r.Dx()/2 + 5
 		if lum(at(x, n.r.Max.Y+1)) >= lum(at(x, n.r.Max.Y+7))-4 && lum(at(x, n.r.Max.Y+1)) >= lum(at(x, n.r.Max.Y+8))-4 {
 			t.Errorf("%s has no shadow", n.id)
@@ -142,9 +148,19 @@ func TestCanvasDraws(t *testing.T) {
 				if got := at(sx, y+5); !near(got, kit.RGB(0x141418), 10) {
 					t.Errorf("%s %s socket's rim %v", n.id, r.name, got)
 				}
+				if got := at(sx+3, y); r.sock != sockControl && !near(got, sockColors[r.sock], 6) { // centered on its point
+					t.Errorf("%s %s socket off center: %v", n.id, r.name, got)
+				}
 			default:
-				if got := at(n.r.Min.X+9, y); !near(got, cvParamBG, 3) {
-					t.Errorf("%s %s box %v", n.id, r.name, got)
+				for _, p := range []image.Point{{n.r.Min.X + 9, y}, {n.r.Min.X + 20, y - 8}, {n.r.Min.X + 20, y + 8}, {n.r.Max.X - 9, y}} {
+					if got := at(p.X, p.Y); !near(got, cvParamBG, 3) {
+						t.Errorf("%s %s box at %v: %v", n.id, r.name, p, got)
+					}
+				}
+				for _, p := range []image.Point{{n.r.Min.X + 20, y - 9}, {n.r.Min.X + 20, y + 9}, {n.r.Max.X - 7, y}} {
+					if got := at(p.X, p.Y); near(got, cvParamBG, 3) {
+						t.Errorf("%s %s box spills to %v", n.id, r.name, p)
+					}
 				}
 			}
 		}
@@ -234,6 +250,29 @@ func TestCanvasDraws(t *testing.T) {
 	if l := labelIn(t, ls, usage, px(m.r)); l.Min.X+h.measure(usage, 10, kit.Sans).X != px(m.r).Max.X-14 || l.Min.Y != row(m, "usage")-7 {
 		t.Errorf("a parameter's value at %v", l)
 	}
+	// a label's bounds are its width given, give or take its glyphs' overhang
+	off := func(got, want int) bool { return got-want > 2 || want-got > 2 }
+	if l := labelIn(t, ls, usage, px(m.r)); off(l.Dx(), (m.r.Max.X-8-6)-(m.r.Min.X+8+6+h.measure("usage", 10, kit.Sans).X+10)) {
+		t.Errorf("a parameter's value is %d wide", l.Dx())
+	}
+	if l := labelIn(t, ls, "Run", px(m.r)); off(l.Dx(), cvNodeW-24) {
+		t.Errorf("an input's name is %d wide", l.Dx())
+	}
+	if l := labelIn(t, ls, "PL · Waiting on api", px(m.r).Add(image.Pt(0, -20)).Inset(-4)); off(l.Dx(), cvNodeW+60) {
+		t.Errorf("a status line is %d wide", l.Dx())
+	}
+	card := node("card")
+	if l := labelIn(t, ls, "Card · "+c.Key(), px(card.r)); off(l.Max.X, px(card.r).Max.X-8) {
+		t.Errorf("a plain title ends at %d", l.Max.X)
+	}
+	med := kit.Medium(kit.Sans)
+	st, ws := "PL · Waiting on api", "AP · Working"
+	if !inks(img, ls, st, h.measure(st, 11, med), kit.Mix(pastels[0], kit.CText3, .45)) || !inks(img, ls, ws, h.measure(ws, 11, med), kit.Mix(pastels[1], kit.CWhite, .25)) {
+		t.Error("status lines: idle not dimmed, or working not bright")
+	}
+	if !inks(img, ls, "Your turn", h.measure("Your turn", 10, kit.Sans), statusColor[kanban.StatusWaiting]) || !inks(img, ls, usage, h.measure(usage, 10, kit.Sans), kit.CText) {
+		t.Error("a value in its tone, or the default")
+	}
 	if l := labelIn(t, ls, "CI failed", px(ci.r)); l.Min.X != px(ci.r).Min.X+22 {
 		t.Errorf("a check's title past its dot: %v", l.Min)
 	}
@@ -285,6 +324,23 @@ func TestCanvasDraws(t *testing.T) {
 	}
 }
 
+// TestCanvasChip: the earlier agents' chip sits centered at the foot.
+func TestCanvasChip(t *testing.T) {
+	h := newHarness(t)
+	c := teamCard(h)
+	h.u.findTask(c.ID, "a2", "").end = time.Now().Add(-settled - time.Minute)
+	var act func()
+	sz := image.Pt(1200, 800)
+	h.draw(sz, func(gtx layout.Context) layout.Dimensions { return h.u.canvasView(gtx, c, &act) })
+	bs := h.buttons(image.Rect(300, sz.Y-60, 900, sz.Y))
+	if len(bs) != 1 {
+		t.Fatalf("chip buttons %v", bs)
+	}
+	if ch := bs[0]; ch.Max.Y != sz.Y-12 || ch.Min.X != (sz.X-ch.Dx())/2 {
+		t.Errorf("chip at %v", ch)
+	}
+}
+
 // TestCanvasFitsAgain: fitted and untouched, the canvas fits again when the
 // graph or the pane changes; once moved, it stays; an idle canvas asks for
 // no frames.
@@ -297,6 +353,13 @@ func TestCanvasFitsAgain(t *testing.T) {
 	if _, ok := h.r.WakeupTime(); ok {
 		t.Error("an idle canvas asks for frames")
 	}
+	c.Status = kanban.StatusWorking // the session breathes, nothing else asks
+	h.draw(image.Pt(1200, 800), w)
+	if at, ok := h.r.WakeupTime(); !ok || at.After(time.Now().Add(600*time.Millisecond)) {
+		t.Errorf("a working session doesn't breathe: %v %v", at, ok)
+	}
+	c.Status = kanban.StatusWaiting
+	h.draw(image.Pt(1200, 800), w)
 	v := h.u.cv[c.ID]
 	b := v.fitted
 	h.u.onTask(c.ID, &claude.Task{ID: "x", ToolUse: "t", Agent: "api", Status: "completed"})

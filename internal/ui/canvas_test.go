@@ -279,6 +279,43 @@ func TestCvFit(t *testing.T) {
 	}
 }
 
+// TestWireWidth: control wires thicker than data ones, hover thickens both.
+func TestWireWidth(t *testing.T) {
+	for _, c := range []struct {
+		t    cvSock
+		lit  bool
+		want float32
+	}{{sockControl, false, 3.4}, {sockDiff, false, 2.2}, {sockControl, true, 4.6}, {sockText, true, 3.4}} {
+		if got := wireWidth(c.t, c.lit); math.Abs(float64(got-c.want)) > 1e-5 {
+			t.Errorf("wireWidth(%v, %v) = %v, want %v", c.t, c.lit, got, c.want)
+		}
+	}
+}
+
+// TestGridLines: the first line at or past 0, a line every step, every
+// fifth from the origin stronger, whichever side of 0 the origin is.
+func TestGridLines(t *testing.T) {
+	for _, c := range []struct {
+		o    float32
+		n    int
+		want []gridLine
+	}{
+		{40, 90, []gridLine{{16, false}, {40, true}, {64, false}, {88, false}}},
+		{-30, 70, []gridLine{{18, false}, {42, false}, {66, false}}},   // index 2 first
+		{-48, 30, []gridLine{{0, false}, {24, false}}},                 // exactly on 0: index 2
+		{-120, 30, []gridLine{{0, true}, {24, false}}},                 // index 5
+		{100, 30, []gridLine{{4, false}, {28, false}}},                 // indexes -4 and -3
+		{120, 30, []gridLine{{0, true}, {24, false}}},                  // index -5
+	} {
+		if got := gridLines(c.o, 24, c.n); !slices.Equal(got, c.want) {
+			t.Errorf("gridLines(%v, 24, %d) = %v, want %v", c.o, c.n, got, c.want)
+		}
+	}
+	if got := gridLines(-1000, 24, 0); len(got) != 0 {
+		t.Errorf("no room, lines %v", got)
+	}
+}
+
 // TestInitials: a name's two letters.
 func TestInitials(t *testing.T) {
 	for in, want := range map[string]string{"planner": "PL", "test-writer": "TW", "Explore": "EX", "a": "A", "": "?", "x_y z": "XY", "web.app": "WA", "--": "?"} {

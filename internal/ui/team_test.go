@@ -50,6 +50,12 @@ func TestTeamMembers(t *testing.T) {
 	if ms := h.u.members(c.ID); ms[1].last.ID != "a6" {
 		t.Fatalf("web, both done: shown %s, want the latest", ms[1].last.ID)
 	}
+	for _, k := range []string{"d", "e", "f", "g"} { // seven kinds: the pastels after the lead's go round again
+		h.u.onTask(c.ID, &claude.Task{ID: "k" + k, ToolUse: "tk" + k, Agent: k, Status: "completed"})
+	}
+	if ms := h.u.members(c.ID); len(ms) != 7 || ms[6].col != pastels[1] || ms[5].col != pastels[6] {
+		t.Fatalf("seven kinds: %d, the last in %v", len(ms), ms[len(ms)-1].col)
+	}
 	if got := teamFacts(&task{Task: claude.Task{Tools: 3, Tokens: 1500}, start: time.Now()}, time.Now()); got != "3 tools · "+tokens(1500)+" tokens · 0s" {
 		t.Errorf("facts %q", got)
 	}
@@ -66,6 +72,7 @@ func TestHandoffs(t *testing.T) {
 	c := teamCard(h)
 	h.u.findTask(c.ID, "a1", "").Summary = "Halfway" // running: no result yet
 	h.u.onTask(c.ID, &claude.Task{ID: "a7", ToolUse: "tu12", Agent: "api", Status: "running"})
+	h.u.onTask(c.ID, &claude.Task{ID: "a8", ToolUse: "tu13", Agent: "planner", Status: "completed"}) // an agent named as the lead: no brief, no result
 	sz := image.Pt(380, 700)
 	var act func()
 	w := func(gtx layout.Context) layout.Dimensions { return h.u.handoffs(gtx, c, &act) }
@@ -81,8 +88,8 @@ func TestHandoffs(t *testing.T) {
 	}
 	semi := kit.Semi(kit.Sans)
 	pl, ap := h.measure("planner", 11, semi), h.measure("api", 11, semi)
-	if a, b, c := inks(img, h.labels(), "planner", pl, pastels[0]), inks(img, h.labels(), "api", ap, pastels[1]), inks(img, h.labels(), "api", ap, pastels[0]); !a || !b || c {
-		t.Errorf("handoff names in the wrong colors: %v %v %v", a, b, c)
+	if a, b, c, d := inks(img, h.labels(), "planner", pl, pastels[0]), inks(img, h.labels(), "api", ap, pastels[1]), inks(img, h.labels(), "api", ap, pastels[0]), inks(img, h.labels(), "planner", pl, pastels[3]); !a || !b || c || d {
+		t.Errorf("handoff names in the wrong colors: %v %v %v %v", a, b, c, d)
 	}
 	hover := func(s string) { // the pointer over the handoff that reads s
 		for _, l := range h.labels() {
@@ -96,6 +103,10 @@ func TestHandoffs(t *testing.T) {
 	hover("Parse the new statement format; PUT upserts only.")
 	if h.count("Open api", all) != 1 {
 		t.Error("a brief's tip doesn't name its agent")
+	}
+	brief := labelIn(t, h.labels(), "Parse the new statement format; PUT upserts only.", all)
+	if tip := labelIn(t, h.labels(), "Open api", all); tip.Min.X != brief.Min.X-12+8 { // under the handoff's left edge
+		t.Errorf("tip at %v, the brief at %v", tip.Min, brief.Min)
 	}
 	hover("Upload screen done, es and en copy.")
 	if h.count("Open web", all) != 1 {

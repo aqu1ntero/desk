@@ -122,17 +122,11 @@ func (u *ui) canvasView(gtx layout.Context, c *kanban.Card, act *func()) layout.
 		if !ok {
 			continue
 		}
-		col, width := sockColors[typ], float32(2.2)
-		if typ == sockControl {
-			width = 3.4
-		}
-		lit := v.hover == w.from || v.hover == w.to
+		col, lit := sockColors[typ], v.hover == w.from || v.hover == w.to
 		if to := g.node(w.to); !lit && (to.dim || g.node(w.from).dim) {
 			col.A = 0x70
 		}
-		if lit {
-			width += 1.2
-		}
+		width := wireWidth(typ, lit)
 		var p clip.Path
 		p.Begin(cg.Ops)
 		p.MoveTo(segs[0][0])
@@ -304,30 +298,55 @@ func (u *ui) cvControls(gtx layout.Context, c *kanban.Card, v *cvView, g *cvGrap
 	}
 }
 
+// wireWidth is how thick a wire draws: control thicker than data, both
+// more when one of its nodes is hovered.
+func wireWidth(t cvSock, lit bool) float32 {
+	w := float32(2.2)
+	if t == sockControl {
+		w = 3.4
+	}
+	if lit {
+		w += 1.2
+	}
+	return w
+}
+
+// gridLine is one line of the grid: where (px along its axis) and whether
+// it is a stronger one.
+type gridLine struct {
+	at    int
+	major bool
+}
+
+// gridLines are the grid's lines on an axis n px long whose canvas origin
+// is at o px: one every step px, every fifth from the origin stronger.
+func gridLines(o, step float32, n int) []gridLine {
+	i := int(-o / step) // the first line at or past 0
+	if o+float32(i)*step < 0 {
+		i++
+	}
+	var out []gridLine
+	for x := o + float32(i)*step; x < float32(n); x, i = x+step, i+1 {
+		out = append(out, gridLine{int(x), i%5 == 0})
+	}
+	return out
+}
+
 // cvGrid is the canvas's grid, in the pane's px: a line every 24 units, a
 // stronger one every 120.
 func cvGrid(gtx layout.Context, pan f32.Point, s float32, size image.Point) {
 	minor, major := kit.Mix(cvBG, kit.CWhite, .03), kit.Mix(cvBG, kit.CWhite, .065)
-	step := 24 * s
-	line := func(r image.Rectangle, i int) {
-		c := minor
-		if i%5 == 0 {
-			c = major
+	col := func(l gridLine) color.NRGBA {
+		if l.major {
+			return major
 		}
-		paint.FillShape(gtx.Ops, c, clip.Rect(r).Op())
+		return minor
 	}
-	first := func(o float32) (float32, int) { // the first line at or past 0, and its index
-		i := int(-o / step)
-		if x := o + float32(i)*step; x < 0 {
-			i++
-		}
-		return o + float32(i)*step, i
+	for _, l := range gridLines(pan.X, 24*s, size.X) {
+		paint.FillShape(gtx.Ops, col(l), clip.Rect(image.Rect(l.at, 0, l.at+1, size.Y)).Op())
 	}
-	for x, i := first(pan.X); x < float32(size.X); x, i = x+step, i+1 {
-		line(image.Rect(int(x), 0, int(x)+1, size.Y), i)
-	}
-	for y, i := first(pan.Y); y < float32(size.Y); y, i = y+step, i+1 {
-		line(image.Rect(0, int(y), size.X, int(y)+1), i)
+	for _, l := range gridLines(pan.Y, 24*s, size.Y) {
+		paint.FillShape(gtx.Ops, col(l), clip.Rect(image.Rect(0, l.at, size.X, l.at+1)).Op())
 	}
 }
 
