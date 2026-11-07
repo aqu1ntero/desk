@@ -37,6 +37,15 @@ type Options struct {
 	Home      string   // "" = os.UserHomeDir
 	LocalUser string   // "" = the current user's name
 
+	// RelativeToFile takes a relative path a config file names from that
+	// file's folder (an Include'd file's from its own): IdentityFile,
+	// CertificateFile, the known-hosts files, RevokedHostKeys, IdentityAgent,
+	// ControlPath, a ForwardAgent path, PKCS11Provider, SecurityKeyProvider,
+	// XAuthLocation and Include. OpenSSH (false) takes them from the working
+	// directory, and Include from ~/.ssh or the system folder. Paths that
+	// start with ~, /, $ or %d, and -o's, are left as they are.
+	RelativeToFile bool
+
 	// Exec runs a Match exec command: whether it exited 0, or an error when
 	// it couldn't run or died. nil = $SHELL -c (cmd /C on Windows).
 	Exec func(cmd string) (bool, error)

@@ -74,12 +74,15 @@ func TestServersFileScoping(t *testing.T) {
 	t.Setenv("HOME", home)
 	org := filepath.Join(home, "Work", "Acme")
 	write(t, filepath.Join(home, ".ssh", "config"), "Host personal\n    HostName 192.0.2.99\n")
-	write(t, filepath.Join(home, ".ssh", "rel.conf"), "Host relhost\n")
+	write(t, filepath.Join(home, ".ssh", "rel.conf"), "Host sshdir\n")
+	write(t, filepath.Join(org, ".desk", "rel.conf"), "Host relhost\n")
+	write(t, filepath.Join(org, "more", "nested.conf"), "Host nest1\n")
 	write(t, filepath.Join(org, "more", "db.conf"), `
 Host db1
     HostName db1.example.com
 #@ group lab
 Host lab1
+Include nested.conf
 `)
 	write(t, filepath.Join(org, ".desk", "ssh_config"), `#@ vault acme
 #@ password "{user}@{host}"
@@ -120,8 +123,10 @@ Match all
 	for _, h := range hs {
 		names = append(names, h.group+":"+h.alias)
 	}
-	if s := strings.Join(names, " "); s != ":bastion eu/web:web1 eu/web:web2 eu/web:web3 eu/web:web4 eu:db1 lab:lab1" {
-		t.Fatalf("hosts: %s", s) // personal (~/.ssh/config) and relhost (a relative Include is in ~/.ssh) are outside the org
+	// personal (~/.ssh/config) is outside the org; a relative Include is from
+	// the including file's folder (nest1 from more/), not ~/.ssh (sshdir)
+	if s := strings.Join(names, " "); s != ":bastion eu/web:web1 eu/web:web2 eu/web:web3 eu/web:web4 eu:db1 lab:lab1 lab:nest1 eu:relhost" {
+		t.Fatalf("hosts: %s", s)
 	}
 	b, w1, w2, w3, db, lab := hostByAlias(hs, "bastion"), hostByAlias(hs, "web1"), hostByAlias(hs, "web2"), hostByAlias(hs, "web3"), hostByAlias(hs, "db1"), hostByAlias(hs, "lab1")
 	if !b.hidden || b.password == nil || b.password.Item != "@bastion" || b.tags != "all" {
@@ -189,8 +194,8 @@ Include ~/Work/Acme/.desk/servers-dynamic-lab.conf
 	if tree[2].group != "servers" || !tree[6].pin || tree[6].desc != "primary" {
 		t.Errorf("nodes: %+v %+v", tree[2], tree[6])
 	}
-	if o := sshOpts("web1", infra); o.File != filepath.Join(org, "servers.conf") {
-		t.Errorf("config %q", o.File)
+	if o := sshOpts("web1", infra); o.File != filepath.Join(org, "servers.conf") || !o.RelativeToFile {
+		t.Errorf("config %q, relative to it: %v", o.File, o.RelativeToFile)
 	}
 	if r := passwordRef(infra, "web1"); r == nil || *r != (SecretRef{Vault: "pb", Item: "web1 / deploy"}) {
 		t.Errorf("template: %+v", r)

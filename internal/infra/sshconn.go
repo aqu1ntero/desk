@@ -29,12 +29,13 @@ var sshPool = &sshc.Pool{}
 var sshBase sshconfig.Options
 
 // sshOpts is host's config as desk connects with it: the org's servers file
-// (like ssh -F) and keepalives that notice a dead link in ~45s, so redial
-// can bring it back, unless the config sets ServerAliveInterval itself.
+// (like ssh -F, its relative paths from its own folder rather than desk's
+// working directory) and keepalives that notice a dead link in ~45s, so
+// redial can bring it back, unless the config sets ServerAliveInterval itself.
 func sshOpts(host, dir string) sshc.Options {
 	o := sshc.Options{Options: sshBase}
 	if f := sshConfigFor(dir); fileExists(f) {
-		o.File = f
+		o.File, o.RelativeToFile = f, true
 	}
 	if c, err := sshconfig.Resolve(host, o.Options); err == nil && c.Int("serveraliveinterval") == 0 {
 		o.Overrides = append(o.Overrides, "ServerAliveInterval 15", "ServerAliveCountMax 3")

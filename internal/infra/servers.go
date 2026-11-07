@@ -47,9 +47,9 @@ import (
 //
 // Include lines are followed when they resolve inside the org folder, so a
 // group may continue in an included file (one without #@ group stays in the
-// including line's group). Paths resolve as ssh resolves them for a -F file:
-// "~/" is home and a relative path is in ~/.ssh, so write absolute or "~/"
-// paths. Includes outside the org folder (Include ~/.ssh/config, your own
+// including line's group). "~/" is home and a relative path is from the
+// including file's folder (sshconfig's RelativeToFile, as desk connects with
+// it; ssh itself would look in ~/.ssh). Includes outside the org folder (Include ~/.ssh/config, your own
 // defaults) are ssh's alone: desk never lists your personal hosts as the
 // org's servers.
 //
@@ -213,7 +213,7 @@ func (p *serverParse) read(path, group string, depth int) {
 			}
 		case "include":
 			for _, a := range args {
-				for _, f := range p.includes(a) {
+				for _, f := range p.includes(a, filepath.Dir(path)) {
 					p.read(f, group, depth+1)
 				}
 			}
@@ -221,13 +221,12 @@ func (p *serverParse) read(path, group string, depth int) {
 	}
 }
 
-// includes is what an Include argument names inside the org folder, sorted
-// as ssh's glob does.
-func (p *serverParse) includes(arg string) []string {
+// includes is what an Include argument in a file of folder dir names inside
+// the org folder, sorted as ssh's glob does.
+func (p *serverParse) includes(arg, dir string) []string {
 	arg = expandHome(arg)
 	if !filepath.IsAbs(arg) {
-		home, _ := os.UserHomeDir()
-		arg = filepath.Join(home, ".ssh", arg)
+		arg = filepath.Join(dir, arg)
 	}
 	ms, _ := filepath.Glob(arg)
 	var out []string

@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -269,6 +270,9 @@ func (p *parser) line(line, file string, num int, active *bool, flags, depth int
 		return fmt.Errorf("%s: invalid quotes", where)
 	}
 	a := args(av)
+	if p.r.opt.RelativeToFile && !cmdline {
+		anchor(op, file, a)
+	}
 	if err := p.keyword(op, kw, str, &a, where, active, cmdline, flags, depth); err != nil {
 		return err
 	}
@@ -276,6 +280,51 @@ func (p *parser) line(line, file string, num int, active *bool, flags, depth int
 		return fmt.Errorf("%s: keyword %s extra arguments at end of line", where, kw)
 	}
 	return nil
+}
+
+// relKeys are the path keywords Options.RelativeToFile anchors, and whether
+// their values go on through % expansion (pct) and glob.
+var relKeys = map[string]struct{ pct, glob bool }{
+	"identityfile": {true, false}, "certificatefile": {true, false}, "userknownhostsfile": {true, false},
+	"revokedhostkeys": {true, false}, "controlpath": {true, false}, "identityagent": {true, false},
+	"forwardagent": {true, false}, "include": {true, true}, "globalknownhostsfile": {false, false},
+	"pkcs11provider": {false, false}, "securitykeyprovider": {false, false}, "xauthlocation": {false, false},
+}
+
+// anchor puts file's folder before op's relative path words, escaped so the
+// expansion and glob they go through leave it as it is.
+func anchor(op, file string, a args) {
+	k, ok := relKeys[op]
+	if !ok {
+		return
+	}
+	dir, err := filepath.Abs(filepath.Dir(file))
+	if err != nil {
+		return
+	}
+	if k.pct {
+		dir = strings.ReplaceAll(dir, "%", "%%")
+	}
+	if k.glob && runtime.GOOS != "windows" { // Windows' Glob has no escapes
+		for _, c := range `\*?[` {
+			dir = strings.ReplaceAll(dir, string(c), `\`+string(c))
+		}
+	}
+	for i, w := range a {
+		if relPath(w) {
+			a[i] = dir + string(filepath.Separator) + w
+		}
+	}
+}
+
+// relPath is whether w is a relative path, not a word some of relKeys take
+// (none, internal, SSH_AUTH_SOCK, ForwardAgent's yes/no).
+func relPath(w string) bool {
+	switch lower(w) {
+	case "", "none", "internal", "ssh_auth_sock", "yes", "no", "true", "false":
+		return false
+	}
+	return !filepath.IsAbs(w) && w[0] != '/' && w[0] != '~' && w[0] != '$' && !strings.HasPrefix(w, "%d")
 }
 
 // keyword is the switch of process_config_line_depth: it parses op's
