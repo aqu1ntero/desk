@@ -239,7 +239,13 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends msitools librsvg2-bin imagemagick zip osslsigncode
+          sudo apt-get install -y --no-install-recommends librsvg2-bin imagemagick zip osslsigncode
+
+      # Ubuntu 24.04's msitools (0.103) crashes on the .wxs's Environment (PATH) element; 0.106
+      # from a nixpkgs release reads it
+      - uses: cachix/install-nix-action@v31
+      - name: msitools 0.106
+        run: echo "$(nix build --no-link --print-out-paths github:NixOS/nixpkgs/nixos-25.05#msitools)/bin" >> "$GITHUB_PATH"
 
       # Optional: only with the owner's code signing certificate
       - name: Signing certificate
