@@ -172,7 +172,7 @@ func TestTake(t *testing.T) {
 // TestCommandProfile: an org with a profile folder runs under bwrap with
 // it bound over ~/.claude; one without runs plain claude.
 func TestCommandProfile(t *testing.T) {
-	home := t.TempDir()
+	home, _ := filepath.EvalSymlinks(t.TempDir()) // macOS's is under /var, a link to /private/var
 	os.MkdirAll(filepath.Join(home, "Secure", "Claudes", "Globex"), 0o755)
 	bin := t.TempDir()
 	for _, n := range []string{"claude", "bwrap"} {

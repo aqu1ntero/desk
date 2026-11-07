@@ -305,7 +305,7 @@ func (u *ui) wsCloseTab(st *wsState, i int) {
 	t := st.tabs[i]
 	if t.dirty && !t.closing {
 		t.closing = true
-		u.showToast(filepath.Base(t.path)+" has changes not saved: Ctrl+S saves them, × again drops them", false)
+		u.showToast(filepath.Base(t.path)+" has changes not saved: "+kit.ModText("S")+" saves them, × again drops them", false)
 		u.wsRedraw()
 		return
 	}

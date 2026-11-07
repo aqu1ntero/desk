@@ -1,8 +1,8 @@
 // Package claude runs a card's Claude session: one long-lived `claude -p`
 // process fed stream-json on stdin, its stream-json output turned into
 // Events. Each organization with a profile in ~/Secure/Claudes/<Org> runs
-// under that account (bwrap binds it over ~/.claude); others
-// use the personal login.
+// under that account (bwrap binds it over ~/.claude; on macOS,
+// CLAUDE_CONFIG_DIR points at it); others use the personal login.
 package claude
 
 import (
@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -472,9 +473,15 @@ func AuthFailed(msg string) bool {
 // to that account. So it runs with no way to the desktop (no display, no
 // D-Bus, an empty runtime dir), and the user opens the URL it prints
 // (LoginURL) where that account lives. The default account opens the
-// default browser, as `claude` does.
+// default browser, as `claude` does. On macOS (NoBwrap) there is no
+// namespace to hide the desktop in: BROWSER=true alone keeps it from
+// opening one.
 func Login(home, org string) (cmd *exec.Cmd, own bool, err error) {
 	cmd, err = Command(home, org, "auth", "login")
+	if err == nil && NoBwrap && slices.Contains(cmd.Env, "CLAUDE_PROFILE="+org) {
+		cmd.Env = append(cmd.Env, "BROWSER=true")
+		return cmd, true, nil
+	}
 	if err != nil || filepath.Base(cmd.Path) != "bwrap" { // no profile: the default account
 		return cmd, false, err
 	}
@@ -504,12 +511,13 @@ func LoginURL(screen string) string {
 
 // Command is `claude args…` under org's account: with a profile folder in
 // ~/Secure/Claudes/<org>, bwrap binds it over ~/.claude and
-// claude-<org>.json over ~/.claude.json; else plain claude. Inside a profile
-// already ($CLAUDE_PROFILE) it never nests.
+// claude-<org>.json over ~/.claude.json (on macOS, NoBwrap: CLAUDE_CONFIG_DIR
+// is the folder, and its own .claude.json the other); else plain claude.
+// Inside a profile already ($CLAUDE_PROFILE) it never nests.
 func Command(home, org string, args ...string) (*exec.Cmd, error) {
 	c, err := command(home, org, args...)
 	if err == nil {
-		c.Env = slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		c.Env = slices.DeleteFunc(append(os.Environ(), c.Env...), func(kv string) bool {
 			k, _, _ := strings.Cut(kv, "=")
 			return slices.Contains(inherited, k)
 		})
@@ -534,6 +542,9 @@ func AccountName(home, org string) string {
 	}
 	if fi, err := os.Stat(filepath.Join(home, "Secure", "Claudes", org)); org != "" && err == nil && fi.IsDir() && os.Getenv("CLAUDE_PROFILE") == "" {
 		name, js = org+" account", filepath.Join(home, "Secure", "Claudes", "claude-"+strings.ToLower(org)+".json")
+		if NoBwrap {
+			js = filepath.Join(home, "Secure", "Claudes", org, ".claude.json")
+		}
 	}
 	var v struct {
 		OauthAccount struct{ EmailAddress string } `json:"oauthAccount"`
@@ -552,6 +563,11 @@ func command(home, org string, args ...string) (*exec.Cmd, error) {
 	cfg := filepath.Join(home, "Secure", "Claudes", org)
 	if fi, err := os.Stat(cfg); org == "" || err != nil || !fi.IsDir() || os.Getenv("CLAUDE_PROFILE") != "" {
 		return exec.Command(bin, args...), nil
+	}
+	if NoBwrap {
+		c := exec.Command(bin, args...)
+		c.Env = []string{"CLAUDE_CONFIG_DIR=" + cfg, "CLAUDE_PROFILE=" + org}
+		return c, nil
 	}
 	js := filepath.Join(home, "Secure", "Claudes", "claude-"+strings.ToLower(org)+".json")
 	if _, err := os.Stat(js); err != nil { // seed it, as the profile's first run would
@@ -583,6 +599,12 @@ func command(home, org string, args ...string) (*exec.Cmd, error) {
 		"--unsetenv", "CLAUDE_CONFIG_DIR", "--setenv", "CLAUDE_PROFILE", org,
 		"--", bin), args...)...), nil
 }
+
+// NoBwrap: macOS has no bwrap (no namespaces), so a profile runs with
+// CLAUDE_CONFIG_DIR at its folder instead; Claude Code then keeps its state
+// there, .claude.json included. A variable so tests reach both ways on
+// either OS.
+var NoBwrap = runtime.GOOS == "darwin"
 
 // storeBwrap is where NixOS keeps bwrap off PATH; tests point it elsewhere.
 var storeBwrap = "/nix/store/*-bubblewrap-*/bin/bwrap"

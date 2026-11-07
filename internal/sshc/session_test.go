@@ -197,6 +197,12 @@ func TestRun(t *testing.T) {
 }
 
 func TestEnv(t *testing.T) {
+	for _, kv := range os.Environ() { // the machine's own LC_* (macOS sets LC_CTYPE) would go too
+		if k, _, _ := strings.Cut(kv, "="); strings.HasPrefix(k, "LC_") {
+			t.Setenv(k, "")
+			os.Unsetenv(k)
+		}
+	}
 	t.Setenv("LC_DESK", "fr")
 	t.Setenv("LC_OTHER", "de")
 	t.Setenv("DESK_X", "local")

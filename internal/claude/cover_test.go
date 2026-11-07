@@ -175,7 +175,7 @@ func TestCommandNoBwrap(t *testing.T) {
 // TestSSHConfig: a symlinked config is copied with its ~/ and relative
 // Includes inlined; a dangling link or one to a folder is an error.
 func TestSSHConfig(t *testing.T) {
-	home := t.TempDir()
+	home, _ := filepath.EvalSymlinks(t.TempDir()) // macOS's is under /var, a link to /private/var
 	ssh := filepath.Join(home, ".ssh")
 	os.MkdirAll(filepath.Join(home, "store"), 0o700)
 	os.MkdirAll(ssh, 0o700)

@@ -53,6 +53,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Setenv("DESK_ROOT", root)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // not the user's folders to search
+	fakeBin(t, "claude", "exit 0")           // a terminal's command needs one on PATH; never the machine's
 	assigned = func(context.Context, orgs.Config) ([]links.Ticket, error) { return nil, nil }
 	nagiosAlerts = func(context.Context, orgs.Config) ([]links.Alert, error) { return nil, nil }
 	planLimits = func(context.Context, string, string) ([]claude.Limit, error) { return nil, nil }

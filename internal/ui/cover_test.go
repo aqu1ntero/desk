@@ -162,7 +162,7 @@ func TestCoverStartClaude(t *testing.T) {
 // TestCoverOpenURL: a link goes to xdg-open.
 func TestCoverOpenURL(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "opened")
-	fakeBin(t, "xdg-open", `echo "$1" > `+out)
+	fakeBin(t, infra.Opener, `echo "$1" > `+out)
 	openURL("https://example.com/x")
 	for end := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
 		if b, _ := os.ReadFile(out); string(b) == "https://example.com/x\n" {
@@ -602,6 +602,8 @@ func TestCoverTerminalPaste(t *testing.T) {
 	if tt.pasteText {
 		t.Fatal("plain Ctrl+V read the clipboard's text")
 	}
+	h.send(press("V", key.ModCommand)) // macOS's ⌘V: the text, as Ctrl+Shift+V
+	h.pumpUntil("⌘V's clipboard read", func() bool { return tt.pasteText || h.r.ClipboardRequested() })
 	clipImage = func() ([]byte, string, error) { return []byte("img"), "image/svg+xml", nil }
 	os.WriteFile(h.u.imagesDir(), nil, 0o644) // a file where the folder goes
 	h.send(press("V", key.ModCtrl))
@@ -857,7 +859,7 @@ func TestCoverTaskRail(t *testing.T) {
 func TestCoverPanelHeader(t *testing.T) {
 	h := newHarness(t)
 	opened := filepath.Join(t.TempDir(), "opened")
-	fakeBin(t, "xdg-open", `echo "$1" >> `+opened)
+	fakeBin(t, infra.Opener, `echo "$1" >> `+opened)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
 		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
 	}
@@ -968,7 +970,7 @@ func (h *harness) clickScan(id string, area image.Rectangle) {
 func TestCoverAlertsView(t *testing.T) {
 	h := newHarness(t)
 	opened := filepath.Join(t.TempDir(), "opened")
-	fakeBin(t, "xdg-open", `echo "$1" >> `+opened)
+	fakeBin(t, infra.Opener, `echo "$1" >> `+opened)
 	warn := links.Alert{Monitor: "prod", Host: "web1", Service: "Disk /", State: "warning", Output: "12% free", URL: "https://mon.example.com/b"}
 	crit := links.Alert{Monitor: "prod", Host: "db1", State: "down", URL: "https://mon.example.com/c"}
 	h.u.alerts["Globex"] = []links.Alert{warn}
@@ -1114,7 +1116,7 @@ func TestCoverSnoozeBar(t *testing.T) {
 func TestCoverTicketsView(t *testing.T) {
 	h := newHarness(t)
 	opened := filepath.Join(t.TempDir(), "opened")
-	fakeBin(t, "xdg-open", `echo "$1" >> `+opened)
+	fakeBin(t, infra.Opener, `echo "$1" >> `+opened)
 	tk1 := links.Ticket{Project: "ABC", Key: "ABC-1", Title: "Fix login", Status: "To Do", URL: "https://globex.atlassian.net/browse/ABC-1"}
 	tk2 := links.Ticket{Project: "ABC", Key: "ABC-2", Title: "Ship it", Status: "To Do", URL: "https://globex.atlassian.net/browse/ABC-2"}
 	h.u.tickets["Globex"] = []links.Ticket{tk1, tk2}
@@ -1518,7 +1520,7 @@ func TestCoverPlacePicker(t *testing.T) {
 	h := newHarness(t)
 	h.u.newCard(0)
 	s := h.u.edit
-	sz := image.Pt(700, 400)
+	sz := image.Pt(1000, 400) // room for "change organization" after macOS's long $TMPDIR path
 	w := func(gtx layout.Context) layout.Dimensions { return h.u.placePicker(gtx, s) }
 	all := image.Rectangle{Max: sz}
 	s.org.SetText("zzzz")
@@ -2444,7 +2446,7 @@ func TestCoverMarkdownEdges(t *testing.T) {
 func TestCoverRichClicks(t *testing.T) {
 	h := newHarness(t)
 	opened := filepath.Join(t.TempDir(), "opened")
-	fakeBin(t, "xdg-open", `echo "$1" >> `+opened)
+	fakeBin(t, infra.Opener, `echo "$1" >> `+opened)
 	sp := span{SpanStyle: richtext.SpanStyle{Font: kit.Sans, Size: 14, Color: kit.CText, Content: "docs"}, url: "https://example.com/docs"}
 	sz := image.Pt(600, 100)
 	w := func(gtx layout.Context) layout.Dimensions { return h.u.rich(gtx, "l", sp) }
@@ -2589,7 +2591,7 @@ func TestCoverOdds(t *testing.T) {
 	var act func()
 	h.draw(image.Pt(900, 600), func(gtx layout.Context) layout.Dimensions { return h.u.historyBody(gtx, d.ID, &act) })
 	opened := filepath.Join(t.TempDir(), "opened")
-	fakeBin(t, "xdg-open", `echo "$1" >> `+opened)
+	fakeBin(t, infra.Opener, `echo "$1" >> `+opened)
 	sz := image.Pt(600, 100)
 	row := h.u.ciRow("run1", "build", links.CIFailed, "https://example.com/run/1", 0)
 	h.clickIn(sz, image.Rectangle{Max: sz}, row, "run1")

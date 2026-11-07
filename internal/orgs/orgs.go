@@ -240,8 +240,22 @@ type Found struct {
 
 // SettingsFile is desk's own settings: the folders to search.
 func SettingsFile() string {
-	d, _ := os.UserConfigDir()
+	d, _ := XDGDir("XDG_CONFIG_HOME", ".config")
 	return filepath.Join(d, "desk", "settings.toml")
+}
+
+// XDGDir is $env, else ~/home (".config", ".cache"), as os.UserConfigDir
+// and UserCacheDir are on Linux: desk keeps the XDG layout on every OS,
+// where those would be ~/Library's on macOS. No $HOME is an error.
+func XDGDir(env, home string) (string, error) {
+	if d := os.Getenv(env); d != "" {
+		return d, nil
+	}
+	h, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(h, home), nil
 }
 
 // Folders is where root's organizations are searched: for desk's root

@@ -299,9 +299,9 @@ func (u *ui) termEvents(gtx layout.Context, tt *termTab, inner image.Rectangle, 
 				tt.t.SendKey(uv.KeyPressEvent{Code: r, Text: string(r)})
 			}
 		case key.Event:
-			if ev.State == key.Press && ev.Name == "V" && ev.Modifiers.Contain(key.ModCtrl) { // an image goes in as its saved file, which Claude Code attaches
+			if ev.State == key.Press && ev.Name == "V" && ev.Modifiers&(key.ModCtrl|key.ModCommand) != 0 { // an image goes in as its saved file, which Claude Code attaches
 				k, raw := termKey(ev)
-				shift := ev.Modifiers.Contain(key.ModShift)
+				shift := ev.Modifiers&(key.ModShift|key.ModCommand) != 0 // ⌘V is macOS's Ctrl+Shift+V: text when no image
 				go func() {
 					b, typ, err := clipImage()
 					u.later(func() {

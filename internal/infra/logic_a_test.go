@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +18,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/vt"
+
+	"github.com/lfdominguez/desk/internal/claude"
 )
 
 // --- helpers (suffix A: this file's) ---
@@ -382,6 +385,71 @@ func TestClaudeCmdProfileA(t *testing.T) {
 	}
 }
 
+// TestClaudeCmdNoBwrap: on macOS a profile runs claude itself with
+// CLAUDE_CONFIG_DIR at its folder, and seeds no json.
+func TestClaudeCmdNoBwrap(t *testing.T) {
+	claude.NoBwrap = true
+	t.Cleanup(func() { claude.NoBwrap = false })
+	home, bin := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_PROFILE", "")
+	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))
+	t.Setenv("PATH", bin)
+	write(t, filepath.Join(bin, "claude"), "#!/bin/sh\n")
+	os.Chmod(filepath.Join(bin, "claude"), 0o755)
+	cfg := filepath.Join(home, "Secure", "Claudes", "Acme")
+	os.MkdirAll(cfg, 0o755)
+	cmd, err := claudeCmd(filepath.Join(home, "Work", "Acme", infraDir), "-p", "x")
+	if err != nil || cmd.Path != filepath.Join(bin, "claude") || strings.Join(cmd.Args[1:], " ") != "-p x" {
+		t.Fatalf("%v %v", cmd, err)
+	}
+	if env := cmd.Environ(); !slices.Contains(env, "CLAUDE_CONFIG_DIR="+cfg) || !slices.Contains(env, "CLAUDE_PROFILE=Acme") {
+		t.Errorf("env %v", env)
+	}
+	if _, err := os.Stat(filepath.Join(home, "Secure", "Claudes", "claude-acme.json")); err == nil {
+		t.Error("seeded a json bwrap would bind")
+	}
+}
+
+// TestLocalShell: bash without rc files; on macOS only a bash ≥ 4.4,
+// else zsh without them.
+func TestLocalShell(t *testing.T) {
+	bin := t.TempDir()
+	t.Setenv("PATH", bin)
+	write(t, filepath.Join(bin, "bash"), "#!/bin/sh\nexit 1\n") // 3.2: the check fails
+	os.Chmod(filepath.Join(bin, "bash"), 0o755)
+	if s := strings.Join(localShell("linux"), " "); s != "bash --norc -i" {
+		t.Errorf("linux: %s", s)
+	}
+	if s := strings.Join(localShell("darwin"), " "); s != "zsh -f -i" {
+		t.Errorf("an old bash: %s", s)
+	}
+	write(t, filepath.Join(bin, "bash"), "#!/bin/sh\nexit 0\n")
+	if s := strings.Join(localShell("darwin"), " "); s != "bash --norc -i" {
+		t.Errorf("a new bash: %s", s)
+	}
+}
+
+// TestListLocalHostMac: on macOS the local host lists in Go (BSD find has
+// no -printf): sizes and modes, "" the home folder, a missing one an error.
+func TestListLocalHostMac(t *testing.T) {
+	defer func(m bool) { macOS = m }(macOS)
+	macOS = true
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "a.txt"), "abc")
+	abs, es, err := listRemote(context.Background(), "local", "", dir)
+	if err != nil || abs != dir || len(es) != 1 || es[0].Size != 3 || es[0].Mode == 0 {
+		t.Fatalf("%q %+v %v", abs, es, err)
+	}
+	t.Setenv("HOME", dir)
+	if abs, _, err := listRemote(context.Background(), "local", "", ""); abs != dir || err != nil {
+		t.Errorf("home: %q %v", abs, err)
+	}
+	if _, _, err := listRemote(context.Background(), "local", "", filepath.Join(dir, "gone")); err == nil || !strings.HasSuffix(err.Error(), "gone: no such directory") {
+		t.Errorf("missing: %v", err)
+	}
+}
+
 // --- mcp.go ---
 
 func TestServeCardsMCPA(t *testing.T) {
@@ -533,11 +601,18 @@ func TestRuntimeDirA(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_RUNTIME_DIR", "")
 	t.Setenv("TMPDIR", tmp)
+	defer func(m bool) { macOS = m }(macOS)
+	macOS = false
 	if got := runtimeDir(); got != filepath.Join(tmp, "desk") {
 		t.Errorf("fallback: %s", got)
 	}
 	if fi, err := os.Stat(filepath.Join(tmp, "desk")); err != nil || fi.Mode().Perm() != 0o700 {
 		t.Errorf("made user only: %v %v", fi, err)
+	}
+	macOS = true // no XDG_RUNTIME_DIR, a $TMPDIR of its own per process: the cache
+	t.Setenv("XDG_CACHE_HOME", tmp)
+	if got := runtimeDir(); got != filepath.Join(tmp, "desk", "run") {
+		t.Errorf("macOS: %s", got)
 	}
 }
 
@@ -614,7 +689,7 @@ func TestCallToolConnectAndRunbookA(t *testing.T) {
 		return tab.callTool(toolCall{Name: "save_runbook", Args: b})
 	}
 	r1, r2 := save("Restart PHP"), save("Restart PHP")
-	if r1.IsError || r1.Text != "saved "+filepath.Join(dir, "runbooks", "restart-php.md")+"; the user starts it from the palette (ctrl+shift+k)" ||
+	if r1.IsError || r1.Text != "saved "+filepath.Join(dir, "runbooks", "restart-php.md")+"; the user starts it from the palette ("+modText("K")+")" ||
 		!strings.Contains(r2.Text, "restart-php-2.md") {
 		t.Errorf("save: %+v %+v", r1, r2)
 	}
@@ -1620,7 +1695,7 @@ func TestPalKeyA(t *testing.T) {
 		t.Errorf("default model: %q", org.model)
 	}
 	pick("broadcast", "broadcast typing to all panes")
-	if m.flash != "broadcast needs two or more panes (ctrl+t opens one)" {
+	if m.flash != "broadcast needs two or more panes ("+modText("T")+" opens one)" {
 		t.Errorf("broadcast: %q", m.flash)
 	}
 	pick("forward", "forward PORT[:HOST]:PORT")

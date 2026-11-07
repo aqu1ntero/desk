@@ -123,6 +123,19 @@ func listRemote(ctx context.Context, host, dir, p string) (string, []fileEntry, 
 		defer done()
 		return listSFTP(s, host, p)
 	}
+	if host == "local" && macOS { // BSD find has no -printf: listScript would get names only
+		if err := ctx.Err(); err != nil {
+			return "", nil, fmt.Errorf("listing %s on %s: %v", p, host, err)
+		}
+		if p == "" {
+			p, _ = os.UserHomeDir()
+		}
+		abs, entries, err := listLocal(p)
+		if err != nil {
+			return "", nil, fmt.Errorf("%s: no such directory", p)
+		}
+		return abs, entries, nil
+	}
 	var out bytes.Buffer
 	if err := remoteSh(ctx, host, dir, listScript(p), nil, &out); err != nil {
 		var ee *exitError
@@ -374,7 +387,12 @@ func copyToRemote(ctx context.Context, host, dir, srcDir, dst string, e fileEntr
 		return nil
 	}
 	return through(func(w io.Writer) error {
-		tar := exec.CommandContext(ctx, "tar", "-C", srcDir, "-cf", "-", "--", e.Name)
+		var mac []string
+		if runtime.GOOS == "darwin" { // bsdtar: no ._ AppleDouble files, xattrs or ACLs, which a server's GNU tar warns about
+			mac = []string{"--no-xattrs", "--no-acls", "--no-mac-metadata"}
+		}
+		tar := exec.CommandContext(ctx, "tar", slices.Concat(mac, []string{"-C", srcDir, "-cf", "-", "--", e.Name})...)
+		tar.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
 		tar.Stdout = w
 		return runErr(tar)
 	}, func(r io.Reader) error {
@@ -516,15 +534,12 @@ func renameRemote(ctx context.Context, host, dir, from, to string) error {
 	return remoteSh(ctx, host, dir, "mv -- "+shQuote(from)+" "+shQuote(to), nil, nil)
 }
 
-// openLocal opens p with the desktop's default application (a variable so
-// tests don't launch anything).
-var openLocal = func(p string) error {
-	opener := "xdg-open"
-	if runtime.GOOS == "darwin" {
-		opener = "open"
-	}
-	return exec.Command(opener, p).Start()
-}
+// Opener is the command that opens a file or URL with the desktop's default
+// application.
+var Opener = map[bool]string{true: "open", false: "xdg-open"}[runtime.GOOS == "darwin"]
+
+// openLocal opens p with Opener (a variable so tests don't launch anything).
+var openLocal = func(p string) error { return exec.Command(Opener, p).Start() }
 
 // chmodRemote sets mode (octal, or symbolic like u+x) on paths. A symbolic
 // mode needs the server's chmod to read it: the script then.

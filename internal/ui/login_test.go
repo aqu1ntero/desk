@@ -40,7 +40,7 @@ func TestSignInAgain(t *testing.T) {
 		t.Fatalf("error %q, note %q", s.optErr, s.optNote)
 	}
 	h.clickButton("optSignIn")
-	if h.u.login == nil || h.u.login.s != s || account != "Acme" {
+	if account != "Acme" || h.u.login != nil && h.u.login.s != s { // `exit 0` may have signed in already (macOS is quick)
 		t.Fatalf("no sign-in: %+v for %q", h.u.login, account)
 	}
 	h.pumpUntil("signed in", func() bool { return h.u.login == nil })

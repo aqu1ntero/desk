@@ -33,6 +33,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
 
@@ -320,7 +321,7 @@ func (u *ui) open(fv *filesView, s *fileSide) {
 			u.showToast("Open failed: "+err.Error(), true)
 		}
 	default:
-		cache, err := os.UserCacheDir()
+		cache, err := deskorgs.XDGDir("XDG_CACHE_HOME", ".cache")
 		if err == nil {
 			cache = filepath.Join(cache, "desk", "files", fv.host)
 			err = os.MkdirAll(cache, 0o700)
@@ -358,7 +359,7 @@ func (u *ui) edit(fv *filesView, s *fileSide) {
 		return
 	}
 	go func() {
-		cache, err := os.UserCacheDir()
+		cache, err := deskorgs.XDGDir("XDG_CACHE_HOME", ".cache")
 		if err == nil {
 			cache = filepath.Join(cache, "desk", "edit", fv.host, strings.ReplaceAll(strings.Trim(dir, "/"), "/", "_"))
 			err = os.MkdirAll(cache, 0o700)

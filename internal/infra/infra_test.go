@@ -27,6 +27,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/vt"
 
+	"github.com/lfdominguez/desk/internal/claude"
 	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/sshc"
 	"github.com/lfdominguez/desk/internal/sshconfig"
@@ -329,6 +330,16 @@ func TestNeedsApproval(t *testing.T) {
 	}
 }
 
+// needBash44 skips t when bash is older than 4.4 (macOS's 3.2): without PS0
+// the shell integration can't mark where a command starts, which t needs.
+// desk's own local panes take zsh then (localShell).
+func needBash44(t *testing.T) {
+	t.Helper()
+	if localShell("darwin")[0] != "bash" {
+		t.Skip("bash < 4.4: no PS0 for the command marks")
+	}
+}
+
 // TestShellIntegration runs the injected line in each real shell available and
 // checks that blocks come out with command, output and exit code.
 func TestShellIntegration(t *testing.T) {
@@ -338,6 +349,9 @@ func TestShellIntegration(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if _, err := exec.LookPath(name); err != nil {
 				t.Skip(name + " not installed")
+			}
+			if name == "bash" {
+				needBash44(t)
 			}
 			cmd := exec.Command(name, args...)
 			if name == "zsh" {
@@ -382,6 +396,9 @@ func TestPaneStateRestore(t *testing.T) {
 			if _, err := exec.LookPath(name); err != nil {
 				t.Skip(name + " not installed")
 			}
+			if name == "bash" {
+				needBash44(t)
+			}
 			dir := filepath.Join(t.TempDir(), "my dir")
 			os.Mkdir(dir, 0o755)
 			start := func(st paneState, w, h int) *Term {
@@ -411,7 +428,8 @@ func TestPaneStateRestore(t *testing.T) {
 			b.Resize(80, 24)
 			// printenv through cat: coreutils 9.12 shell-quotes values on a tty ('a b')
 			r := b.Run("printenv DESK_T | cat; pwd; printenv DESK_GONE || echo none", 10*time.Second)
-			if !strings.Contains(r.Text, "a b\n"+dir+"\nnone") {
+			if !strings.Contains(strings.ReplaceAll(r.Text, "\n", ""), "a b"+dir+"none") { // a long $TMPDIR (macOS) wraps the path
+
 				t.Errorf("restored shell: %q", r.Text)
 			}
 			if bs := b.Blocks(); len(bs) != 2 || !strings.Contains(bs[0].Cmd, "echo hello") || bs[0].Output != "hello" {
@@ -488,6 +506,7 @@ func TestTermClose(t *testing.T) {
 // TestRunStartsFullScreen: run with a short timeout leaves htop-like programs
 // running (here a plain sleep) and send_keys can then talk to them.
 func TestRunLeavesProgramRunning(t *testing.T) {
+	needBash44(t)
 	term, err := startCmd("local", exec.Command("bash", "--norc", "-i"), 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
@@ -1165,7 +1184,17 @@ func TestLocalCopyPipeline(t *testing.T) {
 	}
 }
 
+// needGNUFind skips t without GNU find: BSD's (macOS) has no -printf, so
+// listScript's listing has names only there.
+func needGNUFind(t *testing.T) {
+	t.Helper()
+	if exec.Command("find", ".", "-maxdepth", "0", "-printf", "").Run() != nil {
+		t.Skip("no GNU find: the shell listing has names only")
+	}
+}
+
 func TestListScript(t *testing.T) {
+	needGNUFind(t)
 	d := t.TempDir()
 	os.Mkdir(filepath.Join(d, "sub dir"), 0o755)
 	os.WriteFile(filepath.Join(d, "it's.txt"), []byte("12345"), 0o644)
@@ -1357,6 +1386,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("XDG_CONFIG_HOME", state) // nor desk's settings: the folders to search
 	os.Setenv("HOME", state)            // nor the user's home: ~/.claude.json, ~/Secure
 	sshBase.System = "none"             // nor the machine's ssh_config
+	claude.NoBwrap = false              // bwrap's profiles on every OS; TestClaudeCmdNoBwrap has macOS's
 	code := m.Run()
 	os.RemoveAll(state)
 	os.Exit(code)

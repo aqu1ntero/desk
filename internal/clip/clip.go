@@ -1,8 +1,10 @@
-// Package clip reads an image from the Wayland clipboard. Gio's clipboard
-// reads only text, so this speaks the Wayland wire protocol itself, over
-// the compositor's socket: the data-control extension (ext-data-control-v1,
-// or wlroots' zwlr-data-control-v1) hands the selection to a client
-// without a window or focus. No libraries, no wl-paste.
+//go:build linux
+
+// On Linux, Image speaks the Wayland wire protocol itself, over the
+// compositor's socket: the data-control extension (ext-data-control-v1, or
+// wlroots' zwlr-data-control-v1) hands the selection to a client without a
+// window or focus. No libraries, no wl-paste.
+
 package clip
 
 import (
@@ -19,7 +21,7 @@ import (
 	"time"
 )
 
-var le = binary.LittleEndian // the wire is the host's order; every Linux desktop is little-endian
+var le = binary.NativeEndian // the wire is in the host's byte order
 
 // managers are the data-control globals, preferred first; their requests
 // and events have the same opcodes.

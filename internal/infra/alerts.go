@@ -119,7 +119,7 @@ func (m *model) setAlerts(msg alertsMsg) {
 	for _, a := range msg.alerts {
 		if !old[a.key()] {
 			desktopNotify(a.State+" · "+a.name(), a.Org+": "+a.Output)
-			m.flash = "▲ " + a.State + " " + a.name() + " · ctrl+shift+k → investigate"
+			m.flash = "▲ " + a.State + " " + a.name() + " · " + modText("K") + " → investigate"
 		}
 	}
 }

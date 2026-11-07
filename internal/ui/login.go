@@ -189,7 +189,7 @@ func (u *ui) signInBox(gtx layout.Context, l *signIn) layout.Dimensions {
 			}
 		}
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-			layout.Flexed(1, k.Field(&l.code, "Paste the code here (Ctrl+V)", 0)),
+			layout.Flexed(1, k.Field(&l.code, "Paste the code here ("+kit.ModText("V")+")", 0)),
 			layout.Rigid(kit.HGap(10)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				d, ok := k.KBtn(gtx, "loginSend", kit.Primary, "Sign in", "")

@@ -6,6 +6,7 @@ import (
 	"github.com/lfdominguez/desk/internal/sshc/sshtest"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -176,7 +177,7 @@ func TestConnectionAttempts(t *testing.T) {
 func TestDialOptions(t *testing.T) {
 	w := newWorld(t)
 	s := pwServer(t, w, sshtest.Opts{})
-	for _, extra := range []string{"  BindAddress 127.0.0.1\n", "  BindAddress localhost\n  AddressFamily inet\n", "  BindInterface lo\n  AddressFamily inet\n", "  TCPKeepAlive no\n", "  BindInterface lo\n"} {
+	for _, extra := range []string{"  BindAddress 127.0.0.1\n", "  BindAddress localhost\n  AddressFamily inet\n", "  BindInterface " + lo + "\n  AddressFamily inet\n", "  TCPKeepAlive no\n", "  BindInterface " + lo + "\n"} {
 		w.ans = []string{"pw"}
 		if _, err := dialT(t, w.opts(base(extra), s)); err != nil {
 			t.Fatalf("%q: %v", extra, err)
@@ -186,7 +187,7 @@ func TestDialOptions(t *testing.T) {
 		{"  AddressFamily inet6\n", "connect to host"},
 		{"  BindAddress nowhere.invalid\n", "BindAddress nowhere.invalid"},
 		{"  BindInterface nosuch0\n", "BindInterface nosuch0"},
-		{"  BindInterface lo\n  AddressFamily inet6\n  BindAddress ::1\n", "connect to host"},
+		{"  BindInterface " + lo + "\n  AddressFamily inet6\n  BindAddress ::1\n", "connect to host"},
 	} {
 		if _, err := dialT(t, w.opts(base(tc.extra), s)); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Fatalf("%q: err %v", tc.extra, err)
@@ -218,9 +219,12 @@ func TestProxyCommandNoEnv(t *testing.T) {
 	}
 }
 
+// lo is the loopback interface's name: lo0 on macOS and the BSDs.
+var lo = map[bool]string{true: "lo", false: "lo0"}[runtime.GOOS == "linux"]
+
 func TestBindInterfaceFamily(t *testing.T) {
 	w := newWorld(t)
-	cfg := resolve(t, w, "Host *\n  BindInterface lo\n")
+	cfg := resolve(t, w, "Host *\n  BindInterface "+lo+"\n")
 	ip, err := bindAddr(cfg, "tcp4")
 	if err != nil || ip.To4() == nil {
 		t.Fatalf("tcp4: %v %v", ip, err)

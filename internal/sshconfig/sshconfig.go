@@ -137,8 +137,8 @@ func systemLookup(name string) (string, error) {
 		return "", err
 	}
 	cn, err := net.LookupCNAME(name)
-	if err != nil {
-		return "", nil
+	if err != nil { // macOS's resolver has no CNAME for an /etc/hosts name: it is its own, as getaddrinfo says
+		return name, nil
 	}
 	return strings.TrimSuffix(cn, "."), nil
 }

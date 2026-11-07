@@ -1346,12 +1346,12 @@ func TestFilesCrumbs(t *testing.T) {
 	if h.sel(0) != "c" {
 		t.Errorf("crumb selected %q", h.sel(0))
 	}
-	h.u.loadSide(h.fv, h.fv.sides[0], h.srv, "")
-	h.listed(0, h.srv)
+	first := strings.Split(strings.Trim(h.srv, "/"), "/")[0]
+	h.u.loadSide(h.fv, h.fv.sides[0], "/"+first, "") // shallow, so its first crumb is / (macOS's $TMPDIR is deep)
+	h.listed(0, "/"+first)
 	h.frame()
 	h.click("crumb0-0")
 	h.listed(0, "/")
-	first := strings.Split(strings.Trim(h.srv, "/"), "/")[0]
 	if h.sel(0) != first {
 		t.Errorf("/ crumb selected %q", h.sel(0))
 	}

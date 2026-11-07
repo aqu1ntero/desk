@@ -292,7 +292,7 @@ func TestDesktopNotifyC(t *testing.T) {
 
 func TestOpenLocalRunsXdgOpenC(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "out")
-	fakeBinC(t, "xdg-open", `printf '%s' "$1" > `+out+".tmp; mv "+out+".tmp "+out+"\n")
+	fakeBinC(t, Opener, `printf '%s' "$1" > `+out+".tmp; mv "+out+".tmp "+out+"\n")
 	if err := realOpenLocalC("/tmp/report.md"); err != nil {
 		t.Fatal(err)
 	}
@@ -1392,20 +1392,7 @@ func TestPaletteActionsC(t *testing.T) {
 		t.Error("no ssh command for the local machine")
 	}
 
-	camMu.Lock()
-	camStop = make(chan struct{})
-	camMu.Unlock()
-	palPickC(t, m, "stop the terminal camera", "stop the terminal camera")
-	if m.flash != "terminal camera off" || cameraOn() {
-		t.Errorf("camera: %q", m.flash)
-	}
-	shareMu.Lock()
-	shareStop = make(chan struct{})
-	shareMu.Unlock()
-	palPickC(t, m, "stop sharing the terminal as a screen", "stop sharing the terminal as a screen")
-	if m.flash != "terminal screen off" || shareOn() {
-		t.Errorf("share: %q", m.flash)
-	}
+	cameraPalC(t, m)
 
 	runtimeA(t)
 	t.Setenv("PATH", t.TempDir()) // no claude

@@ -531,13 +531,13 @@ func (u *ui) shortcut(e key.Event) bool {
 		u.openFind()
 	case name == string(key.NameUpArrow) || name == string(key.NameDownArrow):
 		u.selectBlock(name == string(key.NameUpArrow))
-	case name == "C" && runtime.GOOS != "darwin":
+	case name == "C":
 		if u.chatSel != nil && u.chatSel.selected() != "" {
 			u.copyOnSelect(u.chatSel.selected())
 		} else {
 			u.copySelection = true
 		}
-	case name == "V" && runtime.GOOS != "darwin":
+	case name == "V":
 		u.pasteWanted = true
 	case len(name) == 1 && name[0] >= '1' && name[0] <= '9':
 		if ts, n := u.orgTabs(), int(name[0]-'1'); n < len(ts) {
@@ -552,9 +552,16 @@ func (u *ui) shortcut(e key.Event) bool {
 }
 
 // shortcutFilters are the keys shortcut handles, for the window-wide handler.
+// On macOS ⌘C and ⌘V stay out: a focus-less filter beats the focused
+// editor, whose copy and paste they are there; a focused terminal still
+// hands them to shortcut (termEvents).
 func shortcutFilters() []key.Filter {
+	names := []key.Name{"K", "T", "W", "J", "G", "Y", "P", "S", "L", "F", "H", key.NameUpArrow, key.NameDownArrow, "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+	if shortcutMod != key.ModCommand {
+		names = append(names, "C", "V")
+	}
 	var fs []key.Filter
-	for _, n := range []key.Name{"K", "T", "W", "J", "G", "Y", "P", "S", "L", "F", "H", key.NameUpArrow, key.NameDownArrow, "C", "V", "1", "2", "3", "4", "5", "6", "7", "8", "9"} {
+	for _, n := range names {
 		fs = append(fs, key.Filter{Name: n, Required: shortcutMod})
 	}
 	return fs

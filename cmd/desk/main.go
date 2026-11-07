@@ -2,11 +2,16 @@
 package main
 
 import (
+	"cmp"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
+	"strings"
+	"time"
 
 	"gioui.org/app"
 
@@ -66,6 +71,21 @@ func fixShell() {
 	}
 }
 
+// loginPath, on macOS, takes PATH from the login shell: an app started from
+// Finder or the Dock gets only /usr/bin:/bin:/usr/sbin:/sbin, where claude
+// and the rest aren't. A shell that fails or takes over 3 s leaves PATH.
+func loginPath(darwin bool) {
+	if !darwin {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, cmp.Or(os.Getenv("SHELL"), "/bin/zsh"), "-lc", `printf %s "$PATH"`).Output()
+	if p := strings.TrimSpace(string(out)); err == nil && p != "" {
+		os.Setenv("PATH", p)
+	}
+}
+
 // run is desk with args (os.Args); it returns the exit code, or never
 // returns once the window is up (app.Main).
 func run(args []string) int {
@@ -104,6 +124,7 @@ func run(args []string) int {
 			return 0
 		}
 	}
+	loginPath(runtime.GOOS == "darwin")
 	path := kanban.Path()
 	b, err := kanban.Load(path)
 	if err != nil {

@@ -75,6 +75,29 @@ func TestFixShell(t *testing.T) {
 	}
 }
 
+// TestLoginPath: on macOS PATH is the login shell's; elsewhere, or when the
+// shell fails or says nothing, it stays.
+func TestLoginPath(t *testing.T) {
+	sh := filepath.Join(t.TempDir(), "sh")
+	t.Setenv("PATH", "/usr/bin:/bin")
+	for script, want := range map[string]string{
+		`[ "$1" = -lc ] && printf '/opt/claude/bin:/usr/bin\n'`: "/opt/claude/bin:/usr/bin",
+		"exit 1": "/usr/bin:/bin",
+		"true":   "/usr/bin:/bin",
+	} {
+		os.WriteFile(sh, []byte("#!/bin/sh\n"+script+"\n"), 0o755)
+		t.Setenv("SHELL", sh)
+		loginPath(false)
+		if os.Getenv("PATH") != "/usr/bin:/bin" {
+			t.Fatal("not on macOS, PATH changed")
+		}
+		if loginPath(true); os.Getenv("PATH") != want {
+			t.Errorf("%s: %q, want %q", script, os.Getenv("PATH"), want)
+		}
+		t.Setenv("PATH", "/usr/bin:/bin")
+	}
+}
+
 // TestSubcommands: peer hands back its exit code, mcp serves
 // the protocol on stdin/stdout.
 func TestSubcommands(t *testing.T) {

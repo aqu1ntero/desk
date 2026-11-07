@@ -152,3 +152,21 @@ func TestSaveRawErrors(t *testing.T) {
 		t.Error("missing org folder")
 	}
 }
+
+// TestXDGDir: the variable, else under HOME (on macOS too); no HOME is an error.
+func TestXDGDir(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", "/x/cache")
+	if d, err := XDGDir("XDG_CACHE_HOME", ".cache"); d != "/x/cache" || err != nil {
+		t.Errorf("set: %q %v", d, err)
+	}
+	t.Setenv("XDG_CACHE_HOME", "")
+	t.Setenv("HOME", "/home/me")
+	if d, err := XDGDir("XDG_CACHE_HOME", ".cache"); d != "/home/me/.cache" || err != nil {
+		t.Errorf("unset: %q %v", d, err)
+	}
+	t.Setenv("HOME", "")
+	t.Chdir(t.TempDir())
+	if d, err := XDGDir("XDG_CACHE_HOME", ".cache"); d != "" || err == nil {
+		t.Errorf("no home: %q %v", d, err)
+	}
+}

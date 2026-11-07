@@ -11,8 +11,8 @@ import (
 // notification (when you're looking elsewhere).
 const longCommand = 20 * time.Second
 
-// desktopNotify shows a desktop notification (freedesktop over D-Bus on
-// Linux, as desk's own), off the caller's goroutine. Errors are dropped; no
+// desktopNotify shows a desktop notification (gioui.org/x/notify, as desk's
+// own: D-Bus on Linux, UserNotifications on macOS), off the caller's goroutine. Errors are dropped; no
 // notifier just means no notification. A variable so tests can catch them.
 var desktopNotify = func(title, body string) { go pushNotify(title, firstLine(body, 160)) }
 

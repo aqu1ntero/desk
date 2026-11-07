@@ -1502,3 +1502,22 @@ func TestShareToggleHyprland(t *testing.T) {
 	}
 	_ = setMons
 }
+
+// cameraPalC: the palette's stop items stop a running camera and share
+// (gui_camera_other_test.go has the rest of the world's).
+func cameraPalC(t *testing.T, m *model) {
+	camMu.Lock()
+	camStop = make(chan struct{})
+	camMu.Unlock()
+	palPickC(t, m, "stop the terminal camera", "stop the terminal camera")
+	if m.flash != "terminal camera off" || cameraOn() {
+		t.Errorf("camera: %q", m.flash)
+	}
+	shareMu.Lock()
+	shareStop = make(chan struct{})
+	shareMu.Unlock()
+	palPickC(t, m, "stop sharing the terminal as a screen", "stop sharing the terminal as a screen")
+	if m.flash != "terminal screen off" || shareOn() {
+		t.Errorf("share: %q", m.flash)
+	}
+}

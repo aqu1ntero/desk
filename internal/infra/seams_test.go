@@ -2,6 +2,7 @@ package infra
 
 import (
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ func TestHostCmd(t *testing.T) {
 		return exec.Command("bash", "--norc", "-i")
 	}
 	defer func() { HostCmd = nil }()
-	dir := t.TempDir()
+	dir, _ := filepath.EvalSymlinks(t.TempDir()) // as the shell's pwd says it (macOS: /private/var)
 	tm, err := NewTerm("web-02", dir, 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)

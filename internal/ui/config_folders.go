@@ -185,7 +185,7 @@ func (u *ui) cfgFolderPage(gtx layout.Context) layout.Dimensions {
 								return dim
 							}),
 							layout.Rigid(kit.HGap(12)),
-							layout.Rigid(k.Lbl("Terminals and the session panel · Ctrl+= bigger, Ctrl+- smaller, Ctrl+0 back to 100%", 11, kit.CText3, kit.Sans)))
+							layout.Rigid(k.Lbl("Terminals and the session panel · "+kit.ModText("=")+" bigger, "+kit.ModText("-")+" smaller, "+kit.ModText("0")+" back to 100%", 11, kit.CText3, kit.Sans)))
 					}))
 			})
 		},

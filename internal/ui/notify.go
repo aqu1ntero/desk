@@ -10,7 +10,8 @@ import (
 )
 
 // desktopNotify shows a desktop notification (freedesktop over D-Bus on
-// Linux), off the UI goroutine; tests replace it.
+// Linux; on macOS UserNotifications, which shows none for a binary outside
+// an .app bundle), off the UI goroutine; tests replace it.
 var desktopNotify = func(title, body string) { go notify.Push(title, body) }
 
 // needsYou is how a status that wants the user reads in a notification.

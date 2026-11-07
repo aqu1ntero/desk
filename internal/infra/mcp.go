@@ -10,11 +10,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 )
 
 // Claude reaches the shared terminal through a tiny MCP server: claude spawns
@@ -436,15 +439,26 @@ func toolsMCP(sock, group string, tools []map[string]any) (string, []string) {
 }
 
 // runtimeDir is desk's folder for sockets: $XDG_RUNTIME_DIR/desk (user only).
+// macOS has none, and its $TMPDIR may not be the one a session running
+// `desk peer` sees, so there it is ~/.cache/desk/run (short enough for a
+// socket's 104 bytes).
 func runtimeDir() string {
 	d := os.Getenv("XDG_RUNTIME_DIR")
-	if d == "" {
-		d = os.TempDir()
+	switch {
+	case d != "":
+		d = filepath.Join(d, "desk")
+	case macOS:
+		d, _ = deskorgs.XDGDir("XDG_CACHE_HOME", ".cache")
+		d = filepath.Join(d, "desk", "run")
+	default:
+		d = filepath.Join(os.TempDir(), "desk")
 	}
-	d = filepath.Join(d, "desk")
 	os.MkdirAll(d, 0o700)
 	return d
 }
+
+// macOS is runtime.GOOS == "darwin", a variable so tests reach its ways.
+var macOS = runtime.GOOS == "darwin"
 
 // serveTools listens on a per-tab socket and runs tool calls on its terminal.
 func serveTools(t *Tab) (string, net.Listener, error) {
@@ -545,7 +559,7 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		if err != nil {
 			return toolResult{err.Error(), true}
 		}
-		return toolResult{Text: "saved " + p + "; the user starts it from the palette (ctrl+shift+k)"}
+		return toolResult{Text: "saved " + p + "; the user starts it from the palette (" + modText("K") + ")"}
 	case "connect":
 		n, err := t.findHost(a.Host)
 		if err != nil {

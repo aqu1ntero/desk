@@ -18,6 +18,9 @@ import (
 func TestRemoteFiles(t *testing.T) {
 	for name, noSFTP := range map[string]bool{"sftp": false, "shell": true} {
 		t.Run(name, func(t *testing.T) {
+			if noSFTP {
+				needGNUFind(t) // the server is this machine
+			}
 			w := newSSHW(t, sshtest.Opts{NoSFTP: noSFTP}, "")
 			ctx, r, local := t.Context(), w.remote, t.TempDir()
 			mk := func(p, data string, mode os.FileMode) {

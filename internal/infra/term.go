@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -182,7 +183,8 @@ func NewTerm(host, dir string, w, h int, notify func(), prelude paneState) (*Ter
 	var cmd *exec.Cmd
 	switch {
 	case host == "local":
-		cmd = exec.Command("bash", "--norc", "-i")
+		sh := localShell(runtime.GOOS)
+		cmd = exec.Command(sh[0], sh[1:]...)
 	case HostCmd != nil:
 		cmd = HostCmd(host)
 	}
@@ -194,6 +196,16 @@ func NewTerm(host, dir string, w, h int, notify func(), prelude paneState) (*Ter
 	}
 	cmd.Dir = dir
 	return startCmd(host, cmd, w, h, notify, prelude)
+}
+
+// localShell is the local pane's shell, without rc files: bash, but on
+// macOS only a bash ≥ 4.4 on PATH (/bin/bash is 3.2, without the PS0 that
+// marks a command's start), else zsh, which shellIntegration speaks too.
+func localShell(goos string) []string {
+	if goos != "darwin" || exec.Command("bash", "-c", "((BASH_VERSINFO[0]*100+BASH_VERSINFO[1] >= 404))").Run() == nil {
+		return []string{"bash", "--norc", "-i"}
+	}
+	return []string{"zsh", "-f", "-i"}
 }
 
 // startCmd starts cmd here in a PTY of w×h.

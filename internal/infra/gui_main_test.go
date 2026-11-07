@@ -791,29 +791,27 @@ func TestGMShortcut(t *testing.T) {
 	sc("H")
 	sc(key.NameUpArrow)
 	sc(key.NameDownArrow)
-	if runtime.GOOS != "darwin" {
-		u.copySelection = false
-		sc("C")
-		if !u.copySelection {
-			t.Error("C copies the terminal's selection")
-		}
-		u.chatSel = &selText{}
-		u.copySelection = false
-		sc("C")
-		if !u.copySelection {
-			t.Error("C with an empty chat selection copies the terminal's")
-		}
-		u.chatSel = &selText{src: []rune("uptime ok"), sel: [2]int{0, 6}}
-		u.copySelection = false
-		sc("C")
-		if u.copySelection || len(u.clipOut) != 1 || gmClip(u) != "uptime" {
-			t.Error("C copies the chat's selection")
-		}
-		u.chatSel = nil
-		sc("V")
-		if !u.pasteWanted {
-			t.Error("V pastes")
-		}
+	u.copySelection = false
+	sc("C")
+	if !u.copySelection {
+		t.Error("C copies the terminal's selection")
+	}
+	u.chatSel = &selText{}
+	u.copySelection = false
+	sc("C")
+	if !u.copySelection {
+		t.Error("C with an empty chat selection copies the terminal's")
+	}
+	u.chatSel = &selText{src: []rune("uptime ok"), sel: [2]int{0, 6}}
+	u.copySelection = false
+	sc("C")
+	if u.copySelection || len(u.clipOut) != 1 || gmClip(u) != "uptime" {
+		t.Error("C copies the chat's selection")
+	}
+	u.chatSel = nil
+	sc("V")
+	if !u.pasteWanted {
+		t.Error("V pastes")
 	}
 	u.wantTerm = false
 	sc("3")
@@ -826,7 +824,7 @@ func TestGMShortcut(t *testing.T) {
 	if len(h.acts()) != 0 {
 		t.Error("4 is past the org's tabs")
 	}
-	if len(shortcutFilters()) != 24 || len(ShortcutFilters()) != 24 {
+	if n := map[bool]int{true: 22, false: 24}[shortcutMod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'
 		t.Error("filters")
 	}
 }

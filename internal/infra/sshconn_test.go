@@ -119,6 +119,7 @@ func waitS(t *testing.T, what string, ok func() bool) {
 // TERM), with desk's shell integration injected; resizing reaches the PTY;
 // the shell's exit status ends it, not as a dropped link.
 func TestSSHPane(t *testing.T) {
+	needBash44(t) // the server's shell is this machine's bash
 	w := newSSHW(t, sshtest.Opts{}, "")
 	term := w.pane(t, paneState{})
 	waitS(t, "the prompt", term.AtPrompt)
@@ -166,6 +167,7 @@ func TestSSHPaneLost(t *testing.T) {
 // TestSSHPaneRestore: a kept state comes back on the server: its text
 // above, its directory and exported variables in the new shell.
 func TestSSHPaneRestore(t *testing.T) {
+	needBash44(t) // the server's shell is this machine's bash
 	w := newSSHW(t, sshtest.Opts{}, "")
 	sub := filepath.Join(w.remote, "sub dir")
 	os.Mkdir(sub, 0o755)

@@ -186,7 +186,7 @@ func (t *Tab) typingTo(term *Term) []*Term {
 // toggleBroadcast turns typing into all of t's panes on or off.
 func (m *model) toggleBroadcast(t *Tab) {
 	if t == nil || len(t.panes) < 2 && !t.broadcast {
-		m.flash = "broadcast needs two or more panes (ctrl+t opens one)"
+		m.flash = "broadcast needs two or more panes (" + modText("T") + " opens one)"
 		return
 	}
 	t.broadcast = !t.broadcast
@@ -242,7 +242,7 @@ type guiLayout struct {
 func (m *model) ui() uiState { return uiState{themeName, m.guiLayout} }
 
 func uiPath() string {
-	d, _ := os.UserConfigDir()
+	d, _ := deskorgs.XDGDir("XDG_CONFIG_HOME", ".config")
 	return filepath.Join(d, "desk", "infra-layout.json")
 }
 

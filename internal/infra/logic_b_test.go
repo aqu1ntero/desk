@@ -1093,7 +1093,7 @@ func TestTermRows(t *testing.T) {
 }
 
 func TestNewTermLocal(t *testing.T) {
-	dir := t.TempDir()
+	dir, _ := filepath.EvalSymlinks(t.TempDir()) // as the shell's pwd says it (macOS: /private/var)
 	tm, err := NewTerm("local", dir, 80, 24, func() {}, paneState{})
 	if err != nil {
 		t.Fatal(err)
