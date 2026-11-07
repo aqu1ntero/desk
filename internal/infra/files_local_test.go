@@ -50,10 +50,29 @@ func TestLocalGo(t *testing.T) {
 	if fi, _ := os.Stat(filepath.Join(back, "g.txt")); fi.Mode().Perm() != 0o600 && exeSuffix == "" {
 		t.Errorf("chmod: %v", fi.Mode())
 	}
-	if err := chmodRemote(ctx, "local", "", "u+x", nil); err == nil {
-		t.Error("a symbolic mode without the scripts")
+	if err := chmodRemote(ctx, "local", "", "u+x,g+r", []string{filepath.Join(back, "g.txt")}); err != nil {
+		t.Fatal(err)
 	}
-	if err := chmodRemote(ctx, "local", "", "17777", nil); err == nil {
+	if fi, _ := os.Stat(filepath.Join(back, "g.txt")); fi.Mode().Perm() != 0o740 && exeSuffix == "" {
+		t.Errorf("symbolic chmod: %v", fi.Mode())
+	}
+	// Windows keeps only the owner's write bit: a-w is read-only, u+w undoes it
+	if err := chmodRemote(ctx, "local", "", "a-w", []string{filepath.Join(back, "g.txt")}); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(filepath.Join(back, "g.txt")); fi.Mode().Perm()&0o200 != 0 {
+		t.Errorf("a-w: %v", fi.Mode())
+	}
+	chmodRemote(ctx, "local", "", "u+w", []string{filepath.Join(back, "g.txt")})
+	if fi, _ := os.Stat(filepath.Join(back, "g.txt")); fi.Mode().Perm()&0o200 == 0 {
+		t.Errorf("u+w: %v", fi.Mode())
+	}
+	if os.Geteuid() > 0 { // not ours to chmod (u+r changes nothing, even for root)
+		if err := chmodLocal("u+r", []string{"/"}); err == nil {
+			t.Error("chmod of /")
+		}
+	}
+	if err := chmodRemote(ctx, "local", "", "17777", []string{filepath.Join(back, "g.txt")}); err == nil {
 		t.Error("a mode past 7777")
 	}
 	if err := chmodRemote(ctx, "local", "", "644", []string{filepath.Join(back, "none")}); err == nil {
@@ -71,6 +90,47 @@ func TestLocalGo(t *testing.T) {
 		if err := removeRemote(ctx, "local", "", []string{filepath.Join(back, "g.txt")}); err == nil {
 			t.Error("removed from a read-only folder")
 		}
+	}
+}
+
+// TestParseMode: chmod's octal and symbolic modes, as GNU chmod applies
+// them (but for the umask when no who is given).
+func TestParseMode(t *testing.T) {
+	for _, tc := range []struct {
+		mode string
+		cur  uint64
+		dir  bool
+		want uint64
+	}{
+		{"640", 0o777, false, 0o640},
+		{"4755", 0, false, 0o4755},
+		{"u+x", 0o644, false, 0o744},
+		{"go-w", 0o666, false, 0o644},
+		{"+x", 0o600, false, 0o711},
+		{"a=r", 0o4777, false, 0o444},
+		{"u=rw,go=r", 0o777, false, 0o644},
+		{"o-rwx", 0o777, false, 0o770},
+		{"ug+rw", 0o404, false, 0o664},
+		{"a+X", 0o644, false, 0o644},
+		{"a+X", 0o744, false, 0o755},
+		{"a+X", 0o600, true, 0o711},
+		{"u+s,g+s", 0o755, false, 0o6755},
+		{"o+s", 0o755, false, 0o755},
+		{"+t", 0o777, true, 0o1777},
+		{"u+t", 0o777, true, 0o777},
+		{"g-s", 0o2755, true, 0o755},
+	} {
+		if got, err := parseMode(tc.mode, tc.cur, tc.dir); err != nil || got != tc.want {
+			t.Errorf("%s on %o: %o %v, want %o", tc.mode, tc.cur, got, err, tc.want)
+		}
+	}
+	for _, bad := range []string{"", "17777", "u", "u+", "u+q", "x+r", "u+x,", "rwx", "8"} {
+		if _, err := parseMode(bad, 0o644, false); err == nil {
+			t.Errorf("%q: no error", bad)
+		}
+	}
+	if m := unixMode(sftpMode(0o7531)); m != 0o7531 {
+		t.Errorf("unixMode: %o", m)
 	}
 }
 

@@ -53,7 +53,7 @@ desk's tools, in your panes:
 | `split` | Opens another pane on the same server. |
 | `close_pane` | Closes a pane it opened. Yours stay. |
 | `hosts` | Lists the organization's servers, with their [`desc` and `tags`](/servers/servers-file/#desc-and-tags). |
-| `changes` | What changed on a server in the last hours: packages, `/etc`, services, logins, reboots, containers. Read-only. |
+| `changes` | What changed on a server in the last hours: packages, `/etc`, services, logins, reboots, containers. Read-only. On Windows, for this machine: files changed in its `drivers\etc` folder and Docker's containers (Windows' own logs aren't read). |
 | `note` | Saves a fact about a server for next time. See [Notes](#notes). |
 | `save_runbook` | Saves a procedure as a [runbook](#runbooks). |
 | `ask_peer`, `task_done`, `message_card`, `create_card` | Talk to the cards that hand it work. See [Cards and servers](/servers/cards/). |

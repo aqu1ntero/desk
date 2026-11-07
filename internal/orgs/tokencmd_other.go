@@ -2,5 +2,5 @@
 
 package orgs
 
-// tokenShell runs a token_cmd.
-var tokenShell = [2]string{"sh", "-c"}
+// Shell runs a command line (a token_cmd, infra's hosts-cmd).
+var Shell = [2]string{"sh", "-c"}

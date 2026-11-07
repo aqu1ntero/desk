@@ -442,7 +442,8 @@ Match all
   the file that holds them, not desk's working directory (nor `~/.ssh/` for `Include`, as `ssh -F`
   would take them).
 - **Dynamic inventory**: `#@ hosts-cmd PATH` runs at start and on reload and keeps what it prints
-  (ssh_config text or `name user@host:port` lines) in `<Org>/.desk/servers-dynamic.conf`.
+  (ssh_config text or `name user@host:port` lines) in `<Org>/.desk/servers-dynamic.conf`
+  (on Windows it runs through `cmd /C`: a `.bat`, `.cmd` or `.exe`).
 - Every tab of the org works in `<Org>/.desk/infra/`: its Claude's cwd, with `runbooks/` and its
   `CLAUDE.md` (an older `<Org>/Infra-Claude/` moves there once). The servers file is the only
   source of servers: the old `Infra-Claude/<group>/` folders are no longer read.

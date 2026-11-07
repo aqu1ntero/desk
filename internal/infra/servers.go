@@ -57,7 +57,8 @@ import (
 // "reload config", 10 s at most, and keeps what it prints, ssh_config text or
 // hosts lines ("name destination"), in <Org>/.desk/servers-dynamic.conf (a
 // group's: servers-dynamic-<group>.conf). Include that file on the next line;
-// a failed run keeps the last output.
+// a failed run keeps the last output. On Windows it runs through cmd /C
+// (hostsCmdArgs).
 const serversFile = "ssh_config" // its name in <Org>/.desk
 
 // topGroup is the tree's name for the hosts outside any #@ group.
@@ -311,7 +312,8 @@ func (p *serverParse) hostsCmd(path, group string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, path)
+	args := hostsCmdArgs(path)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = filepath.Dir(path)
 	out, err := cmd.Output()
 	if err != nil {

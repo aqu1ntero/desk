@@ -1,4 +1,5 @@
 package orgs
 
-// tokenShell runs a token_cmd: cmd /C, as sshc runs config commands here.
-var tokenShell = [2]string{"cmd", "/C"}
+// Shell runs a command line (a token_cmd, infra's hosts-cmd): cmd /C, as
+// sshc runs config commands here.
+var Shell = [2]string{"cmd", "/C"}

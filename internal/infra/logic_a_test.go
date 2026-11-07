@@ -502,6 +502,27 @@ func TestPowerShellIntegration(t *testing.T) {
 	}
 }
 
+// TestPowerShellRestoreEnv: a restored PowerShell pane reports its start's
+// environment first, then sets the kept variables with $env: (quoted the
+// PowerShell way, curly quotes too) and removes the unset ones; names a
+// shell can't take are dropped, as for bash.
+func TestPowerShellRestoreEnv(t *testing.T) {
+	term, r := fakeTermA(t, "local")
+	term.replay(paneState{Cwd: `C:\w`, Env: map[string]string{"B": "it's ‘x’", "A": "1", "bad-name": "x"}, Unset: []string{"OLD", "no way"}})
+	term.emu.Write([]byte(`PS C:\> `))
+	term.maybeInject()
+	want := `; [Console]::Write("$(__deskE)"); $env:A = '1'; $env:B = 'it''s ‘‘x’’'; Remove-Item -LiteralPath Env:OLD -ErrorAction Ignore; Set-Location -LiteralPath 'C:\w'` + "\r"
+	if got := readPipeA(r); !strings.HasPrefix(got, psIntegration) || got[len(psIntegration):] != want {
+		t.Errorf("typed %q", got)
+	}
+	// the prompt reports the environment the way oscEnv reads it
+	for _, s := range []string{`]6973;$b`, `-join [char]0`, `UTF8.GetBytes`, `(__deskE) + (& $global:__deskP)`} {
+		if !strings.Contains(psIntegration, s) {
+			t.Errorf("psIntegration lacks %q", s)
+		}
+	}
+}
+
 // TestOsc7Windows: PowerShell's directory is a Windows path; a location
 // that isn't a folder (a registry drive) is ignored.
 func TestOsc7Windows(t *testing.T) {

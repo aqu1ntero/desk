@@ -68,6 +68,7 @@ type Term struct {
 	cwd        string            // the shell's directory, from OSC 7 at each prompt
 	env, env0  map[string]string // exported environment now, and as the shell started (OSC 6973)
 	restore    string            // commands run after the shell integration (cd, exports of a restored session)
+	psRestore  string            // restore's environment for PowerShell ("; $env:K = 'v'"…)
 	pending    *paneState        // restored history, written once the injection's clear ran (replayMark)
 	rev        int               // bumps when something paneState keeps changes (session saves)
 	onBlock    func(Block)       // called (with mu held) as each command finishes
@@ -132,14 +133,15 @@ const shEnvFuncs = `__desk_e(){ local e; e=$( (env -0 2>/dev/null || env) | base
 // default prompt is "PS C:\path> ": the prompt function wraps the one it had
 // with D;exit, OSC 7 (the directory, a Windows path; a non-file location's
 // isn't absPath) and B, and with PSReadLine (always there when interactive)
-// its ReadLine is followed by C. Then Clear-Host; maybeInject adds the
-// restored directory.
-// ponytail: no environment report (the restore's exports speak POSIX
-// shells), so a PowerShell pane doesn't keep its exports over a restart;
-// older conhosts (before Windows 11 22H2) may swallow the marks, which
-// leaves the pane without blocks or directory.
-const psIntegration = `$global:__deskP = $function:prompt; function global:prompt { $e = if ($?) { 0 } elseif ($global:LASTEXITCODE) { $global:LASTEXITCODE } else { 1 }; ` +
-	`"$([char]27)]133;D;$e$([char]7)$([char]27)]7;$($PWD.ProviderPath)$([char]7)" + (& $global:__deskP) + "$([char]27)]133;B$([char]7)" }; ` +
+// its ReadLine is followed by C. __deskE is shEnvFuncs' __desk_e: the
+// environment (Env:, NUL-separated, base64 of UTF-8) as OSC 6973 when it
+// changed. Then Clear-Host; maybeInject adds the first report and the
+// restored environment and directory (psRestore).
+// ponytail: older conhosts (before Windows 11 22H2) may swallow the marks,
+// which leaves the pane without blocks or directory.
+const psIntegration = `function global:__deskE { $b = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(((Get-ChildItem Env:) | ForEach-Object { $_.Name + '=' + $_.Value }) -join [char]0)); if ($b -ne $global:__deskLE) { $global:__deskLE = $b; "$([char]27)]6973;$b$([char]7)" } }; ` +
+	`$global:__deskP = $function:prompt; function global:prompt { $e = if ($?) { 0 } elseif ($global:LASTEXITCODE) { $global:LASTEXITCODE } else { 1 }; ` +
+	`"$([char]27)]133;D;$e$([char]7)$([char]27)]7;$($PWD.ProviderPath)$([char]7)" + (__deskE) + (& $global:__deskP) + "$([char]27)]133;B$([char]7)" }; ` +
 	`if (Get-Module PSReadLine) { function global:PSConsoleHostReadLine { $l = [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace, $ExecutionContext); [Console]::Write("$([char]27)]133;C$([char]7)"); $l } }; Clear-Host`
 
 // promptEnd is how a shell prompt ends: bash $ #, zsh %, fish > ❯.
@@ -307,9 +309,10 @@ func (t *Term) maybeInject() {
 		if strings.HasSuffix(l, e) {
 			t.injected = true
 			if e == ">" && strings.HasPrefix(l, "PS ") {
-				mark := ""
+				// the start's environment first, then the restored one
+				mark := `; [Console]::Write("$(__deskE)")` + t.psRestore
 				if t.cwd != "" { // a restored pane's
-					mark = "; Set-Location -LiteralPath '" + strings.ReplaceAll(t.cwd, "'", "''") + "'"
+					mark += "; Set-Location -LiteralPath " + psQuote(t.cwd)
 				}
 				if t.pending != nil {
 					mark += `; [Console]::Write("$([char]27)]6974$([char]7)")` // replayMark
@@ -342,6 +345,13 @@ func (t *Term) osc7(data []byte) bool {
 	}
 	return true
 }
+
+// psQuote quotes s for PowerShell: single quotes, inside which only a
+// single quote is special, doubled (PowerShell takes the curly ones for
+// single quotes too).
+func psQuote(s string) string { return "'" + psQuotes.Replace(s) + "'" }
+
+var psQuotes = strings.NewReplacer("'", "''", "‘", "‘‘", "’", "’’", "‚", "‚‚", "‛", "‛‛")
 
 // absPath: a POSIX path, or a Windows one (C:\x, \\server\share) from
 // PowerShell's prompt.
@@ -477,21 +487,24 @@ func (t *Term) replay(st paneState) {
 	if st.Text != "" {
 		t.pending = &st
 	}
-	var r strings.Builder
+	var r, ps strings.Builder
 	for _, k := range slices.Sorted(maps.Keys(st.Env)) {
 		if envName.MatchString(k) {
 			r.WriteString("export " + k + "=" + shQuote(st.Env[k]) + "; ")
+			ps.WriteString("; $env:" + k + " = " + psQuote(st.Env[k]))
 		}
 	}
 	var unset []string
 	for _, k := range st.Unset {
 		if envName.MatchString(k) {
 			unset = append(unset, k)
+			ps.WriteString("; Remove-Item -LiteralPath Env:" + k + " -ErrorAction Ignore")
 		}
 	}
 	if len(unset) > 0 {
 		r.WriteString("__desk_u " + strings.Join(unset, " ") + "; ")
 	}
+	t.psRestore = ps.String()
 	if strings.HasPrefix(st.Cwd, "/") {
 		r.WriteString("cd " + shQuote(st.Cwd) + "; ")
 	}
