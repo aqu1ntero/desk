@@ -65,6 +65,16 @@ Optional on Linux: `bwrap` ([bubblewrap](https://github.com/containers/bubblewra
 per-organization Claude profiles (macOS and Windows hand the profile to Claude Code as
 `CLAUDE_CONFIG_DIR` instead). The infra workspace speaks SSH itself (no `ssh` program needed).
 
+> [!WARNING]
+> **macOS and Windows are new and not fully tested.** desk is developed on Linux.
+> - **Windows** was tested under Wine on Linux, not on a real Windows machine: the test suite
+>   passes there, but some of it (PowerShell, console resizing, sockets) can't run under Wine.
+> - **macOS** was tested in a QEMU macOS VM without a GPU: it builds and the test suite passes,
+>   but desk's window needs Metal, so the GUI has never been seen running. It should work on a
+>   real Mac.
+>
+> If something breaks on either, please [open an issue](https://github.com/lfdominguez/desk/issues).
+
 ### Windows
 
 Download `desk-<version>-windows-amd64.msi` from the [latest release](https://github.com/lfdominguez/desk/releases/latest)
