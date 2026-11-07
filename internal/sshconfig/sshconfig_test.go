@@ -539,3 +539,86 @@ func TestSystemLookup(t *testing.T) {
 		t.Fatal(".invalid must not resolve")
 	}
 }
+
+func TestRelativeToFile(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "a%b[c") // % and [ must survive expansion and glob
+	os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
+	cfg := filepath.Join(dir, "config")
+	os.WriteFile(cfg, []byte(`Include sub/inc
+IdentityFile keys/id
+CertificateFile keys/id-cert.pub
+UserKnownHostsFile kh kh2
+GlobalKnownHostsFile gkh
+RevokedHostKeys revoked
+IdentityAgent agent.sock
+ControlPath cp/%h
+ForwardAgent fwd.sock
+PKCS11Provider p11.so
+SecurityKeyProvider sk.so
+XAuthLocation xauth
+`), 0o644)
+	os.WriteFile(filepath.Join(dir, "sub/inc"), []byte("User inc\nIdentityFile k2\n"), 0o644)
+	o := Options{File: cfg, System: "none", Home: t.TempDir(), LocalUser: "me", RelativeToFile: true,
+		Overrides: []string{"CertificateFile ov"}}
+	c, err := Resolve("h", o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.User() != "inc" {
+		t.Fatal("Include not taken from the file's folder")
+	}
+	at := func(s string) string { return dir + "/" + s }
+	if ids, _ := c.IdentityFiles(); !slices.Equal(ids, []string{at("sub/k2"), at("keys/id")}) {
+		t.Fatalf("IdentityFile %q", ids)
+	}
+	if cs, _ := c.CertificateFiles(); !slices.Equal(cs, []string{"ov", at("keys/id-cert.pub")}) {
+		t.Fatalf("CertificateFile (-o's stays) %q", cs)
+	}
+	if l := c.UserKnownHostsFiles(); !slices.Equal(l, []string{at("kh"), at("kh2")}) {
+		t.Fatalf("UserKnownHostsFile %q", l)
+	}
+	if l := c.GlobalKnownHostsFiles(); !slices.Equal(l, []string{at("gkh")}) {
+		t.Fatalf("GlobalKnownHostsFile %q", l)
+	}
+	for k, want := range map[string]string{
+		"revokedhostkeys": at("revoked"), "identityagent": at("agent.sock"), "controlpath": at("cp/h"),
+		"forwardagent": at("fwd.sock"), "pkcs11provider": at("p11.so"), "securitykeyprovider": at("sk.so"),
+		"xauthlocation": at("xauth"),
+	} {
+		if got := c.Get(k); got != want {
+			t.Errorf("%s = %q, want %q", k, got, want)
+		}
+	}
+
+	// Off, as OpenSSH: from the working directory, Include from ~/.ssh.
+	o.RelativeToFile = false
+	if c, err = Resolve("h", o); err != nil {
+		t.Fatal(err)
+	}
+	if ids, _ := c.IdentityFiles(); c.User() == "inc" || !slices.Equal(ids, []string{"keys/id"}) {
+		t.Fatalf("anchored without RelativeToFile: %s %q", c.User(), ids)
+	}
+}
+
+func TestRelativeToFileKeeps(t *testing.T) {
+	t.Setenv("SSHCFG_REL", "/env")
+	keep := func(o *Options) { o.RelativeToFile = true }
+	c := mustResolve(t, "IdentityFile ~/a\nIdentityFile %d/b\nIdentityFile /abs/c\nIdentityFile ${SSHCFG_REL}/d\n"+
+		"IdentityAgent SSH_AUTH_SOCK\nControlPath none\nForwardAgent yes\nSecurityKeyProvider internal\n"+
+		"UserKnownHostsFile none\nPKCS11Provider none\n", "h", keep)
+	home := c.Tokens()['d']
+	if ids, _ := c.IdentityFiles(); !slices.Equal(ids, []string{home + "/a", home + "/b", "/abs/c", "/env/d"}) {
+		t.Fatalf("IdentityFile %q", ids)
+	}
+	for k, want := range map[string]string{
+		"identityagent": "SSH_AUTH_SOCK", "controlpath": "", "forwardagent": "yes", // none prints nothing
+		"securitykeyprovider": "internal", "pkcs11provider": "",
+	} {
+		if got := c.Get(k); got != want {
+			t.Errorf("%s = %q, want %q", k, got, want)
+		}
+	}
+	if l := c.UserKnownHostsFiles(); len(l) != 0 {
+		t.Errorf("UserKnownHostsFile none: %q", l)
+	}
+}

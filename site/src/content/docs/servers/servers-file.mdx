@@ -196,8 +196,8 @@ come from somewhere else: a cloud API, a CMDB, a script.
 - It runs when desk starts and on every reload, with a 10-second timeout.
 - desk keeps what it prints in `<Org>/.desk/servers-dynamic.conf` (one inside a group:
   `servers-dynamic-<group>.conf`, with `/` as `-`).
-- That file isn't read on its own: `Include` it, on the line after `hosts-cmd`, by its full
-  or `~/` path (see [Includes](#includes)).
+- That file isn't read on its own: `Include` it, on the line after `hosts-cmd`. With the servers
+  file in `.desk/` too, its bare name does (see [Includes](#includes)).
 - If the program fails, the last good output stays and the host list shows the error as a row.
 
 It can print either of two forms:
@@ -211,7 +211,7 @@ It can print either of two forms:
 ```ssh-config
 #@ group cloud
 #@ hosts-cmd bin/inventory.sh
-Include ~/Work/Globex/.desk/servers-dynamic-cloud.conf
+Include servers-dynamic-cloud.conf
 ```
 
 ```sh
@@ -223,9 +223,9 @@ echo "app-02 deploy@192.0.2.32:2222"
 
 ## Includes
 
-`Include` lines are followed, inside `Host` and `Match` blocks too, with `~/` and globs. Paths
-resolve as ssh resolves them: a relative path is in `~/.ssh/` (not next to the servers file), so
-write full or `~/` paths for files in the organization's folder.
+`Include` lines are followed, inside `Host` and `Match` blocks too, with `~/` and globs. A
+relative path is next to the file that has the `Include` line (see
+[Relative paths](#relative-paths)).
 
 - Files **inside the organization's folder** count: their hosts are the organization's servers,
   and their `#@` lines work. An included file starts in the group of the line that includes it.
@@ -235,6 +235,26 @@ write full or `~/` paths for files in the organization's folder.
   `Match all` and `Include ~/.ssh/config` last to keep your own defaults (ssh keeps the first
   value it finds).
 - Includes nest up to 8 deep.
+
+## Relative paths
+
+A relative path in the servers file is relative to **the folder of the file that holds it**, an
+included file's to its own folder. That covers `IdentityFile`, `CertificateFile`,
+`UserKnownHostsFile`, `GlobalKnownHostsFile`, `RevokedHostKeys`, `IdentityAgent`,
+`ControlPath`, a `ForwardAgent` socket, `PKCS11Provider`, `SecurityKeyProvider`,
+`XAuthLocation` and `Include`. Paths that start with `/`, `~`, `%d` or an environment variable
+(`${VAR}`) stay as they are, and so do words like `none` and `SSH_AUTH_SOCK`.
+
+```ssh-config
+# in <Org>/.desk/ssh_config
+Host web1
+    IdentityFile keys/web1          # <Org>/.desk/keys/web1
+    UserKnownHostsFile known_hosts  # <Org>/.desk/known_hosts
+```
+
+This is where desk differs from `ssh -F`: ssh takes relative paths from the folder it runs in,
+and a relative `Include` from `~/.ssh/`. A `~/.ssh/config` the servers file includes follows
+the same rule, so its relative paths are in `~/.ssh/`.
 
 ## How desk connects
 

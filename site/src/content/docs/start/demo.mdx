@@ -14,7 +14,7 @@ desk demo
 ## What's in it
 
 - **Acme** has a GitHub account and a Jira project `ABC`. Its **Tickets** view lists three made-up issues assigned to you (`ABC-123`, `ABC-131`, `ABC-140`), and its cards' pull requests have CI: one passing, one failing on `e2e (checkout)`.
-- **Globex** has a GitHub account, a Nagios called `prod`, and servers. Its **Alerts** view shows `web-02` critical (HTTP 502) and `db-01` in warning (disk `/var`). Its **Servers** view opens the infra workspace with four hosts (`web-01`, `web-02`, `db-01`, `db-02`) and an infra Claude that finds and fixes the full disk behind the 502, asking you before each change.
+- **Globex** has a GitHub account, a Nagios called `prod`, and servers. Its **Alerts** view shows `web-02` critical (HTTP 502) and `db-01` in warning (disk `/var`). Its **Servers** view opens the infra workspace with four hosts (`web-01`, `web-02`, `db-01`, `db-02`) and an infra Claude that finds and fixes the full disk behind the 502, asking you before each change. Each host's files split shows a small made-up tree (`/home/deploy`, `/etc/nginx`, `/var/log/billing`…), and the `changes` tool answers with made-up packages and services, served by desk itself on `127.0.0.1`.
 - **Initech** has a GitHub account and one blocked card.
 - **The board** has seven cards across the columns, with labels, due dates, links and conversations already in them. Two are waiting on you ("your turn"), one is blocked.
 - **The sessions** are scripted. Message a card and its Claude answers, makes a fix, then asks permission to push it.

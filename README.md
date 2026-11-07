@@ -394,6 +394,9 @@ Match all
   which writes `KexAlgorithms +…` (or `HostKeyAlgorithms`, `Ciphers`, `MACs`) into its Host block.
 - **Includes** resolving inside the org folder count; ones outside it (like `~/.ssh/config`) are
   read when connecting but never listed, so your personal hosts never show as the org's servers.
+- **Relative paths** (`IdentityFile`, `UserKnownHostsFile`, `Include`…) are from the folder of
+  the file that holds them, not desk's working directory (nor `~/.ssh/` for `Include`, as `ssh -F`
+  would take them).
 - **Dynamic inventory**: `#@ hosts-cmd PATH` runs at start and on reload and keeps what it prints
   (ssh_config text or `name user@host:port` lines) in `<Org>/.desk/servers-dynamic.conf`.
 - Every tab of the org works in `<Org>/.desk/infra/`: its Claude's cwd, with `runbooks/` and its
