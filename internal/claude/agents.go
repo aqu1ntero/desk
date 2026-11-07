@@ -83,9 +83,6 @@ func AgentArgs(dir, name string) ([]string, error) {
 	for _, a := range as {
 		m[a.Name] = a
 	}
-	j, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
+	j, _ := json.Marshal(m) // strings only: it can't fail
 	return []string{"--agents", string(j), "--agent", name}, nil
 }
