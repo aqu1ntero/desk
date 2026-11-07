@@ -23,6 +23,16 @@ GBM_BACKENDS_PATH=<mesa>/lib/gbm
 
 - **Intel, AMD, nouveau**: Mesa drives the GPU, and desk runs normally.
 - **NVIDIA's own driver**: Mesa can't drive it, so desk falls back to llvmpipe, Mesa's software renderer. It works, but uses the CPU to draw. For GPU drawing, install the [AppImage or .deb](/start/install/), which use your system's driver, or point the variables above at your driver yourself: a value you set wins over the wrapper's.
+
+On NVIDIA, the terminal shows lines like these as desk starts:
+
+```
+MESA-EGL: warning: pci id for fd 15: 10de:2f04, driver (null)
+MESA-EGL: warning: egl: failed to create dri2 screen
+```
+
+They are harmless. `10de` is NVIDIA's PCI vendor id, and `driver (null)` means Mesa has no driver for that card. Mesa tries each GPU device, gives up on the NVIDIA ones, and settles on llvmpipe. If desk's window opens, you can ignore them.
+
 ## Wayland only
 
 desk needs a Wayland session (Hyprland, Sway, KDE, GNOME…). It's built without X11 support, so it doesn't open under an X11 session. X11 support is on the roadmap.
