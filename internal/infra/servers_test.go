@@ -152,6 +152,7 @@ Match all
 }
 
 func TestServersTreeAndSSH(t *testing.T) {
+	needSh(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home) // Windows' home

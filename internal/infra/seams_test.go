@@ -11,6 +11,7 @@ import (
 // TestHostCmd: with HostCmd set, a host's pane runs it (in the pane's dir)
 // instead of ssh; local panes keep their bash.
 func TestHostCmd(t *testing.T) {
+	needSh(t)
 	var asked []string
 	HostCmd = func(host string) *exec.Cmd {
 		asked = append(asked, host)

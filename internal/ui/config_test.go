@@ -312,7 +312,7 @@ func TestConfigTexts(t *testing.T) {
 	if n, _ := s.note("Acme"); n != "edited" {
 		t.Fatal("an edited page")
 	}
-	if m, _, note := h.u.barText(d); m != "1 unsaved change" || !strings.HasSuffix(note, "Acme/.desk/desk.toml; comments in it are not kept") {
+	if m, _, note := h.u.barText(d); m != "1 unsaved change" || !strings.HasSuffix(note, filepath.FromSlash("Acme/.desk/desk.toml")+"; comments in it are not kept") {
 		t.Fatalf("bar %q %q", m, note)
 	}
 	d.entries = append(d.entries, newEntry("jira", map[string]any{}))
@@ -329,7 +329,7 @@ func TestConfigTexts(t *testing.T) {
 	}
 	f := &cfgDialog{org: cfgFolders, set: &cfgSet{pages: map[string]*cfgDialog{}}}
 	t.Setenv("XDG_CONFIG_HOME", "/home/me/.config")
-	if m, _, note := h.u.barText(f); m != "No changes" || note != "· saves ~/.config/desk/settings.toml; comments in it are not kept" {
+	if m, _, note := h.u.barText(f); m != "No changes" || note != "· saves ~/.config/desk/settings.toml; comments in it are not kept" && !onWindows { // a POSIX home
 		t.Fatalf("folders %q %q", m, note)
 	}
 	e := newEntry("jira", map[string]any{"url": "u"})

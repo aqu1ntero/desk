@@ -247,6 +247,7 @@ func TestNotesErrorsAndCapC(t *testing.T) {
 }
 
 func TestChangesToolC(t *testing.T) {
+	needSh(t)
 	stateC(t)
 	w := newSSHW(t, sshtest.Opts{}, "    SetEnv PATH="+stubPath(t)+"\n")
 	term, _ := fakeTermA(t, "web-01")
@@ -292,6 +293,7 @@ func TestDesktopNotifyC(t *testing.T) {
 }
 
 func TestOpenLocalRunsXdgOpenC(t *testing.T) {
+	needSh(t)
 	out := filepath.Join(t.TempDir(), "out")
 	fakeBinC(t, Opener, `printf '%s' "$1" > `+out+".tmp; mv "+out+".tmp "+out+"\n")
 	if err := realOpenLocalC("/tmp/report.md"); err != nil {
@@ -388,6 +390,7 @@ func profileHomeC(t *testing.T, progs ...string) (home, bin string) {
 }
 
 func TestClaudeCmdNixBwrapC(t *testing.T) {
+	skipOnWindows(t, "bwrap is Linux's: Windows takes NoBwrap's (TestClaudeCmdNoBwrap)")
 	home, _ := profileHomeC(t, "claude")
 	dir := filepath.Join(home, "Work", "Acme", infraDir)
 	store := t.TempDir()
@@ -417,6 +420,7 @@ func TestClaudeCmdSeedUnwritableC(t *testing.T) {
 }
 
 func TestStartClaudeFailuresC(t *testing.T) {
+	noUnix(t)
 	f := filepath.Join(t.TempDir(), "file")
 	write(t, f, "x")
 	t.Setenv("XDG_RUNTIME_DIR", f)
@@ -461,6 +465,7 @@ func TestFilesErrorsC(t *testing.T) {
 // --- servers.go ---
 
 func TestServersParseErrorsC(t *testing.T) {
+	needSh(t)
 	org := filepath.Join(t.TempDir(), "Acme")
 	infra := filepath.Join(org, infraDir)
 	os.MkdirAll(infra, 0o755)
@@ -706,6 +711,7 @@ func TestTermWideAndAltC(t *testing.T) {
 }
 
 func TestTermHistoryAndTapC(t *testing.T) {
+	needSh(t)
 	term := markedTermC(t)
 	term.pending = &paneState{Text: "$ x\nout", Blocks: []Block{{Start: -1, End: 1}, {Start: 1, End: 1}, {N: 1, Cmd: "x", Start: 0, End: 2}}}
 	term.writeHistory()
@@ -800,6 +806,7 @@ func TestHostAlertOtherOrgC(t *testing.T) {
 }
 
 func TestInvestigateC(t *testing.T) {
+	noUnix(t)
 	stateC(t)
 	runtimeA(t)
 	t.Setenv("HOME", t.TempDir())
@@ -897,6 +904,7 @@ func (getErrVaultC) get(context.Context, string) (vaultItem, error) {
 }
 
 func TestCallToolDispatchC(t *testing.T) {
+	needSh(t)
 	stateC(t)
 	hub.Lock()
 	oldCards := cards
@@ -1025,6 +1033,7 @@ func TestAskPeerTimesOutC(t *testing.T) {
 }
 
 func TestServePeersErrorsC(t *testing.T) {
+	noUnix(t)
 	f := filepath.Join(t.TempDir(), "file")
 	write(t, f, "x")
 	t.Setenv("XDG_RUNTIME_DIR", f)
@@ -1054,6 +1063,7 @@ func TestServePeersErrorsC(t *testing.T) {
 }
 
 func TestPeerMainClosedConnC(t *testing.T) {
+	noUnix(t)
 	runtimeA(t)
 	dir := peerDir()
 	os.MkdirAll(dir, 0o700)
@@ -1130,6 +1140,7 @@ func TestLoadTreeEdgesC(t *testing.T) {
 }
 
 func TestPanesDialC(t *testing.T) {
+	needSh(t)
 	stateC(t)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
@@ -1212,7 +1223,7 @@ func TestKeepForwardsC(t *testing.T) {
 	if !m.fwdOn[good] || !m.fwdOn[bad] || m.fwdOn[other] {
 		t.Errorf("on: %v", m.fwdOn)
 	}
-	if !strings.HasPrefix(m.flash, "forward localhost:"+takenPort+" → localhost:80 via web-01: ") || !strings.Contains(m.flash, "in use") {
+	if !strings.HasPrefix(m.flash, "forward localhost:"+takenPort+" → localhost:80 via web-01: ") || !strings.Contains(m.flash, "in use") && exeSuffix == "" { // Windows words it otherwise
 		t.Errorf("flash: %q", m.flash)
 	}
 	if c, err := net.Dial("tcp", "127.0.0.1:"+port); err != nil {
@@ -1288,6 +1299,7 @@ func TestTickRunsHealthC(t *testing.T) {
 }
 
 func TestFixLegacyKeyC(t *testing.T) {
+	needSh(t)
 	stateC(t)
 	HostCmd = func(string) *exec.Cmd { return exec.Command("sleep", "30") } // the reconnect
 	t.Cleanup(func() { HostCmd = nil })
@@ -1315,6 +1327,7 @@ func TestFixLegacyKeyC(t *testing.T) {
 }
 
 func TestPaletteActionsC(t *testing.T) {
+	noUnix(t)
 	st := stateC(t)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home

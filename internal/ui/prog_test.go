@@ -24,16 +24,20 @@ func TestMain(m *testing.M) {
 	if s, ok := os.LookupEnv("DESK_UI_FAKE_" + strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")); ok {
 		os.Exit(fakeScript(s, os.Args[1:])) // fakeBin's program, on Windows
 	}
+	fakeDir, _ = os.MkdirTemp("", "desk-ui-fakes")
 	// A -cover test binary run without GOCOVERDIR (qa mutate's runs) would
 	// end each prog with a warning on its terminal.
+	var cover string
 	if os.Getenv("GOCOVERDIR") == "" {
-		d, _ := os.MkdirTemp("", "desk-ui-cover")
-		os.Setenv("GOCOVERDIR", d)
-		code := m.Run()
-		os.RemoveAll(d)
-		os.Exit(code)
+		cover, _ = os.MkdirTemp("", "desk-ui-cover")
+		os.Setenv("GOCOVERDIR", cover)
 	}
-	os.Exit(m.Run())
+	code := m.Run()
+	os.RemoveAll(fakeDir)
+	if cover != "" {
+		os.RemoveAll(cover)
+	}
+	os.Exit(code)
 }
 
 // prog is the test binary running steps, in order: "out:text" prints

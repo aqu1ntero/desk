@@ -121,6 +121,7 @@ func lbEmuOut(t *testing.T, emu *vt.Emulator) func(want string) string {
 // --- files.go: the file panels' operations, run on the "local" host ---
 
 func TestFilesOverLocalHost(t *testing.T) {
+	skipOnWindows(t, "it checks a link and mode bits; TestLocalGo has Windows' local host")
 	ctx := context.Background()
 	src := t.TempDir()
 	os.Mkdir(filepath.Join(src, "sub"), 0o755)
@@ -217,6 +218,7 @@ func TestFilesOverLocalHost(t *testing.T) {
 }
 
 func TestRunErrAndPipeErrors(t *testing.T) {
+	needSh(t)
 	if err := runErr(exec.Command("sh", "-c", "exit 3")); err == nil || err.Error() != "exit status 3" {
 		t.Errorf("no stderr: %v", err)
 	}

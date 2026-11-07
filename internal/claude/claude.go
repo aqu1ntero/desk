@@ -38,7 +38,8 @@ const (
 )
 
 // shellOut is where a background shell's tool result says its output goes.
-var shellOut = regexp.MustCompile(`with ID: (\w+)\. Output is being written to: ([^\s"\\]+)`)
+// It reads the raw JSON, where Windows' backslashes come doubled.
+var shellOut = regexp.MustCompile(`with ID: (\w+)\. Output is being written to: ((?:[^\s"\\]|\\\\)+)`)
 
 // artifactURL is a published claude.ai artifact's link, wherever it shows
 // (the Artifact tool's result, Claude's text).
@@ -220,7 +221,7 @@ func Parse(line []byte) []Event {
 				}
 				out = append(out, Event{Kind: KindToolDone, ToolID: c.ToolUseID, Parent: ev.Parent})
 				if m := shellOut.FindStringSubmatch(string(c.Content)); m != nil {
-					out = append(out, Event{Kind: KindTask, Task: &Task{ID: m[1], Output: strings.TrimSuffix(m[2], ".")}})
+					out = append(out, Event{Kind: KindTask, Task: &Task{ID: m[1], Output: strings.ReplaceAll(strings.TrimSuffix(m[2], "."), `\\`, `\`)}})
 				}
 			}
 			return out

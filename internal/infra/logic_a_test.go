@@ -52,7 +52,7 @@ func readPipeA(r *os.File) string {
 }
 
 func doneProcA(t *testing.T) *os.Process {
-	cmd := exec.Command("true")
+	cmd := exec.Command(os.Args[0], "-test.run=^$") // this test binary, running nothing: on any OS
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -106,6 +106,7 @@ func runtimeA(t *testing.T) string {
 // fakeClaudeBinA puts a `claude` running body first on PATH, with HOME and
 // DESK_ROOT in temp dirs (no profile); it writes its arguments to args.
 func fakeClaudeBinA(t *testing.T, body string) (args string) {
+	needSh(t)
 	bin, home := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home) // Windows' home
@@ -244,6 +245,7 @@ func TestBuildPromptA(t *testing.T) {
 }
 
 func TestClaudeCloseA(t *testing.T) {
+	needSh(t)
 	cmd := exec.Command("sleep", "30")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
@@ -256,6 +258,7 @@ func TestClaudeCloseA(t *testing.T) {
 }
 
 func TestStartClaudeStreamA(t *testing.T) {
+	noUnix(t)
 	runtimeA(t)
 	args := fakeClaudeBinA(t, `cat <<'EOF'
 {"type":"system","subtype":"init","session_id":"sess-9"}
@@ -326,6 +329,7 @@ done:
 }
 
 func TestCompactSessionA(t *testing.T) {
+	needSh(t)
 	run := func(body, model string) (claudeMsg, string) {
 		args := fakeClaudeBinA(t, body)
 		var got claudeMsg
@@ -352,6 +356,7 @@ func TestCompactSessionA(t *testing.T) {
 }
 
 func TestClaudeCmdProfileA(t *testing.T) {
+	skipOnWindows(t, "bwrap is Linux's: Windows takes NoBwrap's (TestClaudeCmdNoBwrap)")
 	home, bin := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home) // Windows' home
@@ -406,12 +411,12 @@ func TestClaudeCmdNoBwrap(t *testing.T) {
 	t.Setenv("CLAUDE_PROFILE", "")
 	t.Setenv("DESK_ROOT", filepath.Join(home, "Work"))
 	t.Setenv("PATH", bin)
-	write(t, filepath.Join(bin, "claude"), "#!/bin/sh\n")
-	os.Chmod(filepath.Join(bin, "claude"), 0o755)
+	write(t, filepath.Join(bin, "claude"+exeSuffix), "#!/bin/sh\n")
+	os.Chmod(filepath.Join(bin, "claude"+exeSuffix), 0o755)
 	cfg := filepath.Join(home, "Secure", "Claudes", "Acme")
 	os.MkdirAll(cfg, 0o755)
 	cmd, err := claudeCmd(filepath.Join(home, "Work", "Acme", infraDir), "-p", "x")
-	if err != nil || cmd.Path != filepath.Join(bin, "claude") || strings.Join(cmd.Args[1:], " ") != "-p x" {
+	if err != nil || cmd.Path != filepath.Join(bin, "claude"+exeSuffix) || strings.Join(cmd.Args[1:], " ") != "-p x" {
 		t.Fatalf("%v %v", cmd, err)
 	}
 	if env := cmd.Environ(); !slices.Contains(env, "CLAUDE_CONFIG_DIR="+cfg) || !slices.Contains(env, "CLAUDE_PROFILE=Acme") {
@@ -513,6 +518,7 @@ func TestListLocalHostMac(t *testing.T) {
 // --- mcp.go ---
 
 func TestServeCardsMCPA(t *testing.T) {
+	noUnix(t)
 	runtimeA(t)
 	sock, err := ServeCards(func(card, name string, args json.RawMessage) (string, bool) {
 		return card + "|" + name + "|" + string(args) + " TOKEN=abc", name != "ci_log"
@@ -580,6 +586,7 @@ func TestServeCardsMCPA(t *testing.T) {
 }
 
 func TestForwardFailuresA(t *testing.T) {
+	noUnix(t)
 	if r := forward(filepath.Join(t.TempDir(), "none.sock"), toolCall{Name: "x"}); !r.IsError || !strings.HasPrefix(r.Text, "desk is not reachable: ") {
 		t.Errorf("no socket: %+v", r)
 	}
@@ -629,6 +636,7 @@ func TestCardMCPA(t *testing.T) {
 // TestWorkspaceMCPA: a workspace Claude's server lists its own tools and
 // calls as "ws:<id>", so desk tells it from the card's main Claude.
 func TestWorkspaceMCPA(t *testing.T) {
+	noUnix(t)
 	sock := filepath.Join(runtimeA(t), "w.sock")
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
@@ -663,11 +671,13 @@ func TestRuntimeDirA(t *testing.T) {
 	t.Setenv("TMPDIR", tmp)
 	defer func(m bool) { macOS = m }(macOS)
 	macOS = false
-	if got := runtimeDir(); got != filepath.Join(tmp, "desk") {
-		t.Errorf("fallback: %s", got)
-	}
-	if fi, err := os.Stat(filepath.Join(tmp, "desk")); err != nil || fi.Mode().Perm() != 0o700 {
-		t.Errorf("made user only: %v %v", fi, err)
+	if exeSuffix == "" { // Windows takes the cache, as macOS
+		if got := runtimeDir(); got != filepath.Join(tmp, "desk") {
+			t.Errorf("fallback: %s", got)
+		}
+		if fi, err := os.Stat(filepath.Join(tmp, "desk")); err != nil || fi.Mode().Perm() != 0o700 {
+			t.Errorf("made user only: %v %v", fi, err)
+		}
 	}
 	macOS = true // no XDG_RUNTIME_DIR, a $TMPDIR of its own per process: the cache
 	t.Setenv("XDG_CACHE_HOME", tmp)
@@ -686,6 +696,7 @@ func approverA(t *testing.T, seen *[]*approval, answer func(a *approval) approva
 }
 
 func TestServeToolsRedactsA(t *testing.T) {
+	noUnix(t)
 	runtimeA(t)
 	var seen []*approval
 	approverA(t, &seen, func(a *approval) approvalResult { return approvalResult{ok: true, cmd: a.cmd} })
@@ -1153,6 +1164,7 @@ func TestTurnEndedA(t *testing.T) {
 }
 
 func TestPeerSocketA(t *testing.T) {
+	noUnix(t)
 	runtimeA(t)
 	m := &model{tree: []node{{depth: 0, label: "Acme", org: "Acme", dir: t.TempDir()}}}
 	setDispatchA(t, func(msg tea.Msg) {
@@ -1968,6 +1980,7 @@ func TestSendPromptA(t *testing.T) {
 }
 
 func TestSendStartsClaudeA(t *testing.T) {
+	noUnix(t)
 	runtimeA(t)
 	stdin := filepath.Join(t.TempDir(), "stdin")
 	args := fakeClaudeBinA(t, "cat > "+stdin+"\n")

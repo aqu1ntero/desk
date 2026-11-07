@@ -46,7 +46,7 @@ func hostKeyChangeOf(err error) *hostKeyChange {
 // tildeHome is path with the home folder as ~.
 func tildeHome(path string) string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" && strings.HasPrefix(path, home+string(filepath.Separator)) {
-		return "~" + path[len(home):]
+		return "~" + filepath.ToSlash(path[len(home):]) // ~/.ssh/known_hosts on Windows too
 	}
 	return path
 }

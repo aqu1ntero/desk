@@ -53,6 +53,16 @@ func TestParseUsage(t *testing.T) {
 	}
 }
 
+// TestParseShellOutWindows: a background shell's output file on Windows
+// (backslashes, doubled in the JSON) comes whole; the sentence's period
+// isn't part of it.
+func TestParseShellOutWindows(t *testing.T) {
+	e := Parse([]byte(`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu1","content":"Command running in background with ID: b2. Output is being written to: C:\\Users\\me\\tasks\\b2.output."}]}}`))
+	if len(e) != 2 || e[1].Task == nil || e[1].Task.ID != "b2" || e[1].Task.Output != `C:\Users\me\tasks\b2.output` {
+		t.Fatalf("%+v", e)
+	}
+}
+
 // TestParseTasks: subagents and background shells, as Claude Code streams
 // them; a subagent's messages carry its Agent tool use as their parent.
 func TestParseTasks(t *testing.T) {

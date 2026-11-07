@@ -16,6 +16,7 @@ import (
 // missing folder), download and upload of a file and a folder (modes kept,
 // bytes counted), mkdir, rename, chmod (octal and symbolic), rm.
 func TestRemoteFiles(t *testing.T) {
+	skipOnWindows(t, "the test server is this machine, whose sftp paths are /C:/… on Windows: a real server's are POSIX")
 	for name, noSFTP := range map[string]bool{"sftp": false, "shell": true} {
 		t.Run(name, func(t *testing.T) {
 			if noSFTP {
@@ -161,6 +162,7 @@ func TestRemoteFilesUnreachable(t *testing.T) {
 // or remote name already taken by the other kind; a link goes up as a link;
 // a cancelled context closes the sftp session; setuid and friends survive.
 func TestRemoteFilesErrors(t *testing.T) {
+	skipOnWindows(t, "unreadable files and folders need mode bits")
 	if os.Getuid() == 0 {
 		t.Skip("root reads everything")
 	}

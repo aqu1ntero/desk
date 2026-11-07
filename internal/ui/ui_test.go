@@ -53,7 +53,10 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Setenv("DESK_ROOT", root)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // not the user's folders to search
-	fakeBin(t, "claude", "exit 0")           // a terminal's command needs one on PATH; never the machine's
+	if onWindows {
+		t.Setenv("USERPROFILE", t.TempDir()) // Windows' temp folder is inside the profile: root would read as ~/…
+	}
+	fakeBin(t, "claude", "exit 0")          // a terminal's command needs one on PATH; never the machine's
 	assigned = func(context.Context, orgs.Config) ([]links.Ticket, error) { return nil, nil }
 	nagiosAlerts = func(context.Context, orgs.Config) ([]links.Alert, error) { return nil, nil }
 	planLimits = func(context.Context, string, string) ([]claude.Limit, error) { return nil, nil }
@@ -1339,7 +1342,7 @@ func TestTasks(t *testing.T) {
 	for _, l := range []string{
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"sleep 20; echo done","run_in_background":true}}]}}`,
 		`{"type":"system","subtype":"task_started","task_id":"b1","tool_use_id":"tu1","description":"Sleep then echo","task_type":"local_bash"}`,
-		`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu1","content":"Command running in background with ID: b1. Output is being written to: ` + out + `"}]}}`,
+		`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu1","content":"Command running in background with ID: b1. Output is being written to: ` + strings.ReplaceAll(out, `\`, `\\`) + `"}]}}`, // JSON: Windows' backslashes escaped
 		`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu2","name":"Agent","input":{"description":"Echo hi"}}]}}`,
 		`{"type":"system","subtype":"task_started","task_id":"a1","tool_use_id":"tu2","description":"Echo hi","subagent_type":"general-purpose","task_type":"local_agent","prompt":"Run echo hi"}`,
 		`{"type":"assistant","parent_tool_use_id":"tu2","message":{"content":[{"type":"tool_use","id":"tu3","name":"Bash","input":{"command":"echo hi-from-sub"}}]}}`,

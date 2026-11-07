@@ -32,6 +32,9 @@ type sshW struct {
 // newSSHW starts the world; extra goes first in web-01's block (it wins).
 func newSSHW(t *testing.T, o sshtest.Opts, extra string) *sshW {
 	t.Helper()
+	if o.Real {
+		needSh(t) // the server runs this machine's sh
+	}
 	runtimeA(t)
 	t.Setenv("SSH_AUTH_SOCK", "")
 	t.Setenv("SHELL", "/bin/sh")
@@ -387,7 +390,11 @@ func TestSSHOpts(t *testing.T) {
 	if o.File != w.file || strings.Join(o.Overrides, ",") != "ServerAliveInterval 15,ServerAliveCountMax 3" || o.Home != w.home {
 		t.Errorf("opts %+v", o)
 	}
-	if c := sshCommand("web-01", w.dir); c != "ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -F "+w.file+" web-01" {
+	file := w.file
+	if exeSuffix != "" {
+		file = shQuote(file) // Windows' backslashes: quoted, which PowerShell reads too
+	}
+	if c := sshCommand("web-01", w.dir); c != "ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -F "+file+" web-01" {
 		t.Errorf("command %q", c)
 	}
 	w.config("    ServerAliveInterval 5\n")

@@ -25,6 +25,7 @@ import (
 // that answers like web-02 with /var full (until the logs are rotated), and
 // the infra Claude is desk itself as demo-infra on the tab's socket.
 func TestDemoInfra(t *testing.T) {
+	needBash(t)
 	defer func() { infra.HostCmd, infra.ClaudeCmd = nil, nil }()
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "home", "Work", "Globex", ".desk"), 0o755)
@@ -180,6 +181,7 @@ func TestDemoSock(t *testing.T) {
 // after them), every command a run call on the socket, answered before the
 // next step; other lines are no turn.
 func TestDemoInfraClaude(t *testing.T) {
+	noUnix(t)
 	demoPace = 0
 	defer func() { demoPace = time.Millisecond }()
 	sock := filepath.Join(t.TempDir(), "t.sock")
@@ -257,6 +259,7 @@ func TestInfraGen(t *testing.T) {
 // TestStartInfra: the workspace starts over the orgs (here none) with the
 // card tools' socket, and its redraw count is the frame's to compare.
 func TestStartInfra(t *testing.T) {
+	noUnix(t)
 	h := newHarness(t)
 	for _, k := range []string{"XDG_RUNTIME_DIR", "XDG_STATE_HOME", "XDG_CONFIG_HOME"} {
 		t.Setenv(k, t.TempDir())

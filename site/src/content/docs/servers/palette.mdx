@@ -132,8 +132,8 @@ left (in the shell's current directory), this machine on the right. It works ove
 server's shared SSH connection, so no new login. A server without the sftp subsystem still
 works: desk then runs `sh`, `ls`/`find`, `cat` and `tar` there, so the server needs nothing
 installed. Copies keep each file's permissions. One split per tab. On Windows, a local pane's
-split browses this machine on both sides; its left side writes paths as `/C:/Users/me`, and `/`
-lists the drives.
+split browses this machine on both sides, with Windows paths, and desk does its copies itself
+(no `sh` there); a mode for **chmod** has to be octal.
 
 | Key | What it does |
 |---|---|

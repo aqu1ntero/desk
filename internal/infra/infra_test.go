@@ -262,6 +262,7 @@ func TestFencesAndPrompt(t *testing.T) {
 }
 
 func TestMCPServer(t *testing.T) {
+	noUnix(t)
 	sock := filepath.Join(t.TempDir(), "s")
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
@@ -675,6 +676,7 @@ func (f fakeVault) search(context.Context, string) ([]vaultItem, error) {
 func (f fakeVault) get(_ context.Context, id string) (vaultItem, error) { return f[id], nil }
 
 func TestConnectStatesAndExit(t *testing.T) {
+	needSh(t)
 	mk := func(cmd *exec.Cmd) *Tab {
 		term, err := startCmd("x", cmd, 80, 24, func() {}, paneState{})
 		if err != nil {
@@ -728,7 +730,7 @@ func TestLegacyFixes(t *testing.T) {
 	if string(got) != want {
 		t.Errorf("got:\n%s", got)
 	}
-	if st, _ := os.Stat(cfg); st.Mode().Perm() != 0o600 {
+	if st, _ := os.Stat(cfg); st.Mode().Perm() != 0o600 && exeSuffix == "" { // no mode bits on Windows
 		t.Error("keep the file's permissions")
 	}
 	c, err := sshconfig.Resolve("old", sshconfig.Options{File: cfg, System: "none", Home: t.TempDir()})
@@ -893,6 +895,7 @@ func TestSudoPrompt(t *testing.T) {
 // TestSudoFill runs a real sudo-like prompt (read -s) and checks that the
 // vault password is typed only while it waits.
 func TestSudoFill(t *testing.T) {
+	needSh(t)
 	g := filepath.Join(t.TempDir(), "Org", infraDir)
 	orgsMu.Lock()
 	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}},
@@ -929,6 +932,7 @@ func TestSudoFill(t *testing.T) {
 // connect" box waits on that pane, not a new one, until the user retries
 // or, here, closes it; then Claude is told not to connect again on its own.
 func TestConnectUnreachable(t *testing.T) {
+	needSh(t)
 	dir := t.TempDir()
 	term, err := startCmd("web1", exec.Command("false"), 80, 24, func() {}, paneState{})
 	if err != nil {
@@ -1557,6 +1561,7 @@ func TestSetModel(t *testing.T) {
 }
 
 func TestChangesScript(t *testing.T) {
+	needSh(t)
 	out, err := exec.Command("sh", "-c", changesScript, "changes", "2").CombinedOutput()
 	if err != nil {
 		t.Fatalf("%v: %s", err, out)
@@ -1606,6 +1611,7 @@ func TestParseForward(t *testing.T) {
 
 // TestChmodRemote: the file panel's chmod, through the "local" transport.
 func TestChmodRemote(t *testing.T) {
+	needSh(t)
 	dir := t.TempDir()
 	f := filepath.Join(dir, "it's.sh")
 	os.WriteFile(f, nil, 0o644)
@@ -1620,6 +1626,9 @@ func TestChmodRemote(t *testing.T) {
 // TestWakeOnLAN: "#@ wol" reaches the host and the packet is the standard
 // magic one.
 func TestWakeOnLAN(t *testing.T) {
+	if wine() {
+		t.Skip("Wine's UDP sockets take no broadcast option (WSAEOPNOTSUPP)")
+	}
 	org := filepath.Join(t.TempDir(), "Acme")
 	dir := filepath.Join(org, infraDir)
 	write(t, filepath.Join(org, ".desk", serversFile), "Host nas\n    HostName 10.0.0.9\n    #@ wol 52:54:00:12:34:56 127.0.0.1:0\n    ServerAliveInterval 60\n")

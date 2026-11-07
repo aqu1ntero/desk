@@ -4,7 +4,9 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -66,7 +68,7 @@ func TestAddProject(t *testing.T) {
 	repo := filepath.Join(h.u.root, "Globex", "lib")
 	os.MkdirAll(filepath.Join(repo, ".git"), 0o755)
 	os.MkdirAll(filepath.Join(repo, "pkg", "x"), 0o755)
-	if text, ok := h.tool(c.ID, "add_project", `{"path":"`+filepath.Join(repo, "pkg", "x")+`"}`); !ok || !strings.Contains(text, "Added "+repo) {
+	if text, ok := h.tool(c.ID, "add_project", `{"path":`+strconv.Quote(filepath.Join(repo, "pkg", "x"))+`}`); !ok || !strings.Contains(text, "Added "+repo) {
 		t.Fatalf("add: %q %v", text, ok)
 	}
 	if got := h.u.b.Card(c.ID).Projects; !slices.Equal(got, []string{repo}) {
@@ -76,7 +78,7 @@ func TestAddProject(t *testing.T) {
 		t.Fatalf("toast %q", h.u.toast)
 	}
 	for _, p := range []string{repo, own, filepath.Join(own, "v2")} {
-		if text, ok := h.tool(c.ID, "add_project", `{"path":"`+p+`"}`); !ok || !strings.Contains(text, "already") {
+		if text, ok := h.tool(c.ID, "add_project", `{"path":`+strconv.Quote(p)+`}`); !ok || !strings.Contains(text, "already") {
 			t.Errorf("%s again: %q %v", p, text, ok)
 		}
 	}
@@ -85,12 +87,12 @@ func TestAddProject(t *testing.T) {
 	}
 	beside := own + "x" // starts like the card's folder, isn't in it
 	os.MkdirAll(beside, 0o755)
-	if h.tool(c.ID, "add_project", `{"path":"`+beside+`"}`); !slices.Contains(h.u.b.Card(c.ID).Projects, beside) {
+	if h.tool(c.ID, "add_project", `{"path":`+strconv.Quote(beside)+`}`); !slices.Contains(h.u.b.Card(c.ID).Projects, beside) {
 		t.Fatal("a folder beside the card's taken for one inside it")
 	}
 	h.u.removeProject(c.ID, beside)
 	plain := filepath.Join(h.u.root, "Globex")
-	if _, ok := h.tool(c.ID, "add_project", `{"path":"`+plain+`"}`); !ok || !slices.Contains(h.u.b.Card(c.ID).Projects, plain) {
+	if _, ok := h.tool(c.ID, "add_project", `{"path":`+strconv.Quote(plain)+`}`); !ok || !slices.Contains(h.u.b.Card(c.ID).Projects, plain) {
 		t.Fatalf("a folder with no repository above: %v", h.u.b.Card(c.ID).Projects)
 	}
 	h.u.runUndo()
@@ -102,13 +104,13 @@ func TestAddProject(t *testing.T) {
 			t.Errorf("%s: added (%q)", args, text)
 		}
 	}
-	if text, ok := h.tool("ws:"+c.ID, "add_project", `{"path":"`+plain+`"}`); ok || text != "no tool add_project" {
+	if text, ok := h.tool("ws:"+c.ID, "add_project", `{"path":`+strconv.Quote(plain)+`}`); ok || text != "no tool add_project" {
 		t.Errorf("the workspace Claude's: %q %v", text, ok)
 	}
 	if text, ok := h.tool(c.ID, "suggest_to_card", `{"text":"x"}`); ok || text != "no tool suggest_to_card" {
 		t.Errorf("the main Claude's suggest: %q %v", text, ok)
 	}
-	if text, ok := h.tool("nope", "add_project", `{"path":"`+plain+`"}`); ok {
+	if text, ok := h.tool("nope", "add_project", `{"path":`+strconv.Quote(plain)+`}`); ok {
 		t.Errorf("a card not on the board: %q", text)
 	}
 }
@@ -408,7 +410,7 @@ func TestWorkspaceEditSave(t *testing.T) {
 	if fi, _ := os.Stat(p); !fi.ModTime().Equal(tb.mtime) {
 		t.Error("the saved file's time not kept: it would read as changed on disk")
 	}
-	if fi, _ := os.Stat(p); fi.Mode().Perm() != 0o640 {
+	if fi, _ := os.Stat(p); fi.Mode().Perm() != 0o640 && runtime.GOOS != "windows" { // no mode bits there
 		t.Errorf("mode %v", fi.Mode())
 	}
 	if ents, _ := os.ReadDir(dir); slices.ContainsFunc(ents, func(e os.DirEntry) bool { return strings.HasPrefix(e.Name(), ".main.go") }) {

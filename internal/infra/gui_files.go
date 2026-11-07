@@ -49,6 +49,7 @@ var lastLocalDir string // where the local panel was, for the next time the pane
 
 type fileSide struct {
 	remote    bool
+	native    bool        // remote, but with this OS's paths: the local host under localGo
 	path      string      // absolute, once listed
 	all       []fileEntry // the listing as it came
 	entries   []fileEntry // what is shown: "..", then the (non-hidden) entries sorted
@@ -159,7 +160,7 @@ func (u *ui) openFiles() {
 	}
 	fv := &filesView{host: p.Term.Host, dir: p.Dir, name: p.Name, focusNext: true, ctx: context.Background(), tab: t.Key}
 	for i := range fv.sides {
-		fv.sides[i] = &fileSide{remote: i == 0, marked: map[string]bool{}, rows: map[string]*fileRow{}}
+		fv.sides[i] = &fileSide{remote: i == 0, native: i == 0 && localGo && fv.host == "local", marked: map[string]bool{}, rows: map[string]*fileRow{}}
 		fv.sides[i].list.Axis = layout.Vertical
 	}
 	u.files[t.Key] = fv
@@ -262,15 +263,18 @@ func (fv *filesView) refilter(s *fileSide, keep string) {
 	}
 }
 
+// posix is whether the side's paths are a server's (path, not filepath).
+func (s *fileSide) posix() bool { return s.remote && !s.native }
+
 func (s *fileSide) join(name string) string {
-	if s.remote {
+	if s.posix() {
 		return path.Join(s.path, name)
 	}
 	return filepath.Join(s.path, name)
 }
 
 func (s *fileSide) parent() string {
-	if s.remote {
+	if s.posix() {
 		return path.Dir(s.path)
 	}
 	return filepath.Dir(s.path)
@@ -496,7 +500,7 @@ func (u *ui) transferFrom(fv *filesView, from int, srcDir string, items []fileEn
 		u.showToast(fmt.Sprintf("Queued after the running copy (%d waiting)", n), false)
 		return
 	}
-	if fv.host == "local" && localPath(srcDir) == localPath(dstDir) { // both panels on this machine: cat would truncate the file it reads
+	if fv.host == "local" && srcDir == dstDir { // both panels on this machine: cat would truncate the file it reads
 		fv.mu.Unlock()
 		u.showToast("Source and destination are the same folder", true)
 		return
@@ -1457,7 +1461,7 @@ func (u *ui) crumbs(gtx layout.Context, fv *filesView, side int) layout.Dimensio
 	s := fv.sides[side]
 	type seg struct{ name, to string }
 	var segs []seg
-	if s.path != "" && !s.remote { // this machine's path: C:\Users\me on Windows
+	if s.path != "" && !s.posix() { // this machine's path: C:\Users\me on Windows
 		for p := filepath.Clean(s.path); ; p = filepath.Dir(p) {
 			if filepath.Dir(p) == p {
 				segs = append([]seg{{p, p}}, segs...)

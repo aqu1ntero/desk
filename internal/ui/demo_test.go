@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -19,6 +20,7 @@ import (
 // TestDemo: desk demo makes its world in a temp folder (orgs, board, chats,
 // every provider faked) and its scripted session fixes, asks, then pushes.
 func TestDemo(t *testing.T) {
+	noTMPDIR(t)
 	h := newHarness(t)
 	for _, k := range []string{"XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "DESK_ROOT", "HOME", "DESK_DEMO_TOKEN"} {
 		t.Setenv(k, os.Getenv(k)) // put back after
@@ -186,6 +188,7 @@ func TestDemo(t *testing.T) {
 
 // TestDemoFails: a demo whose temp folder can't be made says so.
 func TestDemoFails(t *testing.T) {
+	noTMPDIR(t)
 	newHarness(t)
 	for _, k := range []string{"XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "DESK_ROOT", "HOME", "DESK_DEMO_TOKEN"} {
 		t.Setenv(k, os.Getenv(k))
@@ -202,6 +205,9 @@ func TestDemoFails(t *testing.T) {
 // TestAbsWayland: a socket name gets XDG_RUNTIME_DIR's path; a path, or
 // none, stays.
 func TestAbsWayland(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Wayland is Linux's")
+	}
 	t.Setenv("XDG_RUNTIME_DIR", "/run/user/7")
 	for in, want := range map[string]string{"wayland-1": "/run/user/7/wayland-1", "/tmp/w": "/tmp/w", "": ""} {
 		t.Setenv("WAYLAND_DISPLAY", in)

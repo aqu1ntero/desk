@@ -33,7 +33,7 @@ func Demo() (string, error) {
 		return "", err
 	}
 	absWayland()
-	for k, v := range map[string]string{"XDG_DATA_HOME": "home/.local/share", "XDG_CONFIG_HOME": "home/.config", "XDG_STATE_HOME": "home/.local/state", "XDG_RUNTIME_DIR": "run", "DESK_ROOT": "home/Work", "HOME": "home"} { // all in HOME: shown as ~/Work/…, ~/.config/…; its sockets apart from a real desk's
+	for k, v := range map[string]string{"XDG_DATA_HOME": "home/.local/share", "XDG_CONFIG_HOME": "home/.config", "XDG_STATE_HOME": "home/.local/state", "XDG_RUNTIME_DIR": "run", "DESK_ROOT": "home/Work", "HOME": "home", "USERPROFILE": "home"} { // all in HOME (USERPROFILE: Windows'): shown as ~/Work/…, ~/.config/…; its sockets apart from a real desk's
 		os.Setenv(k, filepath.Join(dir, v))
 		os.MkdirAll(filepath.Join(dir, v), 0o700)
 	}

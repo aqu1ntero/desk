@@ -97,7 +97,7 @@ func remoteSh(ctx context.Context, host, dir, script string, stdin io.Reader, st
 // opening them shows.
 func sftpFor(ctx context.Context, host, dir string) (*sftp.Client, func(), error) {
 	if host == "local" {
-		return localSFTP(ctx)
+		return nil, nil, nil
 	}
 	c, release, err := sshClient(ctx, host, dir)
 	if err != nil {
@@ -123,7 +123,7 @@ func listRemote(ctx context.Context, host, dir, p string) (string, []fileEntry, 
 		defer done()
 		return listSFTP(s, host, p)
 	}
-	if host == "local" && macOS { // BSD find has no -printf: listScript would get names only
+	if host == "local" && (macOS || localGo) { // BSD find has no -printf: listScript would get names only
 		if err := ctx.Err(); err != nil {
 			return "", nil, fmt.Errorf("listing %s on %s: %v", p, host, err)
 		}
@@ -276,6 +276,9 @@ func (c counter) Write(b []byte) (int, error) {
 // copyFromRemote copies e (in srcDir on host) into the local directory dst,
 // keeping its permissions. n counts the bytes moved; on is called as they move.
 func copyFromRemote(ctx context.Context, host, dir, srcDir, dst string, e fileEntry, n *atomic.Int64, on func()) error {
+	if host == "local" && localGo {
+		return copyLocal(ctx, filepath.Join(srcDir, e.Name), filepath.Join(dst, e.Name), counter{n, on})
+	}
 	s, done, err := sftpFor(ctx, host, dir)
 	if err != nil {
 		return err
@@ -361,6 +364,9 @@ func getSFTP(s *sftp.Client, src, dst string, c counter) error {
 
 // copyToRemote copies e (in the local srcDir) into the directory dst on host.
 func copyToRemote(ctx context.Context, host, dir, srcDir, dst string, e fileEntry, n *atomic.Int64, on func()) error {
+	if host == "local" && localGo {
+		return copyLocal(ctx, filepath.Join(srcDir, e.Name), filepath.Join(dst, e.Name), counter{n, on})
+	}
 	s, done, err := sftpFor(ctx, host, dir)
 	if err != nil {
 		return err
@@ -499,6 +505,9 @@ func runErr(cmd *exec.Cmd) error {
 }
 
 func removeRemote(ctx context.Context, host, dir string, paths []string) error {
+	if host == "local" && localGo {
+		return removeLocal(paths)
+	}
 	s, done, err := sftpFor(ctx, host, dir)
 	if err != nil {
 		return err
@@ -520,6 +529,9 @@ func removeRemote(ctx context.Context, host, dir string, paths []string) error {
 }
 
 func renameRemote(ctx context.Context, host, dir, from, to string) error {
+	if host == "local" && localGo {
+		return os.Rename(from, to)
+	}
 	s, done, err := sftpFor(ctx, host, dir)
 	if err != nil {
 		return err
@@ -545,6 +557,9 @@ var openLocal = func(p string) error { return exec.Command(Opener, p).Start() }
 // chmodRemote sets mode (octal, or symbolic like u+x) on paths. A symbolic
 // mode needs the server's chmod to read it: the script then.
 func chmodRemote(ctx context.Context, host, dir, mode string, paths []string) error {
+	if host == "local" && localGo {
+		return chmodLocal(mode, paths)
+	}
 	if m, err := strconv.ParseUint(mode, 8, 32); err == nil && m <= 0o7777 {
 		s, done, err := sftpFor(ctx, host, dir)
 		if err != nil {
@@ -580,6 +595,9 @@ func sftpMode(m uint64) os.FileMode {
 }
 
 func mkdirRemote(ctx context.Context, host, dir, p string) error {
+	if host == "local" && localGo {
+		return os.MkdirAll(p, 0o755)
+	}
 	s, done, err := sftpFor(ctx, host, dir)
 	if err != nil {
 		return err

@@ -421,7 +421,7 @@ func TestFilesRefilterAndHelpers(t *testing.T) {
 	if len(s.entries) != 4 || s.entries[0].Name != ".." || s.sel != 0 || s.hiddenCount() != 1 {
 		t.Errorf("hidden shown: %v", s.entries)
 	}
-	if s.join("y") != "/x/y" || s.parent() != "/" {
+	if s.join("y") != filepath.FromSlash("/x/y") || s.parent() != filepath.FromSlash("/") {
 		t.Error("local join/parent")
 	}
 	r := &fileSide{remote: true, path: "/srv/a"}
@@ -594,6 +594,9 @@ func TestFilesEnterUpAndRoot(t *testing.T) {
 	if h.sel(0) != "alpha" {
 		t.Errorf("backspace: %q", h.sel(0))
 	}
+	if exeSuffix != "" {
+		return // no one / on Windows: a drive's root each
+	}
 	h.u.loadSide(h.fv, h.fv.sides[0], "/", "")
 	h.listed(0, "/")
 	if h.index(0, "..") >= 0 {
@@ -752,6 +755,9 @@ func TestFilesEditRemoteUploadsSaves(t *testing.T) {
 
 	// an upload that fails says so
 	h.waitToast("Saved notes.txt")
+	if exeSuffix != "" {
+		return // the failure is made with mode bits
+	}
 	os.Chmod(srvFile, 0o444) // read-only now: cat can't write it
 	gfTouch(t, local, "v5", 8*time.Second)
 	h.waitToast("Upload of notes.txt failed")
@@ -844,6 +850,7 @@ func TestFilesCopyRefusals(t *testing.T) {
 }
 
 func TestFilesCopyFailsAndCancels(t *testing.T) {
+	skipOnWindows(t, "the failures are made with mode bits")
 	h := gfNew(t)
 	ro := filepath.Join(h.loc, "ldir")
 	os.Chmod(ro, 0o555)
@@ -1073,6 +1080,9 @@ func TestFilesDelete(t *testing.T) {
 	if h.fv.prompt != "" {
 		t.Error("asked with nothing chosen")
 	}
+	if exeSuffix != "" {
+		return // the failure below is made with mode bits
+	}
 	// a delete that fails
 	ro := filepath.Join(h.loc, "ro")
 	gfWrite(t, filepath.Join(ro, "f"), "", 0o644)
@@ -1116,6 +1126,9 @@ func TestFilesMkdir(t *testing.T) {
 	h.u.mkdir(h.fv, "ldir")
 	if !strings.Contains(h.toast(), "ldir already exists") {
 		t.Errorf("existing: %q", h.toast())
+	}
+	if exeSuffix != "" {
+		return // the failure below is made with mode bits
 	}
 	os.Chmod(h.loc, 0o555)
 	defer os.Chmod(h.loc, 0o755)
@@ -1202,6 +1215,7 @@ func TestFilesRename(t *testing.T) {
 }
 
 func TestFilesChmod(t *testing.T) {
+	skipOnWindows(t, "Windows files have no mode bits to show or set")
 	h := gfNew(t)
 	h.key(key.NameF9, 0) // ".." only
 	if h.fv.prompt != "" {
@@ -1348,6 +1362,9 @@ func TestFilesCrumbs(t *testing.T) {
 	h.listed(0, filepath.Join(h.srv, "alpha", "a", "b"), "c")
 	if h.sel(0) != "c" {
 		t.Errorf("crumb selected %q", h.sel(0))
+	}
+	if exeSuffix != "" {
+		return // below: a POSIX root's crumbs
 	}
 	first := strings.Split(strings.Trim(h.srv, "/"), "/")[0]
 	h.u.loadSide(h.fv, h.fv.sides[0], "/"+first, "") // shallow, so its first crumb is / (macOS's $TMPDIR is deep)

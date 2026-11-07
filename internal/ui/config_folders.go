@@ -42,8 +42,8 @@ func (u *ui) loadFolders(d *cfgDialog) {
 	d.langs.old, d.langs.base = true, d.langs.snap()
 	for _, f := range orgs.Folders(u.root) {
 		p := f.Path
-		if rest, ok := strings.CutPrefix(p, u.home); ok && (rest == "" || rest[0] == '/') {
-			p = "~" + rest
+		if rest, ok := strings.CutPrefix(p, u.home); ok && (rest == "" || rest[0] == filepath.Separator) {
+			p = "~" + filepath.ToSlash(rest) // ~/Work on Windows too, which orgs.Expand reads back
 		}
 		d.keep(newEntry(folderKind.key, map[string]any{"path": p, "root": f.Root, "only_toml": f.OnlyToml, "depth": strconv.Itoa(f.Depth)}))
 	}
@@ -256,8 +256,8 @@ func (u *ui) chipNote(f orgs.Found, fs []orgs.Folder) (note string, isNew bool) 
 	if !slices.Contains(u.orgList, f.Name) {
 		return " · new, from " + fs[f.Folder].Path, true
 	}
-	if rel, err := filepath.Rel(orgs.Expand(fs[f.Folder].Path), f.Dir); err == nil && strings.Contains(rel, "/") {
-		return " · " + rel, false
+	if rel, err := filepath.Rel(orgs.Expand(fs[f.Folder].Path), f.Dir); err == nil && strings.Contains(filepath.ToSlash(rel), "/") {
+		return " · " + filepath.ToSlash(rel), false // Acme/api on Windows too
 	}
 	return "", false
 }

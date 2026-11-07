@@ -125,20 +125,22 @@ func jiraLink(srv *httptest.Server, key string) kanban.Link {
 }
 
 // fakeBin puts an executable script name on a PATH of its own. Windows has
-// no sh: there name.exe is this test binary (a hard link, else a copy),
-// which TestMain plays the script with (fakeScript).
-func fakeBin(t *testing.T, name, script string) string {
+// no sh: there name.exe is a copy of this test binary, made once per run in
+// fakeDir (Windows can't remove a running program's file, so not in the
+// test's own folder), which TestMain plays the script with (fakeScript).
+func fakeBin(t *testing.T, name, script string) {
 	dir := t.TempDir()
 	if runtime.GOOS != "windows" {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	} else {
-		exe := filepath.Join(dir, name+".exe")
-		if os.Link(os.Args[0], exe) != nil {
+		dir = filepath.Join(fakeDir, name)
+		if _, err := os.Stat(filepath.Join(dir, name+".exe")); err != nil {
 			b, err := os.ReadFile(os.Args[0])
 			if err == nil {
-				err = os.WriteFile(exe, b, 0o755)
+				os.MkdirAll(dir, 0o755)
+				err = os.WriteFile(filepath.Join(dir, name+".exe"), b, 0o755)
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -148,8 +150,10 @@ func fakeBin(t *testing.T, name, script string) string {
 	}
 	sep := string(os.PathListSeparator)
 	t.Setenv("PATH", dir+sep+"/usr/bin"+sep+"/bin"+sep+os.Getenv("PATH"))
-	return dir
 }
+
+// fakeDir holds fakeBin's programs on Windows for the run (TestMain).
+var fakeDir string
 
 // fakeScript is fakeBin's script played by the test binary on Windows,
 // for the few the tests use: exit N, cat >/dev/null, exec cat, and
@@ -1880,7 +1884,7 @@ func TestCoverFoldersSave(t *testing.T) {
 	h.u.home = filepath.Dir(h.u.root)
 	h.u.openConfig(cfgFolders)
 	d := h.u.cfg
-	if p := d.entries[0].text("path"); p != "~/"+filepath.Base(h.u.root) {
+	if p := d.entries[0].text("path"); p != "~/"+filepath.Base(h.u.root) { // ~/ on Windows too
 		t.Fatalf("path %q", p)
 	}
 	d.entries[0].ed("path").SetText(h.u.root)
