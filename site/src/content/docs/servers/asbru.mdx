@@ -101,6 +101,14 @@ For each SSH connection:
 - Its **ssh options** become their config keywords: `-X`, `-Y`, `-A`, `-C`, `-4`, `-6`, `-g`,
   `-o Key=Value`, `-L`/`-R`/`-D` forwards, `-p`, `-i`, `-l`, `-J`. Anything else stays as a
   comment in the host's block (`# Ásbrú ssh option not imported: …`).
+- In algorithm lists (`HostKeyAlgorithms`, `PubkeyAcceptedKeyTypes`, `KexAlgorithms`,
+  `Ciphers`, `MACs`…), the names desk's SSH client doesn't know are left out, with a comment in
+  the host's block (`# HostKeyAlgorithms +ssh-dss dropped: desk's SSH client doesn't support it`).
+  Like OpenSSH, desk refuses the whole file over a single unknown name, so one old host (desk,
+  as OpenSSH 10, has no `ssh-dss`) would stop every server of the organization from connecting.
+  Wildcards count as unknown in `Ciphers`, `MACs` and `KexAlgorithms` (only key lists take
+  them). A list left with nothing goes; a `-` list stays as it is, since its names aren't
+  checked. Such a host may still not connect, if the algorithm was the only one it has.
 - Names become ssh aliases: spaces turn into `-`, and only letters, digits, `.`, `_` and `-`
   stay. Two hosts with the same name get the group's name in front, then `-2`, `-3`…
 

@@ -105,6 +105,23 @@ func keyNamesValid(names string, plainOnly bool) bool {
 	return true
 }
 
+// Algorithm says whether name may stand in keyword's algorithm list (any
+// case, aliases too) as the parser checks it, and list = keyword takes one.
+// Callers filter with it: one name the parser refuses makes the whole file bad.
+func Algorithm(keyword, name string) (ok, list bool) {
+	switch op := keywords[strings.ToLower(keyword)]; op {
+	case "ciphers":
+		return namesValid(name, allCiphers), true
+	case "macs":
+		return namesValid(name, allMACs), true
+	case "kexalgorithms":
+		return namesValid(name, allKex), true
+	case "hostkeyalgorithms", "casignaturealgorithms", "hostbasedacceptedalgorithms", "pubkeyacceptedalgorithms":
+		return keyNamesValid(name, op == "casignaturealgorithms"), true
+	}
+	return false, false
+}
+
 // filterList is match.c's filter_list: the names of list that the pattern
 // list matches (allow) or doesn't (deny).
 func filterList(list, filter string, deny bool) string {
