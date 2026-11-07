@@ -252,3 +252,115 @@ func TestPoolWaiterCancelled(t *testing.T) {
 		t.Fatalf("refs %d", e.refs)
 	}
 }
+
+// blockingPrompt answers "pw" once answer closes; asked closes on the
+// first question.
+func blockingPrompt(o *Options) (asked, answer chan struct{}) {
+	asked, answer = make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	o.Prompt = func(string, bool) (string, error) {
+		once.Do(func() { close(asked) })
+		<-answer
+		return "pw", nil
+	}
+	return asked, answer
+}
+
+func TestPoolFirstCallerCancelled(t *testing.T) {
+	w := newWorld(t)
+	s := pwServer(t, w, sshtest.Opts{})
+	o := w.opts(base(""), s)
+	asked, answer := blockingPrompt(&o)
+	var p Pool
+	ctx, cancel := context.WithCancel(context.Background())
+	first := make(chan error)
+	go func() {
+		_, _, err := p.Get(ctx, "srv", o)
+		first <- err
+	}()
+	<-asked
+	second := make(chan error)
+	go func() {
+		_, rel, err := p.Get(context.Background(), "srv", o)
+		if err == nil {
+			rel()
+		}
+		second <- err
+	}()
+	for {
+		p.mu.Lock()
+		refs := p.m[o.File+"\x00srv"].refs
+		p.mu.Unlock()
+		if refs == 2 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+	if err := <-first; !errors.Is(err, context.Canceled) {
+		t.Fatalf("first: %v", err)
+	}
+	close(answer)
+	if err := <-second; err != nil {
+		t.Fatalf("second failed with the first: %v", err)
+	}
+}
+
+func TestPoolLastWaiterCancels(t *testing.T) {
+	w := newWorld(t)
+	s := pwServer(t, w, sshtest.Opts{})
+	o := w.opts(base(""), s)
+	asked, answer := blockingPrompt(&o)
+	var p Pool
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error)
+	go func() {
+		_, _, err := p.Get(ctx, "srv", o)
+		done <- err
+	}()
+	<-asked
+	p.mu.Lock()
+	e := p.m[o.File+"\x00srv"]
+	p.mu.Unlock()
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("err %v", err)
+	}
+	p.mu.Lock()
+	if p.m[o.File+"\x00srv"] != nil {
+		t.Fatal("a cancelled dial kept for the next Get")
+	}
+	p.mu.Unlock()
+	close(answer)
+	<-e.ready
+	if e.err == nil {
+		t.Fatal("dial not cancelled")
+	}
+	w.ans = []string{"pw"}
+	o.Prompt = w.opts(base(""), s).Prompt
+	c, rel, err := p.Get(context.Background(), "srv", o)
+	if err != nil {
+		t.Fatalf("no fresh dial: %v", err)
+	}
+	rel()
+	c.Close()
+}
+
+func TestPoolOrphanClosed(t *testing.T) {
+	w := newWorld(t)
+	s := pwServer(t, w, sshtest.Opts{})
+	w.ans = []string{"pw"}
+	o := w.opts(base(""), s)
+	var p Pool
+	key := o.File + "\x00srv"
+	e := &entry{ready: make(chan struct{}), cancel: func() {}}
+	p.m = map[string]*entry{key: e}
+	p.dial(context.Background(), key, e, "srv", o)
+	if e.err != nil {
+		t.Fatal(e.err)
+	}
+	waitDone(t, e.c)
+	if p.m[key] != nil {
+		t.Fatal("orphan kept")
+	}
+}
