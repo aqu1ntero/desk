@@ -51,9 +51,11 @@ An organization with a Claude profile (`~/Secure/Claudes/<Org>/`) runs its sessi
 - **bwrap fails.** bwrap needs unprivileged user namespaces. If your system restricts them (some distributions do, through AppArmor or a sysctl), bwrap exits at once: the card turns **failed**, and its line and conversation show bwrap's own error. Allow user namespaces for bwrap, following your distribution's documentation.
 - **To run without a profile**, move the organization's folder out of `~/Secure/Claudes/`. Its sessions then use your own `claude` login, without bwrap.
 
+On macOS there is no bwrap: a profile's sessions run `claude` with `CLAUDE_CONFIG_DIR` at the profile folder, and none of the above applies.
+
 ## Pasting an image does nothing
 
-<kbd>Ctrl</kbd>+<kbd>V</kbd> of an image reads the clipboard straight from the compositor, through the Wayland data-control protocol (`ext-data-control` or wlroots' `wlr-data-control`). Hyprland, Sway, other wlroots compositors and KDE have it.
+On Linux, <kbd>Ctrl</kbd>+<kbd>V</kbd> of an image reads the clipboard straight from the compositor, through the Wayland data-control protocol (`ext-data-control` or wlroots' `wlr-data-control`). Hyprland, Sway, other wlroots compositors and KDE have it. On macOS, <kbd>⌘</kbd>+<kbd>V</kbd> reads the pasteboard's PNG or TIFF image.
 
 On a compositor without it, desk can't see the image, and <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes the clipboard's text (if any) without an error. Save the image to a file and put its path in the message instead.
 
@@ -106,7 +108,7 @@ the button, the server offers nothing desk has (DSA host keys only, for one).
 
 ## desk peer says desk is not running
 
-`desk peer` talks to a running desk through its socket in `$XDG_RUNTIME_DIR/desk/peer/`. If it says `desk is not running. Ask the user to start desk, then try again.`, start desk. A session running with a different `XDG_RUNTIME_DIR` (another user, a container) can't reach it.
+`desk peer` talks to a running desk through its socket in `$XDG_RUNTIME_DIR/desk/peer/` (`~/.cache/desk/run/peer/` on macOS). If it says `desk is not running. Ask the user to start desk, then try again.`, start desk. A session running with a different `XDG_RUNTIME_DIR` (another user, a container) can't reach it.
 
 ## desk crashed
 
