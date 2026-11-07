@@ -103,7 +103,7 @@ Each release has two Windows downloads on the [latest release](https://github.co
 
 Neither is code-signed yet, so the first time SmartScreen says "Windows protected your PC". Click **More info**, then **Run anyway**; after that it opens normally.
 
-The infra workspace's card sessions run `desk peer`, so `desk.exe` has to be on `PATH`. The MSI does that; with the zip, add its folder to your `PATH` yourself.
+The infra workspace's card sessions run `desk peer`. desk puts its own folder first on the `PATH` of everything it starts, so that works from the zip too. To type `desk` in your own terminal, the MSI adds it to `PATH`; with the zip, add its folder yourself.
 
 What's different on Windows: terminals run on ConPTY, and local shells are PowerShell 7 (`pwsh`) when it's installed, else Windows PowerShell. An organization's Claude profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`. desk keeps its files in the same layout as on Linux, under your user folder: `%USERPROFILE%\.config\desk` and `%USERPROFILE%\.local\share\desk`. The infra workspace's virtual camera stays Linux-only.
 
