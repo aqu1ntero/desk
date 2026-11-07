@@ -64,7 +64,7 @@ func lbPipeTerm(t *testing.T, w, h int) (*Term, *os.File) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.Close(); wr.Close() })
-	return &Term{emu: vt.NewEmulator(w, h), pty: ptyProc{File: wr}}, r
+	return &Term{emu: vt.NewEmulator(w, h), pty: pipeProc{wr}}, r
 }
 
 func lbReadPipe(t *testing.T, r *os.File, n int) string {

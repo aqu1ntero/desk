@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -33,8 +34,15 @@ func fakeTermA(t *testing.T, host string) (*Term, *os.File) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.Close(); w.Close() })
-	return &Term{Host: host, emu: vt.NewEmulator(40, 6), pty: ptyProc{w, doneProcA(t)}, b: &pos{}}, r
+	return &Term{Host: host, emu: vt.NewEmulator(40, 6), pty: pipeProc{w}, b: &pos{}}, r
 }
+
+// pipeProc is a Term's program as a pipe: what the Term writes goes to it.
+type pipeProc struct{ *os.File }
+
+func (pipeProc) Resize(w, h int)   {}
+func (p pipeProc) Hangup()         { p.File.Close() }
+func (pipeProc) Wait() (int, bool) { return -1, false }
 
 func readPipeA(r *os.File) string {
 	r.SetReadDeadline(time.Now().Add(2 * time.Second))
@@ -414,6 +422,9 @@ func TestClaudeCmdNoBwrap(t *testing.T) {
 // TestLocalShell: bash without rc files; on macOS only a bash ≥ 4.4,
 // else zsh without them.
 func TestLocalShell(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("its fake bash is a shell script")
+	}
 	bin := t.TempDir()
 	t.Setenv("PATH", bin)
 	write(t, filepath.Join(bin, "bash"), "#!/bin/sh\nexit 1\n") // 3.2: the check fails
@@ -427,6 +438,51 @@ func TestLocalShell(t *testing.T) {
 	write(t, filepath.Join(bin, "bash"), "#!/bin/sh\nexit 0\n")
 	if s := strings.Join(localShell("darwin"), " "); s != "bash --norc -i" {
 		t.Errorf("a new bash: %s", s)
+	}
+}
+
+// TestLocalShellWindows: Windows PowerShell, or pwsh once it's on PATH;
+// one-off commands through its -Command, bash -c elsewhere.
+func TestLocalShellWindows(t *testing.T) {
+	bin := t.TempDir()
+	t.Setenv("PATH", bin)
+	if s := strings.Join(localShell("windows"), " "); s != "powershell -NoLogo -NoProfile" {
+		t.Errorf("no pwsh: %s", s)
+	}
+	pwsh := filepath.Join(bin, "pwsh")
+	if runtime.GOOS == "windows" {
+		pwsh += ".exe" // LookPath goes by PATHEXT there
+	}
+	write(t, pwsh, "#!/bin/sh\n")
+	os.Chmod(pwsh, 0o755)
+	if s := strings.Join(localShell("windows"), " "); s != "pwsh -NoLogo -NoProfile" {
+		t.Errorf("pwsh: %s", s)
+	}
+	if s := ShellArgs("windows", "ls"); strings.Join(s, " ") != "pwsh -NoLogo -NoProfile -Command ls" {
+		t.Errorf("windows: %q", s)
+	}
+	if s := ShellArgs("linux", "ls; pwd"); !slices.Equal(s, []string{"bash", "-c", "ls; pwd"}) {
+		t.Errorf("linux: %q", s)
+	}
+}
+
+// TestPowerShellIntegration: at a PowerShell prompt the PowerShell line is
+// typed, not the POSIX one; with a restored history, the replay mark too.
+func TestPowerShellIntegration(t *testing.T) {
+	for _, pending := range []bool{false, true} {
+		term, r := fakeTermA(t, "local")
+		if pending {
+			term.pending = &paneState{Text: "before"}
+		}
+		term.emu.Write([]byte(`PS C:\Users\me> `))
+		term.maybeInject()
+		got := readPipeA(r)
+		if !strings.HasPrefix(got, psIntegration) || !strings.HasSuffix(got, "\r") || strings.Contains(got, "BASH_VERSION") {
+			t.Fatalf("typed %q", got)
+		}
+		if strings.Contains(got, "]6974") != pending {
+			t.Errorf("pending %v: %q", pending, got)
+		}
 	}
 }
 

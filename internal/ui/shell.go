@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/orgs"
 )
@@ -43,7 +45,8 @@ const (
 
 // runShell runs a command, its output into w; tests replace it.
 var runShell = func(ctx context.Context, dir, cmd string, w io.Writer) error {
-	c := exec.CommandContext(ctx, "bash", "-c", cmd)
+	sh := infra.ShellArgs(runtime.GOOS, cmd)
+	c := exec.CommandContext(ctx, sh[0], sh[1:]...)
 	c.Dir, c.Stdout, c.Stderr = dir, w, w
 	c.WaitDelay = 2 * time.Second // a Stop doesn't wait for what the command left running
 	return c.Run()

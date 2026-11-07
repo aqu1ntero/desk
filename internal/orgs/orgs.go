@@ -101,7 +101,7 @@ func (s Secret) Get() (string, error) {
 	case s.TokenCmd != "":
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		out, err := exec.CommandContext(ctx, "sh", "-c", s.TokenCmd).Output()
+		out, err := exec.CommandContext(ctx, tokenShell[0], tokenShell[1], s.TokenCmd).Output()
 		if err != nil {
 			return "", fmt.Errorf("token_cmd: %w", err)
 		}

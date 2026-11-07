@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"os"
@@ -1231,10 +1232,14 @@ func TestCellColor(t *testing.T) {
 func TestTerminalLife(t *testing.T) {
 	h := newHarness(t)
 	var args []string
-	script := "seq 1 300; cat"
+	var seq strings.Builder // seq 1 300
+	for i := 1; i <= 300; i++ {
+		fmt.Fprintln(&seq, i)
+	}
+	script := []string{"out:" + seq.String(), "cat"}
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
 		args = cmd.Args
-		return term.Start(exec.Command("sh", "-c", script), w, ht, notify)
+		return term.Start(prog(script...), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	t.Cleanup(func() {
@@ -1297,7 +1302,7 @@ func TestTerminalLife(t *testing.T) {
 		t.Fatalf("pasted image: %v, scroll %d", ents, tt.scroll)
 	}
 
-	script = "exit 3"
+	script = []string{"exit:3"}
 	d := h.u.b.Add(0, kanban.Card{Title: "y", Org: "Acme"})
 	h.u.terminal(d.ID)
 	for end := time.Now().Add(5 * time.Second); h.u.terms[d.ID] != nil && time.Now().Before(end); {

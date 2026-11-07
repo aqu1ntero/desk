@@ -8,7 +8,8 @@ import { Steps } from '@astrojs/starlight/components';
 ## Running a command yourself
 
 A message that starts with `!` is a shell command you run yourself, as in Claude Code. desk runs it
-with `bash` in the card's folder, right away: no Claude, no permission prompt. Its output streams
+with `bash` (on Windows, PowerShell: `pwsh` when it's on your `PATH`, else Windows PowerShell) in
+the card's folder, right away: no Claude, no permission prompt. Its output streams
 into the conversation. When it ends, Claude gets the command, its output, its exit code and how long
 it took, and carries on by itself.
 

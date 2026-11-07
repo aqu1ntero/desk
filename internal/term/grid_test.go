@@ -9,7 +9,7 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/vt"
-	"github.com/creack/pty"
+	"github.com/lfdominguez/desk/internal/tty"
 )
 
 // bare is a Term with no program: the test writes the screen itself, and
@@ -155,7 +155,7 @@ func TestGridKept(t *testing.T) {
 	if r2, _, _, _ := tm.Grid(0); rowText(r2[0]) != "ab" {
 		t.Fatalf("after output: %q", rowText(r2[0]))
 	}
-	tm.pty, _ = os.Open(os.DevNull) // Resize sets the pty's size
+	tm.pty = sleeper(t) // Resize sets the pty's size
 	r3, _, _, _ := tm.Grid(0)
 	tm.Resize(3, 2)
 	if r4, _, _, _ := tm.Grid(0); &r4[0] == &r3[0] || len(r4[0]) == 0 || r4[0][0].W != 3 {
@@ -243,34 +243,30 @@ func TestStartError(t *testing.T) {
 	}
 }
 
-// TestResize: either dimension changing resizes both the screen and the
-// pty; the same size leaves the pty alone.
-func TestResize(t *testing.T) {
-	ptmx, tty, err := pty.Open()
+// sleeper is a pty with a program that waits, hung up after the test.
+func sleeper(t *testing.T) *tty.PTY {
+	p, err := tty.Start(helper("sleep"), 4, 2)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
-	defer ptmx.Close()
-	defer tty.Close()
-	tm := &Term{emu: vt.NewEmulator(10, 4), pty: ptmx}
-	pty.Setsize(ptmx, &pty.Winsize{Rows: 1, Cols: 1})
+	t.Cleanup(p.Hangup)
+	return p
+}
+
+// TestResize: either dimension changing resizes the screen (and the pty:
+// internal/tty's TestResize); the same size changes nothing.
+func TestResize(t *testing.T) {
+	tm := &Term{emu: vt.NewEmulator(10, 4), pty: sleeper(t)}
 	for _, tc := range []struct {
-		w, h, rows, cols int
+		w, h, ver int
 	}{
-		{10, 4, 1, 1}, // same size: pty untouched
-		{10, 6, 6, 10},
-		{12, 6, 6, 12},
+		{10, 4, 0}, // same size: nothing
+		{10, 6, 1},
+		{12, 6, 2},
 	} {
 		tm.Resize(tc.w, tc.h)
-		if tm.emu.Width() != tc.w || tm.emu.Height() != tc.h {
-			t.Errorf("Resize(%d, %d): screen %dx%d", tc.w, tc.h, tm.emu.Width(), tm.emu.Height())
-		}
-		rows, cols, err := pty.Getsize(ptmx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if rows != tc.rows || cols != tc.cols {
-			t.Errorf("Resize(%d, %d): pty %dx%d", tc.w, tc.h, cols, rows)
+		if tm.emu.Width() != tc.w || tm.emu.Height() != tc.h || tm.ver != tc.ver {
+			t.Errorf("Resize(%d, %d): screen %dx%d, version %d", tc.w, tc.h, tm.emu.Width(), tm.emu.Height(), tm.ver)
 		}
 	}
 }
@@ -286,8 +282,13 @@ func TestStartEnv(t *testing.T) {
 		{[]string{"FOO=acme"}, "acme::xterm-256color"},
 		{nil, ":globex:xterm-256color"},
 	} {
-		cmd := exec.Command("sh", "-c", `printf '%s:%s:%s' "$FOO" "$DESK_TERM_TEST" "$TERM"`)
-		cmd.Env = tc.env
+		cmd := helper("env")
+		if cmd.Env = tc.env; tc.env != nil {
+			// GOCOVERDIR: under -cover it would warn on the screen without it.
+			cmd.Env = append(tc.env, "DESK_TERM_HELPER=env", "GOCOVERDIR="+os.Getenv("GOCOVERDIR"))
+		} else {
+			t.Setenv("DESK_TERM_HELPER", "env") // desk's, inherited
+		}
 		tm, err := Start(cmd, 40, 2, func() {})
 		if err != nil {
 			t.Fatal(err)

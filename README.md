@@ -219,8 +219,8 @@ runs under.
   lines).
 - **Questions and permissions**: Claude's interviews (AskUserQuestion) and tool permissions show
   as a box at the end of the conversation; the card goes to "your turn" meanwhile.
-- **Shell commands**: a message starting with `!` runs it yourself with `bash` in the card's
-  folder, no Claude, no approval. Its output streams into the conversation, and when it ends
+- **Shell commands**: a message starting with `!` runs it yourself with `bash` (PowerShell on
+  Windows) in the card's folder, no Claude, no approval. Its output streams into the conversation, and when it ends
   Claude gets the command, output, exit code and time and carries on by itself.
 - **Agent Sessions**: every card with a session is listed in the sidebar. Its full window shows
   the context meter and the account's plan limits (the 5-hour session, the week, a model's week).

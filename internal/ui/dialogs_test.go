@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -752,7 +751,7 @@ func TestTermNotify(t *testing.T) {
 	h.frame() // the board: no terminal shown
 	g := h.u.termGen.Load()
 	h.u.termNotify("a", nil)
-	live, err := term.Start(exec.Command("cat"), 20, 5, func() {})
+	live, err := term.Start(prog("cat"), 20, 5, func() {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -761,7 +760,7 @@ func TestTermNotify(t *testing.T) {
 	if h.u.termGen.Load() != g {
 		t.Fatal("a hidden terminal's output redrew")
 	}
-	tm, err := term.Start(exec.Command("true"), 20, 5, func() {})
+	tm, err := term.Start(prog(), 20, 5, func() {})
 	if err != nil {
 		t.Fatal(err)
 	}

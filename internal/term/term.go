@@ -10,11 +10,10 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/vt"
-	"github.com/creack/pty"
+	"github.com/lfdominguez/desk/internal/tty"
 )
 
 // Term is a program in a pseudo-terminal and its screen. Safe for use
@@ -22,8 +21,7 @@ import (
 type Term struct {
 	mu     sync.Mutex
 	emu    *vt.Emulator
-	pty    *os.File
-	proc   *os.Process
+	pty    *tty.PTY
 	exited bool
 	code   int
 	ver    int  // bumps whenever the screen may have changed
@@ -47,23 +45,20 @@ func Start(cmd *exec.Cmd, w, h int, notify func()) (*Term, error) {
 		cmd.Env = os.Environ()
 	}
 	cmd.Env = append(cmd.Env, "TERM=xterm-256color", "COLORTERM=truecolor")
-	f, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
+	f, err := tty.Start(cmd, w, h)
 	if err != nil {
 		return nil, err
 	}
-	t := &Term{emu: vt.NewEmulator(w, h), pty: f, proc: cmd.Process}
+	t := &Term{emu: vt.NewEmulator(w, h), pty: f}
 	go io.Copy(f, t.emu) // keys and the terminal's replies -> the program
 	go func() {
 		buf := make([]byte, 32*1024)
 		for {
 			n, err := f.Read(buf)
 			if err != nil {
-				st, _ := cmd.Process.Wait()
+				code := f.Wait()
 				t.mu.Lock()
-				t.exited, t.code = true, -1
-				if st != nil {
-					t.code = st.ExitCode()
-				}
+				t.exited, t.code = true, code
 				t.mu.Unlock()
 				notify()
 				return
@@ -200,7 +195,7 @@ func (t *Term) Resize(w, h int) {
 	}
 	t.emu.Resize(w, h)
 	t.ver++
-	pty.Setsize(t.pty, &pty.Winsize{Rows: uint16(h), Cols: uint16(w)})
+	t.pty.Resize(w, h)
 }
 
 // Exited reports whether the program ended, and its exit code.
@@ -210,9 +205,5 @@ func (t *Term) Exited() (bool, int) {
 	return t.exited, t.code
 }
 
-// Close hangs the program up: closing the pty alone leaves the reader
-// blocked and the program alive.
-func (t *Term) Close() {
-	t.proc.Signal(syscall.SIGHUP)
-	t.pty.Close()
-}
+// Close hangs the program up (tty's Hangup).
+func (t *Term) Close() { t.pty.Hangup() }

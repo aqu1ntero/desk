@@ -520,7 +520,7 @@ func TestCoverUnlockCode(t *testing.T) {
 func TestCoverTerminalCells(t *testing.T) {
 	h := newHarness(t)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", `printf '\033[1mB\033[0m \033[2mF\033[0m \033[3mI\033[0m \033[7mR\033[0m \033[41mX\033[0m\n'; cat`), w, ht, notify)
+		return term.Start(prog("out:\033[1mB\033[0m \033[2mF\033[0m \033[3mI\033[0m \033[7mR\033[0m \033[41mX\033[0m\n", "cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -572,7 +572,7 @@ func TestCoverTerminalCells(t *testing.T) {
 func TestCoverTerminalPaste(t *testing.T) {
 	h := newHarness(t)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -861,7 +861,7 @@ func TestCoverPanelHeader(t *testing.T) {
 	opened := filepath.Join(t.TempDir(), "opened")
 	fakeBin(t, infra.Opener, `echo "$1" >> `+opened)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	art := "https://claude.ai/artifact/0123456789abcdef"
@@ -1227,7 +1227,7 @@ func TestCoverPushNoAccount(t *testing.T) {
 func TestCoverCardMenu(t *testing.T) {
 	h := newHarness(t)
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
@@ -2519,7 +2519,7 @@ func TestCoverShellEnds(t *testing.T) {
 	if !strings.Contains(h.u.toast, "a command is still running") {
 		t.Fatalf("toast %q", h.u.toast)
 	}
-	exit := exec.Command("sh", "-c", "exit 4").Run()
+	exit := prog("exit:4").Run()
 	release <- exit
 	h.pumpUntil("the end", func() bool { return h.u.shellStop[c.ID] == nil })
 	ms := h.u.chat(c.ID)
@@ -2527,7 +2527,7 @@ func TestCoverShellEnds(t *testing.T) {
 		t.Fatalf("detail %q, text starts %q", m.Detail, m.Text[:3])
 	}
 	startTerm = func(cmd *exec.Cmd, w, ht int, notify func()) (*term.Term, error) {
-		return term.Start(exec.Command("sh", "-c", "cat"), w, ht, notify)
+		return term.Start(prog("cat"), w, ht, notify)
 	}
 	defer func() { startTerm = term.Start }()
 	h.u.shell(c.ID, "make")

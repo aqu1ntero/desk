@@ -17,6 +17,10 @@ day). A release's section here is its notes on GitHub. The format follows
   - Files live where they do on Linux (`~/.config/desk`, `~/.local/share/desk`).
   - The app is ad-hoc signed, not with an Apple Developer ID: Gatekeeper asks the first time.
   - The infra workspace's virtual camera stays Linux-only.
+- **Terminals on Windows.** A card's Claude Code terminal and the local panes run in a Windows
+  pseudo console (ConPTY, Windows 10 1809 or newer). Local panes and `!` commands use PowerShell
+  (`pwsh` when it's on `PATH`, else Windows PowerShell), with command blocks; `token_cmd` runs
+  with `cmd /C`.
 - **A card's workspace:** its projects in a tree, an editor, and a read-only Claude that answers
   about the code.
 - **desk's own SSH client.** Server panes, file transfers and port forwards no longer run the `ssh`
