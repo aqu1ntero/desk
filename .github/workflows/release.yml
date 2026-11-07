@@ -1,6 +1,6 @@
 name: Build
 
-# Every push and PR builds the .deb and the AppImage as workflow artifacts;
+# Every push and PR builds the .deb, the AppImage and the macOS zip as workflow artifacts;
 # a release tag also publishes them as a GitHub release. Releases are dated:
 # 2026.11.03, and a later one the same day 2026.11.03.1, .2…
 on:
@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CGO_CFLAGS_ALLOW: -fno-strict-overflow
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +39,7 @@ jobs:
             libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libfuse2t64 librsvg2-bin
 
       - name: Version
+        id: version
         run: |
           if [[ "$GITHUB_REF_TYPE" == tag ]]; then
             v="$GITHUB_REF_NAME"
@@ -51,6 +54,7 @@ jobs:
             v="$(date -u +%Y.%m.%d)~git$(git rev-parse --short HEAD)"
           fi
           echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Build
         run: go build -tags nox11 -trimpath -ldflags "-s -w -X main.version=$VERSION" -o dist/desk ./cmd/desk
@@ -120,6 +124,81 @@ jobs:
             --title "desk nightly ($VERSION)" \
             --notes "Built from main at $GITHUB_SHA. Replaced on every push; for a stable version take a dated release." \
             dist/*.deb dist/*.AppImage
+
+  # desk.app for macOS (universal: arm64 + x86_64) as desk-<version>-macos.zip, built by
+  # packaging/macos/build-app.sh with the package job's version, then added to the release
+  # (or nightly) that job made. Ad-hoc signed, so Gatekeeper asks on first open. With the
+  # APPLE_* secrets it is signed with a Developer ID and notarized instead:
+  #   APPLE_CERTIFICATE_P12       base64 of the "Developer ID Application" certificate (.p12)
+  #   APPLE_CERTIFICATE_PASSWORD  that .p12's password
+  #   APPLE_SIGN_IDENTITY         e.g. "Developer ID Application: Name (TEAMID)"
+  #   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD  notarytool's login (an app-specific password)
+  macos:
+    needs: package
+    runs-on: macos-14
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+      APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Optional: only with the owner's Developer ID certificate
+      - name: Signing certificate
+        if: env.APPLE_CERTIFICATE_P12 != ''
+        run: |
+          kc="$RUNNER_TEMP/sign.keychain-db"
+          security create-keychain -p "" "$kc"
+          security set-keychain-settings -lut 3600 "$kc"
+          security unlock-keychain -p "" "$kc"
+          echo "$APPLE_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$kc" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$kc"
+          # shellcheck disable=SC2046 # the search list is split on purpose: one keychain per word
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "SIGN_IDENTITY=$APPLE_SIGN_IDENTITY" >> "$GITHUB_ENV"
+
+      - name: desk.app
+        run: packaging/macos/build-app.sh
+
+      - name: Check the version
+        run: '[[ "$(dist/desk.app/Contents/MacOS/desk --version)" == "desk $VERSION" ]]'
+
+      # Optional: only with the certificate and notarytool's login; staples the ticket and zips again
+      - name: Notarize
+        if: env.APPLE_CERTIFICATE_P12 != '' && env.APPLE_ID != ''
+        run: |
+          zip="dist/desk-$VERSION-macos.zip"
+          xcrun notarytool submit "$zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple dist/desk.app
+          rm "$zip"
+          ditto -c -k --keepParent dist/desk.app "$zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desk-${{ env.VERSION }}-macos
+          path: dist/*.zip
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/*.zip
+
+      - name: Nightly
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload nightly --clobber dist/*.zip
 
   # The AUR package desk-kanban, from packaging/aur/PKGBUILD with this tag's
   # version and source checksum. Needs the AUR_SSH_PRIVATE_KEY secret (the

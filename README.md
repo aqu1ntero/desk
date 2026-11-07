@@ -16,7 +16,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 [![Release](https://img.shields.io/github/v/release/lfdominguez/desk?sort=date)](https://github.com/lfdominguez/desk/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Go](https://img.shields.io/github/go-mod/go-version/lfdominguez/desk)
-![Platform](https://img.shields.io/badge/platform-Linux%20%C2%B7%20Wayland-informational)
+![Platform](https://img.shields.io/badge/platform-Linux%20%C2%B7%20Wayland%20%C2%B7%20macOS-informational)
 [![Nix](https://img.shields.io/badge/nix-run-5277C3?logo=nixos&logoColor=white)](#nix)
 [![Docs](https://img.shields.io/badge/docs-desk.domivega.com-0a84ff)](https://desk.domivega.com/)
 
@@ -58,11 +58,27 @@ Taken from `desk demo`: the organizations, tickets and servers are made up.
 
 ## Install
 
-desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…); X11 and macOS are on the
-[roadmap](#roadmap). It needs
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`. Optional:
-`bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for per-organization Claude
-profiles. The infra workspace speaks SSH itself (no `ssh` program needed).
+desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…; X11 is on the
+[roadmap](#roadmap)) and on **macOS 12+** (Apple silicon and Intel). It needs
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`. Optional on
+Linux: `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for per-organization Claude
+profiles (macOS hands the profile to Claude Code as `CLAUDE_CONFIG_DIR` instead). The infra
+workspace speaks SSH itself (no `ssh` program needed).
+
+### macOS
+
+Download `desk-<version>-macos.zip` from the [latest release](https://github.com/lfdominguez/desk/releases/latest)
+(one universal `desk.app`), unzip it into Applications. It isn't signed with an Apple Developer ID,
+so open it the first time with right-click → **Open**, or clear the quarantine flag:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/desk.app
+```
+
+From source, with Go and the Xcode command line tools: `packaging/macos/build-app.sh` builds
+`dist/desk.app`. Run the app rather than a bare binary: macOS only shows an app bundle's
+notifications. Data lives where it does on Linux (`~/.config/desk`, `~/.local/share/desk`).
+Linux-only on macOS: the infra workspace's virtual camera (PipeWire / v4l2loopback).
 
 ### Nix
 
@@ -506,9 +522,9 @@ Planned, not there yet:
 
 - **X11.** Gio, the UI toolkit, can draw on X11, but desk builds with `-tags nox11`, and pasting
   images reads the Wayland clipboard itself (`internal/clip`).
-- **macOS.** Gio runs there too. What's Linux-only today: bubblewrap (per-organization Claude
-  profiles), PipeWire (the infra workspace's virtual camera), the Wayland clipboard, and the
-  packaging (no `.app` or Homebrew yet).
+- **macOS signing and Homebrew.** desk runs on macOS (see [Install](#macos)); the release's
+  `desk.app` is ad-hoc signed until it has a Developer ID and notarization, and there's no Homebrew
+  cask yet. The virtual camera stays Linux-only (PipeWire / v4l2loopback).
 
 ## Acknowledgements
 
