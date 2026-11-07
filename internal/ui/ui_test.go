@@ -56,7 +56,7 @@ func newHarness(t *testing.T) *harness {
 	if onWindows {
 		t.Setenv("USERPROFILE", t.TempDir()) // Windows' temp folder is inside the profile: root would read as ~/…
 	}
-	fakeBin(t, "claude", "exit 0")          // a terminal's command needs one on PATH; never the machine's
+	fakeBin(t, "claude", "exit 0") // a terminal's command needs one on PATH; never the machine's
 	assigned = func(context.Context, orgs.Config) ([]links.Ticket, error) { return nil, nil }
 	nagiosAlerts = func(context.Context, orgs.Config) ([]links.Alert, error) { return nil, nil }
 	planLimits = func(context.Context, string, string) ([]claude.Limit, error) { return nil, nil }

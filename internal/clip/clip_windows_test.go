@@ -36,7 +36,7 @@ func setClip(t *testing.T, data map[uintptr][]byte) {
 // TestImageWindows: the "PNG" format as it is, else CF_DIB as PNG; neither
 // is no image.
 func TestImageWindows(t *testing.T) {
-	setClip(t, map[uintptr][]byte{pngFormat():[]byte("\x89PNG fake")})
+	setClip(t, map[uintptr][]byte{pngFormat(): []byte("\x89PNG fake")})
 	if b, typ, err := Image(); string(b) != "\x89PNG fake" || typ != "image/png" || err != nil {
 		t.Fatalf("PNG: %q %q %v", b, typ, err)
 	}

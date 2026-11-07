@@ -814,7 +814,7 @@ func TestInvestigateC(t *testing.T) {
 	runtimeA(t)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
-	t.Setenv("PATH", t.TempDir()) // no claude
+	t.Setenv("PATH", t.TempDir())        // no claude
 	a := nagiosAlert{Org: "Acme", Host: "db1", State: "DOWN", Output: "PING CRITICAL", Since: time.Now()}
 	var seen []string
 	m := &model{onInvestigate: func(org, host, service, state, output string, _ time.Time) {
@@ -1255,7 +1255,7 @@ func TestUpdateMessagesC(t *testing.T) {
 	runtimeA(t)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir()) // Windows' home
-	t.Setenv("PATH", t.TempDir()) // no claude
+	t.Setenv("PATH", t.TempDir())        // no claude
 	tab := &Tab{org: "Acme", orgOnly: true, orgCfg: &orgConfig{}, dir: t.TempDir(), asked: []string{"and the disk?"}, busy: true}
 	m := model{tabs: []*Tab{tab}}
 	r, cmd := m.update(passwordMsg{err: fmt.Errorf("vault locked")})

@@ -58,12 +58,12 @@ func TestFixShell(t *testing.T) {
 	}
 	t.Setenv("PATH", bin)
 	for in, want := range map[string]string{
-		"/no/such/bin/zsh":             filepath.Join(bin, "zsh"+exe),
-		"/nix/store/gone/bin/bash":     filepath.Join(bin, "bash"+exe),
-		"/no/such/bin/fish":            filepath.Join(bin, "bash"+exe),
+		"/no/such/bin/zsh":            filepath.Join(bin, "zsh"+exe),
+		"/nix/store/gone/bin/bash":    filepath.Join(bin, "bash"+exe),
+		"/no/such/bin/fish":           filepath.Join(bin, "bash"+exe),
 		filepath.Join(bin, "zsh"+exe): filepath.Join(bin, "zsh"+exe),
-		bin:                            filepath.Join(bin, "bash"+exe), // a folder is no shell
-		"":                             "",
+		bin:                           filepath.Join(bin, "bash"+exe), // a folder is no shell
+		"":                            "",
 	} {
 		t.Setenv("SHELL", in)
 		if fixShell(); os.Getenv("SHELL") != want {

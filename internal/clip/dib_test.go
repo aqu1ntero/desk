@@ -81,7 +81,7 @@ func TestDIBPNGBad(t *testing.T) {
 		}
 	}
 	for name, d := range map[string][]byte{
-		"565":     mkDIB(1, 1, 16, 3, 0, m565, []byte{0, 0, 0, 0}),
+		"565":       mkDIB(1, 1, 16, 3, 0, m565, []byte{0, 0, 0, 0}),
 		"rgb masks": mkDIB(1, 1, 32, 3, 0, m565, []byte{0, 0, 0, 0}),
 		"empty":     mkDIB(0, 0, 24, 0, 0, nil, nil),
 		"no pixels": mkDIB(4, 4, 24, 0, 0, nil, []byte{1}),

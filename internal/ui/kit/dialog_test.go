@@ -67,7 +67,7 @@ func TestHint(t *testing.T) {
 	}
 	var ops op.Ops
 	k.Hint("esc", "close")(ctx(&ops, 400, 100))
-	if px := render(t, 400, 100, &ops).At(3, got.Y/2);!near(px, CPanelCard) {
+	if px := render(t, 400, 100, &ops).At(3, got.Y/2); !near(px, CPanelCard) {
 		t.Fatalf("cap %v, want the plain cap's fill", px)
 	}
 }
