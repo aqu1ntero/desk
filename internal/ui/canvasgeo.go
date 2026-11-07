@@ -283,7 +283,7 @@ func cvRoute(g *cvGraph, w cvWire) (segs []cvSeg, typ cvSock, ok bool) {
 	}
 	over, under := float32(math.MaxFloat32), float32(-math.MaxFloat32)
 	for _, n := range g.nodes {
-		if float32(n.r.Max.X) > a.X && float32(n.r.Min.X) < b.X && n.id != w.from && n.id != w.to {
+		if float32(n.r.Max.X) > a.X && float32(n.r.Min.X) < b.X { // strictly between: the ends' own edges are a and b
 			over, under = min(over, float32(n.r.Min.Y-28)), max(under, float32(n.r.Max.Y+20))
 		}
 	}

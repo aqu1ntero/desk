@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image"
 	"math"
 	"slices"
@@ -72,6 +73,11 @@ func TestCvBoundsFrames(t *testing.T) {
 	if bd := cvBounds(solo); bd.Min.Y != solo[0].r.Min.Y-20 || bd.Max != solo[0].r.Max {
 		t.Fatalf("a Claude's status line: %v", bd)
 	}
+	framed := []cvNode{b, c}
+	cvLayout(framed)
+	if _, rs := cvFrames(framed); cvBounds(framed) != rs[0] {
+		t.Fatalf("framed only: %v, frame %v", cvBounds(framed), rs[0])
+	}
 	if cvBounds(nil) != (image.Rectangle{}) {
 		t.Fatal("no nodes, no bounds")
 	}
@@ -133,6 +139,14 @@ func TestCvRoute(t *testing.T) {
 		t.Fatalf("over %v: lane at %v", g.nodes[1].r, segs[1][0].Y)
 	}
 	m = g.nodes[1].r
+	// the lane passes only what is between: not a node beyond either end
+	far := cvNode{id: "far", r: image.Rect(m.Min.X+3*(cvNodeW+cvColGap), -500, m.Max.X+3*(cvNodeW+cvColGap), -400)}
+	before := cvNode{id: "before", r: image.Rect(-2*cvNodeW, -500, -cvNodeW, -400)}
+	g.nodes = append(g.nodes, far, before)
+	if segs, _, _ := cvRoute(&g, g.wires[0]); segs[1][0].Y != float32(m.Min.Y-28) {
+		t.Fatalf("lane at %v, want %v", segs[1][0].Y, m.Min.Y-28)
+	}
+	g.nodes = g.nodes[:3]
 	a, _, _ := g.nodes[0].sock("o", true)
 	b, _, _ := g.nodes[2].sock("i", false)
 	if segs[0][0] != a || segs[2][3] != b {
@@ -154,21 +168,51 @@ func TestCvRoute(t *testing.T) {
 
 // TestCvCurve: level at both ends, at least 40 units out, and its ends.
 func TestCvCurve(t *testing.T) {
-	a, b := f32.Pt(0, 0), f32.Pt(200, 100)
+	a, b := f32.Pt(100, 0), f32.Pt(300, 100)
 	s := cvCurve(a, b)[0]
-	if s[1] != f32.Pt(100, 0) || s[2] != f32.Pt(100, 100) || s.at(0) != a || s.at(1) != b {
+	if s[1] != f32.Pt(200, 0) || s[2] != f32.Pt(200, 100) || s.at(0) != a || s.at(1) != b {
 		t.Fatalf("curve %v", s)
 	}
-	if s := cvCurve(a, f32.Pt(20, 50))[0]; s[1].X != 40 || s[2].X != -20 {
+	if s := cvCurve(a, f32.Pt(120, 50))[0]; s[1].X != 140 || s[2].X != 80 {
 		t.Fatalf("short: %v", s)
 	}
-	if p := s.at(.5); p != f32.Pt(100, 50) {
+	if p := s.at(.5); p != f32.Pt(200, 50) {
 		t.Fatalf("middle %v", p)
 	}
 	l := cvLaned(a, b, -50)
 	g := float32(cvColGap) / 2
-	if l[0][3] != f32.Pt(g, -50) || l[2][0] != f32.Pt(200-g, -50) || l[0][1] != f32.Pt(g/2, 0) || l[2][2] != f32.Pt(200-g/2, 100) {
-		t.Fatalf("laned %v", l)
+	want := []cvSeg{
+		{a, f32.Pt(100+g/2, 0), f32.Pt(100+g/2, -50), f32.Pt(100+g, -50)},
+		{f32.Pt(100+g, -50), f32.Pt(100+g, -50), f32.Pt(300-g, -50), f32.Pt(300-g, -50)},
+		{f32.Pt(300-g, -50), f32.Pt(300-g/2, -50), f32.Pt(300-g/2, 100), b},
+	}
+	if !slices.Equal(l, want) {
+		t.Fatalf("laned\n%v\nwant\n%v", l, want)
+	}
+}
+
+// TestCvHits: a curve beside a node, on any side, misses it; through it,
+// hits; the nodes skipped never count.
+func TestCvHits(t *testing.T) {
+	ns := []cvNode{{id: "n", r: image.Rect(100, 100, 200, 200)}}
+	line := func(a, b f32.Point) []cvSeg { return []cvSeg{{a, a, b, b}} }
+	for name, c := range map[string]struct {
+		segs []cvSeg
+		want bool
+	}{
+		"left":    {line(f32.Pt(0, 150), f32.Pt(90, 150)), false},
+		"right":   {line(f32.Pt(210, 150), f32.Pt(400, 150)), false},
+		"above":   {line(f32.Pt(150, 0), f32.Pt(150, 90)), false},
+		"below":   {line(f32.Pt(150, 210), f32.Pt(150, 400)), false},
+		"through": {line(f32.Pt(0, 150), f32.Pt(400, 150)), true},
+		"grazing": {line(f32.Pt(0, 97), f32.Pt(400, 97)), true}, // within its 6-unit margin
+	} {
+		if got := cvHits(c.segs, ns); got != c.want {
+			t.Errorf("%s: %v", name, got)
+		}
+	}
+	if cvHits(line(f32.Pt(0, 150), f32.Pt(400, 150)), ns, "x", "n") {
+		t.Error("a skipped node hit")
 	}
 }
 
@@ -270,8 +314,8 @@ func canvasCard(h *harness) *kanban.Card {
 	c.Artifacts, c.WSSession, c.Dir, c.Labels = []string{"https://claude.ai/artifact/12345678abcd"}, "ws1", "api", []string{"api", "web"}
 	c.Session = kanban.Session{Turns: 3, Tokens: 96000, Cost: 1.27, Context: 50000, Window: 200000}
 	h.u.ci["Acme"] = []ciItem{{id: c.ID, link: pr, runs: []links.Run{
-		{Name: "CI", Status: links.CIFailed, URL: "https://ci.example.com/1", Jobs: []links.Job{{Name: "lint", Status: links.CISuccess}, {Name: "e2e", Status: links.CIFailed}}},
 		{Name: "Docs", Status: links.CISuccess, URL: "https://ci.example.com/2"},
+		{Name: "CI", Status: links.CIFailed, URL: "https://ci.example.com/1", Jobs: []links.Job{{Name: "lint", Status: links.CISuccess}, {Name: "e2e", Status: links.CIFailed}}},
 	}}}
 	return c
 }
@@ -282,6 +326,7 @@ func canvasCard(h *harness) *kanban.Card {
 func TestCardGraph(t *testing.T) {
 	h := newHarness(t)
 	c := canvasCard(h)
+	h.u.findTask(c.ID, "a1", "").Summary = "so far" // running: no result yet
 	g := h.u.cardGraph(c, time.Now())
 	var ids []string
 	for _, n := range g.nodes {
@@ -363,7 +408,7 @@ func TestCardGraph(t *testing.T) {
 		t.Errorf("web state %+v", r)
 	}
 	sh := g.node("shell:s1")
-	if r, _ := sh.row("$"); r.value != "go test ./..." || sh.open != "sub:s1" || sh.dim || sh.fam != famCheck {
+	if r, _ := sh.row("$"); r.value != "go test ./..." || !r.mono || sh.open != "sub:s1" || sh.dim || sh.fam != famCheck {
 		t.Errorf("shell %+v", sh)
 	}
 	ci := g.node("ci:" + pr[5:])
@@ -381,6 +426,9 @@ func TestCardGraph(t *testing.T) {
 	}
 	if g.node(commit).title != "Commit · abc" || g.node("link:https://docs.example.com/x").title != "Link · docs.example.com" {
 		t.Error("link titles")
+	}
+	if r, _ := g.node("link:https://docs.example.com/x").row("url"); !r.mono || r.value != "https://docs.example.com/x" {
+		t.Errorf("url %+v", r)
 	}
 	if w := g.node("ws"); w.badge != "read-only" || w.open != "ws" || w.who.status != "Idle" || w.who.busy {
 		t.Errorf("ws %+v", w.who)
@@ -410,6 +458,29 @@ func TestCardGraphPlain(t *testing.T) {
 	if m.title != "Claude · session" || m.who.initials != "CL" || !m.who.busy || m.who.status != "Reading" {
 		t.Errorf("main %q %+v", m.title, m.who)
 	}
+	for _, r := range []string{"Ticket", "Workspace", "Agents", "Shells", "Diff", "Links"} {
+		if _, ok := m.row(r); ok {
+			t.Errorf("a %s socket with none", r)
+		}
+	}
+	for _, r := range []string{"Verdict", "PR"} {
+		if _, ok := g.node("done").row(r); ok {
+			t.Errorf("Done takes a %s with none", r)
+		}
+	}
+	h.u.ws[c.ID] = &wsState{} // opened, its Claude never asked
+	if h.u.cardGraph(c, time.Now()).node("ws") != nil {
+		t.Error("a workspace Claude that never ran")
+	}
+	h.u.ws[c.ID] = &wsState{proc: &fakeClaude{}}
+	if w := h.u.cardGraph(c, time.Now()).node("ws"); w == nil || w.who.busy || w.who.status != "Idle" {
+		t.Errorf("a workspace Claude running, idle: %+v", w)
+	}
+	h.u.ws[c.ID].from = []string{"you"}
+	if w := h.u.cardGraph(c, time.Now()).node("ws"); !w.who.busy || w.who.status != "Answering" {
+		t.Errorf("a workspace Claude answering: %+v", w.who)
+	}
+	delete(h.u.ws, c.ID)
 	if _, ok := m.row("usage"); ok {
 		t.Error("usage before a turn")
 	}
@@ -440,6 +511,44 @@ func TestCardGraphPlain(t *testing.T) {
 	off := kanban.Card{ID: "gone", Title: "x"}
 	if r, _ := h.u.cardGraph(&off, time.Now()).node("done").row("column"); r.value != "Archived" {
 		t.Errorf("archived: %q", r.value)
+	}
+}
+
+// TestCardGraphCI: a CI's jobs, past five the first four and how many
+// more; a URL without a host reads as itself.
+func TestCardGraphCI(t *testing.T) {
+	h := newHarness(t)
+	pr := kanban.Link{URL: "https://github.com/acme-org/api/pull/9", Kind: links.KindGitHubPR}
+	c := h.u.b.Card(h.u.b.Add(1, kanban.Card{Title: "x", Org: "Acme", Links: []kanban.Link{pr}}).ID)
+	ci := func(n int) *cvNode {
+		var jobs []links.Job
+		for i := range n {
+			jobs = append(jobs, links.Job{Name: fmt.Sprint("j", i), Status: links.CIRunning})
+		}
+		h.u.ci["Acme"] = []ciItem{{id: c.ID, link: pr, runs: []links.Run{{Name: "CI", Status: links.CIRunning, Jobs: jobs}}}}
+		return h.u.cardGraph(c, time.Now()).node("ci:" + pr.URL)
+	}
+	n := ci(5)
+	if _, ok := n.row("j4"); !ok || n.title != "CI running" || n.tone != kit.CText2 {
+		t.Fatalf("five jobs: %+v", n.rows)
+	}
+	if r, _ := n.row("j0"); r.tone != kit.CText2 {
+		t.Errorf("running job %+v", r)
+	}
+	n = ci(6)
+	if _, ok := n.row("j4"); ok {
+		t.Fatal("six jobs, all shown")
+	}
+	if _, ok := n.row("and 2 more"); !ok {
+		t.Fatalf("six jobs: %+v", n.rows)
+	}
+	if r, _ := h.u.cardGraph(c, time.Now()).node("link:" + pr.URL).row("state"); r.value != "unknown" {
+		t.Errorf("a PR never checked: %q", r.value)
+	}
+	for in, want := range map[string]string{"https://a.example.com/x": "a.example.com", "notes": "notes", "%zz": "%zz"} {
+		if got := hostOf(in); got != want {
+			t.Errorf("hostOf(%q) = %q", in, got)
+		}
 	}
 }
 
@@ -633,6 +742,9 @@ func TestCanvasPanZoom(t *testing.T) {
 	if !v.panning || v.pan != fitted.Add(f32.Pt(78, 40)) || v.auto || v.hover != "" {
 		t.Fatalf("drag: pan %v (from %v), panning %v", v.pan, fitted, v.panning)
 	}
+	if h.r.Cursor() != pointer.CursorGrabbing {
+		t.Errorf("panning, cursor %v", h.r.Cursor())
+	}
 	h.send(pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: a.Add(f32.Pt(80, 40))})
 	if h.u.sub != "" || v.panning || v.down {
 		t.Fatalf("a drag clicked: sub %q", h.u.sub)
@@ -656,8 +768,12 @@ func TestCanvasPanZoom(t *testing.T) {
 		t.Fatalf("the node under the pointer moved: %v → %v", at, got)
 	}
 	h.send(pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Position: at})
-	if v.hover != "main" {
-		t.Fatalf("hover %q", v.hover)
+	if v.hover != "main" || h.r.Cursor() != pointer.CursorPointer {
+		t.Fatalf("hover %q, cursor %v", v.hover, h.r.Cursor())
+	}
+	h.send(pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Position: h.cvAt(c.ID, "done")})
+	if v.hover != "done" || h.r.Cursor() != pointer.CursorDefault {
+		t.Fatalf("over Done (nothing to open): hover %q, cursor %v", v.hover, h.r.Cursor())
 	}
 	h.send(pointer.Event{Kind: pointer.Leave, Source: pointer.Mouse, Position: at})
 	if v.hover != "" {
@@ -668,6 +784,17 @@ func TestCanvasPanZoom(t *testing.T) {
 	if !v.auto || v.pan != fitted || v.zoom != z {
 		t.Fatalf("Fit: pan %v zoom %v, want %v %v", v.pan, v.zoom, fitted, z)
 	}
+	h.send(pointer.Event{Kind: pointer.Scroll, Source: pointer.Mouse, Position: at, Scroll: f32.Pt(0, 5)})
+	if v.auto {
+		t.Fatal("the wheel left it fitted")
+	}
+	at = h.cvAt(c.ID, "main")
+	h.send(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at},
+		pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at.Add(f32.Pt(0, 6))})
+	if !v.panning {
+		t.Fatal("a 6px move down didn't pan")
+	}
+	h.send(pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: at.Add(f32.Pt(0, 6))})
 }
 
 // TestCanvasControls: Handoffs shows the list beside the canvas and hides

@@ -92,9 +92,6 @@ func (u *ui) canvasView(gtx layout.Context, c *kanban.Card, act *func()) layout.
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
 	paint.FillShape(gtx.Ops, cvBG, clip.Rect{Max: size}.Op())
 	px := gtx.Metric.PxPerDp
-	if px == 0 {
-		px = 1
-	}
 	v := u.cvOf(c.ID)
 	g := u.cardGraph(c, gtx.Now)
 	cvLayout(g.nodes)
