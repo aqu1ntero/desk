@@ -69,6 +69,7 @@ per-organization Claude profiles (macOS and Windows hand the profile to Claude C
 > **macOS and Windows are new and not fully tested.** desk is developed on Linux.
 > - **Windows** was tested under Wine on Linux, not on a real Windows machine: the test suite
 >   passes there, but some of it (PowerShell, console resizing, sockets) can't run under Wine.
+>   The window was seen running under Proton (Steam's Wine, drawing through DXVK).
 > - **macOS** was tested in a QEMU macOS VM without a GPU: it builds and the test suite passes,
 >   but desk's window needs Metal, so the GUI has never been seen running. It should work on a
 >   real Mac.
