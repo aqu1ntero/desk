@@ -1,15 +1,15 @@
 ---
 title: Install
-description: Every way to install desk on Linux and macOS, and what it needs to run.
+description: Every way to install desk on Linux, macOS and Windows, and what it needs to run.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Requirements
 
-- **Linux under Wayland** (Hyprland, Sway, KDE, GNOME and other Wayland compositors; X11 is on the roadmap), or **macOS 12 or later** (Apple silicon or Intel).
+- **Linux under Wayland** (Hyprland, Sway, KDE, GNOME and other Wayland compositors; X11 is on the roadmap), **macOS 12 or later** (Apple silicon or Intel), or **Windows 10 or 11** (x64).
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: the `claude` command on your `PATH`. Every card runs it.
-- **Optional, on Linux: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login. macOS needs nothing for that: there each profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`.
+- **Optional, on Linux: `bwrap`** ([bubblewrap](https://github.com/containers/bubblewrap)). It lets an organization's sessions run under that organization's own Claude account. Without it, every session uses your own login. macOS and Windows need nothing for that: there each profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`.
 desk talks to GitHub, GitLab, Bitbucket, Jira, Nagios, the password vaults and your servers (SSH) itself. You don't need `gh`, `glab`, `bw`, `wl-paste` or `ssh`: the infra workspace reads your OpenSSH config and keys, and uses your `ssh-agent` when one runs, but never runs the `ssh` program.
 
 ## Install it
@@ -94,6 +94,22 @@ xattr -dr com.apple.quarantine /Applications/desk.app
 What stays Linux-only: the infra workspace's virtual camera (sharing a terminal as a webcam needs PipeWire and v4l2loopback). Everything else works the same; desk keeps its files in the same places as on Linux, `~/.config/desk` and `~/.local/share/desk`.
 
 </TabItem>
+<TabItem label="Windows">
+
+Each release has two Windows downloads on the [latest release](https://github.com/lfdominguez/desk/releases/latest), for x64:
+
+- **`desk-<version>-windows-amd64.msi`**, the installer. Run it: it asks for administrator rights once, installs `desk.exe` to `C:\Program Files\desk`, adds that folder to `PATH` and puts **desk** in the Start Menu. A newer MSI replaces the installed version; uninstall it from **Settings → Apps**. Silent install: `msiexec /i desk-<version>-windows-amd64.msi /qn`.
+- **`desk-<version>-windows-amd64.zip`**, portable: `desk.exe`, the license and a short README. Unzip it anywhere and run `desk.exe`; nothing is installed.
+
+Neither is code-signed yet, so the first time SmartScreen says "Windows protected your PC". Click **More info**, then **Run anyway**; after that it opens normally.
+
+The infra workspace's card sessions run `desk peer`, so `desk.exe` has to be on `PATH`. The MSI does that; with the zip, add its folder to your `PATH` yourself.
+
+What's different on Windows: terminals run on ConPTY, and local shells are PowerShell 7 (`pwsh`) when it's installed, else Windows PowerShell. An organization's Claude profile is handed to Claude Code as `CLAUDE_CONFIG_DIR`. desk keeps its files in the same layout as on Linux, under your user folder: `%USERPROFILE%\.config\desk` and `%USERPROFILE%\.local\share\desk`. The infra workspace's virtual camera stays Linux-only.
+
+No winget or Scoop package yet.
+
+</TabItem>
 <TabItem label="From source">
 
 **Linux:** you need Go (the version in `go.mod`), cgo, and the Wayland, xkbcommon, EGL and PipeWire headers:
@@ -116,14 +132,24 @@ packaging/macos/build-app.sh
 
 `ARCHS=arm64` builds only your Mac's architecture, which is faster; `VERSION=…` stamps a version. A plain `go build -tags nox11 -o desk ./cmd/desk` works too, but only the app shows notifications.
 
+**Windows:** you need only Go; desk needs no cgo there. In PowerShell:
+
+```powershell
+git clone https://github.com/lfdominguez/desk.git
+cd desk
+go build -tags nox11 -ldflags "-H windowsgui" -o desk.exe ./cmd/desk
+```
+
+`-H windowsgui` keeps a console window from opening behind desk's. The release's zip and MSI (with the icon and version info in `desk.exe`) are cross-built from Linux by `packaging/windows/build.sh`; see [Development](/reference/development/#releases).
+
 </TabItem>
 </Tabs>
 
 ## Releases and nightly
 
-Releases are dated, not numbered: `2026.11.03`, and a second one the same day `2026.11.03.1`, then `.2`… Each one publishes a `.deb`, an AppImage and the macOS zip on the [releases page](https://github.com/lfdominguez/desk/releases), and updates the AUR package.
+Releases are dated, not numbered: `2026.11.03`, and a second one the same day `2026.11.03.1`, then `.2`… Each one publishes a `.deb`, an AppImage, the macOS zip and the Windows MSI and zip on the [releases page](https://github.com/lfdominguez/desk/releases), and updates the AUR package.
 
-Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly): a `.deb`, an AppImage and a macOS zip of that commit. Its version reads like `2026.11.04~git1a2b3c4`. Use it to try what's coming; use a dated release otherwise.
+Every push to `main` also replaces the [`nightly` pre-release](https://github.com/lfdominguez/desk/releases/tag/nightly): a `.deb`, an AppImage, a macOS zip and the Windows MSI and zip of that commit. Its version reads like `2026.11.04~git1a2b3c4`. Use it to try what's coming; use a dated release otherwise.
 
 To see which version you run:
 

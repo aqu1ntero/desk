@@ -16,7 +16,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 [![Release](https://img.shields.io/github/v/release/lfdominguez/desk?sort=date)](https://github.com/lfdominguez/desk/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Go](https://img.shields.io/github/go-mod/go-version/lfdominguez/desk)
-![Platform](https://img.shields.io/badge/platform-Linux%20%C2%B7%20Wayland%20%C2%B7%20macOS-informational)
+![Platform](https://img.shields.io/badge/platform-Linux%20%C2%B7%20Wayland%20%C2%B7%20macOS%20%C2%B7%20Windows-informational)
 [![Nix](https://img.shields.io/badge/nix-run-5277C3?logo=nixos&logoColor=white)](#nix)
 [![Docs](https://img.shields.io/badge/docs-desk.domivega.com-0a84ff)](https://desk.domivega.com/)
 
@@ -59,11 +59,23 @@ Taken from `desk demo`: the organizations, tickets and servers are made up.
 ## Install
 
 desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…; X11 is on the
-[roadmap](#roadmap)) and on **macOS 12+** (Apple silicon and Intel). It needs
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`. Optional on
-Linux: `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for per-organization Claude
-profiles (macOS hands the profile to Claude Code as `CLAUDE_CONFIG_DIR` instead). The infra
-workspace speaks SSH itself (no `ssh` program needed).
+[roadmap](#roadmap)), on **macOS 12+** (Apple silicon and Intel) and on **Windows 10/11** (x64).
+It needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`.
+Optional on Linux: `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for
+per-organization Claude profiles (macOS and Windows hand the profile to Claude Code as
+`CLAUDE_CONFIG_DIR` instead). The infra workspace speaks SSH itself (no `ssh` program needed).
+
+### Windows
+
+Download `desk-<version>-windows-amd64.msi` from the [latest release](https://github.com/lfdominguez/desk/releases/latest)
+and run it: it installs to `Program Files\desk`, adds it to `PATH` (sessions run `desk peer`) and
+puts desk in the Start Menu; a newer MSI replaces the old install. Or take the portable
+`desk-<version>-windows-amd64.zip` and run `desk.exe` from anywhere. Neither is code-signed (see
+[Roadmap](#roadmap)), so SmartScreen warns the first time: **More info → Run anyway**.
+
+Terminals run on ConPTY; local shells are `pwsh`, else Windows PowerShell. Data lives where it does
+on Linux, under `%USERPROFILE%` (`.config\desk`, `.local\share\desk`). Linux-only on Windows: the
+infra workspace's virtual camera. From Linux, `packaging/windows/build.sh` cross-builds both files.
 
 ### macOS
 
@@ -527,6 +539,11 @@ Planned, not there yet:
   Developer account, which the developer doesn't have and doesn't plan to get for now. The release
   workflow already has the signing steps, ready for when an account exists. No Homebrew cask yet
   either. The virtual camera stays Linux-only (PipeWire / v4l2loopback).
+- **Windows code signing, winget and Scoop.** Windows support is done (see [Install](#windows)), but
+  `desk.exe` and the MSI aren't Authenticode-signed, so SmartScreen warns: signing needs a code
+  signing certificate, which the developer doesn't have and doesn't plan to get for now. The
+  release workflow already has the signing steps (`WINDOWS_CERT_PFX`), ready for when one exists.
+  No winget or Scoop package yet either.
 
 ## Acknowledgements
 
