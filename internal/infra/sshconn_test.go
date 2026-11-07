@@ -150,6 +150,7 @@ func TestSSHPane(t *testing.T) {
 // TestSSHPaneLost: the server going away is a lost link (the redial's
 // cue); a hangup isn't.
 func TestSSHPaneLost(t *testing.T) {
+	skipOnWindows(t, serverPty)
 	w := newSSHW(t, sshtest.Opts{}, "")
 	term := w.pane(t, paneState{})
 	waitS(t, "the prompt", term.AtPrompt)
@@ -202,6 +203,7 @@ func TestSSHConnectError(t *testing.T) {
 // TestSSHPasswordPrompt: a password the vault doesn't have is asked in the
 // ask sheet, masked, as "ssh <host> · <prompt>"; a cancelled one fails.
 func TestSSHPasswordPrompt(t *testing.T) {
+	skipOnWindows(t, serverPty)
 	w := newSSHW(t, sshtest.Opts{Password: "pw"}, "    PreferredAuthentications password\n")
 	qs := lbFakeAsk(t, func(i int, q *question) (string, bool) { return "pw", i == 0 })
 	term := w.pane(t, paneState{})
@@ -221,6 +223,7 @@ func TestSSHPasswordPrompt(t *testing.T) {
 // nothing; once rejected, the user is asked, told so; a vault error is
 // shown with the question.
 func TestSSHVaultPassword(t *testing.T) {
+	skipOnWindows(t, serverPty)
 	w := newSSHW(t, sshtest.Opts{Password: "s3cret"}, "    PreferredAuthentications password\n    #@ password-raw s3cret\n")
 	qs := lbFakeAsk(t, func(int, *question) (string, bool) { return "s3cret", true })
 	term := w.pane(t, paneState{})
@@ -256,6 +259,7 @@ func TestSSHVaultPassword(t *testing.T) {
 // host's yes/no (StrictHostKeyChecking ask) unmasked; each answer reaches
 // the connection.
 func TestSSHPassphraseAndYesNo(t *testing.T) {
+	skipOnWindows(t, serverPty)
 	w := newSSHW(t, sshtest.Opts{}, "    StrictHostKeyChecking ask\n")
 	k := sshtest.WriteKey(t, w.keyPath, "pp")
 	w.srv.With(func(o *sshtest.Opts) { o.Keys = []ssh.PublicKey{k.PublicKey()} })
@@ -288,6 +292,7 @@ func TestSSHPassphraseAndYesNo(t *testing.T) {
 // fails with the typed error; the box shows it; A accepts it (the old line
 // dropped, the new key kept) and reconnects.
 func TestSSHHostKeyChanged(t *testing.T) {
+	skipOnWindows(t, serverPty)
 	w := newSSHW(t, sshtest.Opts{}, "")
 	old := sshtest.NewSigner(t).PublicKey()
 	line := "[127.0.0.1]:" + strconv.Itoa(w.srv.Port) + " " + string(ssh.MarshalAuthorizedKey(old))
@@ -325,6 +330,7 @@ func TestSSHHostKeyChanged(t *testing.T) {
 // the negotiation error; F writes the algorithms into its Host block and
 // the reconnect gets through.
 func TestSSHLegacyFix(t *testing.T) {
+	skipOnWindows(t, serverPty)
 	w := newSSHW(t, sshtest.Opts{Config: func(c *ssh.ServerConfig) { c.KeyExchanges = []string{"diffie-hellman-group1-sha1"} }}, "")
 	term := w.pane(t, paneState{})
 	waitS(t, "the refusal", func() bool { _, e := term.State(); return e })
@@ -415,6 +421,7 @@ func TestSSHOpts(t *testing.T) {
 // TestSSHPoolShared: panes and the files panel of one server share one
 // connection.
 func TestSSHPoolShared(t *testing.T) {
+	skipOnWindows(t, serverPty)
 	w := newSSHW(t, sshtest.Opts{}, "")
 	a, b := w.pane(t, paneState{}), w.pane(t, paneState{})
 	waitS(t, "both prompts", func() bool { return a.AtPrompt() && b.AtPrompt() })
@@ -558,6 +565,7 @@ func TestSSHConnectEdges(t *testing.T) {
 
 	// a command with no prompt and no output: connected (and told) once
 	// the session starts; the pool keeps its connection while it runs
+	skipOnWindows(t, serverPty)
 	w = newSSHW(t, sshtest.Opts{}, "    RemoteCommand sleep 30\n")
 	sshPool = &sshc.Pool{Linger: 20 * time.Millisecond}
 	var cur atomic.Pointer[Term]

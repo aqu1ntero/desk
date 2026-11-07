@@ -488,8 +488,35 @@ func TestPowerShellIntegration(t *testing.T) {
 		if !strings.HasPrefix(got, psIntegration) || !strings.HasSuffix(got, "\r") || strings.Contains(got, "BASH_VERSION") {
 			t.Fatalf("typed %q", got)
 		}
-		if strings.Contains(got, "]6974") != pending {
+		if strings.Contains(got, "]6974") != pending || strings.Contains(got, "Set-Location") {
 			t.Errorf("pending %v: %q", pending, got)
+		}
+	}
+	// a restored directory goes back, quoted the PowerShell way
+	term, r := fakeTermA(t, "local")
+	term.cwd = `C:\Users\me's`
+	term.emu.Write([]byte(`PS C:\> `))
+	term.maybeInject()
+	if got := readPipeA(r); !strings.HasSuffix(got, `; Set-Location -LiteralPath 'C:\Users\me''s'`+"\r") {
+		t.Errorf("restored dir: %q", got)
+	}
+}
+
+// TestOsc7Windows: PowerShell's directory is a Windows path; a location
+// that isn't a folder (a registry drive) is ignored.
+func TestOsc7Windows(t *testing.T) {
+	term, _ := fakeTermA(t, "local")
+	for _, tc := range []struct{ in, want string }{
+		{`7;C:\Users\me`, `C:\Users\me`},
+		{`7;HKEY_CURRENT_USER\Software`, `C:\Users\me`},
+		{`7;\\server\share\x`, `\\server\share\x`},
+		{`7;D:/data`, `D:/data`},
+		{`7;C:`, `D:/data`},
+		{`7;/home/me`, `/home/me`},
+	} {
+		term.osc7([]byte(tc.in))
+		if term.cwd != tc.want {
+			t.Errorf("%q: cwd %q, want %q", tc.in, term.cwd, tc.want)
 		}
 	}
 }
