@@ -493,7 +493,7 @@ func (u *ui) stop(id string) {
 }
 
 // openURL hands a link to the desktop's browser (xdg-open, macOS's open).
-func openURL(s string) { exec.Command(infra.Opener, s).Start() }
+var openURL = func(s string) { exec.Command(infra.Opener, s).Start() } // a var tests replace
 
 // pollLinks checks every board card's links, and the orgs' tickets, now
 // and every 3 minutes, and moves back in step a card's ticket that drifted

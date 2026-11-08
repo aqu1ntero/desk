@@ -1,0 +1,104 @@
+---
+title: The canvas
+description: How a card's full window draws its process as a node graph, with the card, its session, subagents, shells, workspace Claude, tickets, pull requests and CI, and who is working where.
+---
+
+In the [full window](/sessions/full-window/), a card's session can show as a **canvas**: its
+process drawn as nodes and wires, the way Blender draws nodes. It draws what desk knows of the
+card right now; nothing runs from it.
+
+![DESK-3 run by "planner": the card, its ticket and the workspace Claude on the left, planner in the middle, Explore, test-writer and reviewer beside it with test-writer's shell, the pull request and its failed CI below, and Done on the right](../../../assets/shots/sess-canvas.png)
+
+## What it draws
+
+From left to right:
+
+- **The card**: its title, labels and folder. It starts the session and gives it the card's
+  context and its folder. Click it to [edit the card](/cards/editing/).
+- **Its tickets**, each with its state. Click one to open it in the browser.
+- **The workspace Claude**, once the card has one: read-only, it answers the session's questions.
+  Click it to open the [workspace](/sessions/workspace/).
+- **The session**: the card's Claude, or the agent the card runs as. It shows the card's status,
+  turns, tokens and cost, and how full its context is. Click it to read its conversation.
+- **Its subagents**, one node per kind of agent, each in its own color. A node shows the agent's
+  model, its state (**Working**, **Waiting** when it's held, see
+  [Held subagents](/sessions/subagents/#held-subagents), **Done · \<time\>**, or how it
+  failed), its brief, its result once it's done, and its tools, tokens and time. An agent that ran
+  several times shows "×N" and its latest run. Click it to open its conversation.
+- **Shells** hang off whoever ran them: the session or a subagent. Click one to see its output.
+- **Pull requests and commits**, with their state, and their **CI**: each job and how it went.
+  Click a pull request to open it, its CI to open the failed run (or the first).
+- **Other links** and the pages the session published.
+- **Done**: the card's column. It turns green once the card is in Done.
+
+<figure class="cut">
+
+![The session, planner, handing work to Explore, test-writer and reviewer; test-writer runs a shell](../../../assets/shots/sess-canvas-agents.png)
+
+<figcaption>The session and its team. Each Claude's avatar says what it's on.</figcaption>
+</figure>
+
+**Thick white wires** with diamond sockets are the run order: the card starts the session, the
+session hands work to its agents and shells, and finishes the card. **Colored wires** carry data,
+colored by what they carry: the card's context (purple), its folder (green), changes (pink),
+a pass or fail (cyan), words and links (grey). The session and its team sit in the **Session**
+frame, what it delivers in the **Delivery** frame.
+
+<figure class="cut">
+
+![The pull request, its CI with lint and unit passing and e2e failed, and Done](../../../assets/shots/sess-canvas-delivery.png)
+
+<figcaption>A pull request whose CI failed, wired to Done.</figcaption>
+</figure>
+
+## Who is where
+
+Each Claude's node carries an **avatar** in its header: its initials in its color, the session's,
+each subagent's, the workspace Claude's. Over the node, a line says what it's on: the tool it runs,
+what it's waiting on, or how it ended. A working avatar breathes, so you can tell at a glance who
+is busy.
+
+## Moving around
+
+- **Drag** the canvas to pan it, or scroll.
+- **Ctrl+scroll** (**⌘+scroll** on macOS) zooms around the pointer, from 40% to 250%.
+- **Fit** shows the whole graph again. It opens fitted, and stays fitted as the graph grows until
+  you pan or zoom.
+
+Agents done for more than 20 minutes leave the canvas. A chip at the foot, "N earlier agents", brings
+them back, and "Hide N earlier agents" sends them away again.
+
+![The Explore agent's conversation in full: its prompt and its result](../../../assets/shots/sess-canvas-agent.png)
+
+## Handoffs
+
+**Handoffs** at the canvas's foot lists the team's handoffs beside it, in order, newest last: each
+**brief** the session gave an agent, and each **result** an agent gave back. Each says when, and who
+handed what to whom; the list ends with who the session still waits for. Click a handoff to open
+that agent's conversation. **Hide handoffs** puts the list away.
+
+<figure class="cut">
+
+![The Handoffs column: planner → Explore, Explore → planner, planner → test-writer, planner → reviewer, then "planner is waiting for test-writer, reviewer…"](../../../assets/shots/sess-canvas-team-handoffs.png)
+
+<figcaption>Four handoffs, then who the session still waits for. Its header counts the agents and the session's cost.</figcaption>
+</figure>
+
+## Canvas or Conversation
+
+**Canvas | Conversation** in the header switches between the canvas and the session's own
+conversation. A card that runs as an agent opens on its canvas, any other on its conversation;
+desk keeps what you picked for each card until it quits. A question or a permission Claude asks
+shows over the message box either way.
+
+<figure class="cut">
+
+![The Canvas | Conversation switch in the header](../../../assets/shots/sess-canvas-switch.png)
+
+<figcaption>The canvas or the conversation.</figcaption>
+</figure>
+
+:::note
+The canvas is only in the full window, and only once the session has started. In the side panel
+the card's session shows as a conversation.
+:::

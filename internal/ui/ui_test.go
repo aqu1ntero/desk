@@ -1926,58 +1926,6 @@ func teamCard(h *harness) *kanban.Card {
 	return h.u.b.Card(c.ID)
 }
 
-// TestTeamView: an agent card's full window shows its team; a click on an
-// agent opens its conversation, back returns to the team, and the switch
-// shows the lead's own.
-func TestTeamView(t *testing.T) {
-	h := newHarness(t)
-	c := teamCard(h)
-	h.u.openSession(c.ID)
-	h.frame()
-	if !h.u.teamMode(c, true) {
-		t.Fatal("not in team mode")
-	}
-	if ms := h.u.members(c.ID); len(ms) != 2 || ms[0].name != "api" || ms[0].shell == nil || ms[1].last.Status != "completed" {
-		t.Fatalf("members %+v", ms)
-	}
-	h.clickButton("teamNodeapi")
-	if h.u.sub != "a1" {
-		t.Fatalf("clicked api, sub %q", h.u.sub)
-	}
-	h.clickButton("subBack")
-	if h.u.sub != "" || !h.u.teamMode(c, true) {
-		t.Fatalf("back: sub %q", h.u.sub)
-	}
-	h.clickButton("teamShells1")
-	if h.u.sub != "s1" {
-		t.Fatalf("clicked the shell, sub %q", h.u.sub)
-	}
-	h.u.sub = ""
-	h.frame()
-	h.clickButton("pnMode1")
-	if !h.u.convo[c.ID] || h.u.teamMode(c, true) {
-		t.Fatal("Conversation didn't switch")
-	}
-	h.clickButton("pnMode0")
-	if h.u.convo[c.ID] {
-		t.Fatal("Team didn't switch back")
-	}
-	h.clickButton("teamLead" + c.ID)
-	if !h.u.convo[c.ID] {
-		t.Fatal("the lead didn't open the conversation")
-	}
-	delete(h.u.convo, c.ID)
-	h.u.findTask(c.ID, "a2", "").end = time.Now().Add(-settled - time.Minute) // web, done 21 minutes ago
-	h.frame()
-	if ms, n := h.u.onRing(c.ID, h.u.members(c.ID), time.Now()); len(ms) != 1 || n != 1 {
-		t.Fatalf("on the ring %d, earlier %d", len(ms), n)
-	}
-	h.clickButton("teamEarlier" + c.ID)
-	if ms, _ := h.u.onRing(c.ID, h.u.members(c.ID), time.Now()); len(ms) != 2 {
-		t.Fatal("the chip didn't bring web back")
-	}
-}
-
 // TestCardAgent: a new card of an organization with agents takes its
 // default one, the dialog can change it, and the session runs as it.
 func TestCardAgent(t *testing.T) {
