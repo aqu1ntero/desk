@@ -11,6 +11,12 @@ day). A release's section here is its notes on GitHub. The format follows
 - The workspace's tree and tabs show an icon for each file, colored by its kind (Go, Markdown,
   Dockerfile…), and folders a folder that opens.
 
+### Fixed
+
+- A terminal pane whose shell prompt is exactly as wide as the pane (fish's default prompt in a
+  git repository with a long branch name, in a narrow pane) now gets its shell integration, so a
+  restored pane brings back its directory, environment and history instead of staying busy.
+
 ## [2026.11.07.1] - 2026-11-07
 
 ### Changed
