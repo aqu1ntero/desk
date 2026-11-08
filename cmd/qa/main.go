@@ -61,7 +61,7 @@ var exit = os.Exit
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: qa cover [-base REF] [-min PCT] | qa mutate [-j N] [-file S] PKGDIR...")
+		fmt.Fprintln(os.Stderr, "usage: qa cover [-base REF] [-min PCT] [-report FILE [-link URL]] | qa mutate [-j N] [-file S] PKGDIR...")
 		exit(2)
 		return
 	}
@@ -90,9 +90,14 @@ func cover(args []string) error {
 	fs := flag.NewFlagSet("cover", flag.ContinueOnError)
 	base := fs.String("base", "", "also check the lines changed since this git ref")
 	min := fs.Float64("min", 98, "the changed lines' least coverage (%), with -base")
+	report := fs.String("report", "", "also write a Markdown report here (a pull request's comment), pass or fail")
+	link := fs.String("link", "", "with -report, a blob URL at the checked commit (https://github.com/o/r/blob/<sha>) for the lines not run")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	mod, _ := modulePath()
+	rep := &covReport{mod: mod, link: strings.TrimSuffix(*link, "/"), base: *base, min: *min}
+	defer rep.write(*report)
 	targs := append([]string{"test", "-count=1", "-cover"}, tags...)
 	prof := ""
 	if *base != "" {
@@ -109,9 +114,7 @@ func cover(args []string) error {
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	os.Stdout.Write(out)
-	if err != nil {
-		return fmt.Errorf("tests failed")
-	}
+	rep.failed = failures(string(out))
 	var bad []string
 	for _, l := range strings.Split(string(out), "\n") {
 		m := coverLine.FindStringSubmatch(l)
@@ -120,6 +123,7 @@ func cover(args []string) error {
 		}
 		got, _ := strconv.ParseFloat(m[2], 64)
 		floor, ok := floors[m[1]]
+		rep.pkgs = append(rep.pkgs, pkgCov{name: m[1], pct: got, floor: floor, hasFloor: ok})
 		switch {
 		case !ok:
 			bad = append(bad, fmt.Sprintf("%s: %.1f%%, no floor: add it to floors in cmd/qa", m[1], got))
@@ -127,12 +131,15 @@ func cover(args []string) error {
 			bad = append(bad, fmt.Sprintf("%s: %.1f%% is under its floor %.0f%%", m[1], got, floor))
 		}
 	}
+	if err != nil {
+		return fmt.Errorf("tests failed")
+	}
 	if len(bad) > 0 {
 		return fmt.Errorf("coverage:\n  %s", strings.Join(bad, "\n  "))
 	}
 	fmt.Println("qa: every package at or over its coverage floor")
 	if *base != "" {
-		return newCover(*base, prof, *min)
+		return newCover(*base, prof, *min, rep)
 	}
 	return nil
 }
@@ -141,7 +148,7 @@ func cover(args []string) error {
 // base that hold statements (in prof, a go test -coverprofile), at least min
 // percent ran. Lines outside ./internal (cmd/) and in files this OS doesn't
 // build count for nothing.
-func newCover(base, prof string, min float64) error {
+func newCover(base, prof string, min float64, rep *covReport) error {
 	changed, err := changedLines(base)
 	if err != nil {
 		return err
@@ -152,17 +159,25 @@ func newCover(base, prof string, min float64) error {
 	}
 	var total, hit int
 	var missed []string
+	rep.checked = true
 	for _, f := range slices.Sorted(maps.Keys(changed)) {
+		fc := fileCov{path: f}
 		for _, l := range changed[f] {
 			if !stmts[f][l] {
 				continue
 			}
 			total++
+			fc.total++
 			if ran[f][l] {
 				hit++
+				fc.hit++
 			} else {
 				missed = append(missed, fmt.Sprintf("%s:%d", f, l))
+				fc.missed = append(fc.missed, l)
 			}
+		}
+		if fc.total > 0 {
+			rep.files = append(rep.files, fc)
 		}
 	}
 	if total == 0 {

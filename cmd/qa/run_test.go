@@ -101,9 +101,13 @@ func TestCover(t *testing.T) {
 	}
 
 	failing(t, dir)
-	stdout(t, func() { err = cover(nil) })
+	rep := filepath.Join(t.TempDir(), "r.md")
+	stdout(t, func() { err = cover([]string{"-report", rep}) })
 	if err == nil || err.Error() != "tests failed" {
 		t.Errorf("failing tests: %v", err)
+	}
+	if b, _ := os.ReadFile(rep); !strings.Contains(string(b), "- `TestFail`\n- `internal/c`\n") || !strings.Contains(string(b), "**2 of 2** at their floor") {
+		t.Errorf("a failing run's report:\n%s", b)
 	}
 }
 
@@ -141,9 +145,16 @@ func TestCoverBase(t *testing.T) {
 	os.WriteFile(a, append(src, "\n// Sub is x-y.\nfunc Sub(x, y int) int {\n\treturn x - y\n}\n"...), 0o644)
 	git("commit", "-qam", "sub")
 	os.WriteFile(filepath.Join(dir, "internal/a/sub_test.go"), []byte("package a\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) {}\n"), 0o644)
-	stdout(t, func() { err = cover([]string{"-base", "HEAD~1"}) })
+	rep := filepath.Join(t.TempDir(), "r.md")
+	stdout(t, func() {
+		err = cover([]string{"-base", "HEAD~1", "-report", rep, "-link", "https://example.com/blob/x/"})
+	})
 	if err == nil || !strings.Contains(err.Error(), "0.0% covered (0 of 3), under 98%") || !strings.Contains(err.Error(), "internal/a/a.go:15") {
 		t.Errorf("untested: %v", err)
+	}
+	if b, _ := os.ReadFile(rep); !strings.Contains(string(b), "| `internal/a/a.go` | 0 / 3 · 0.0% |") ||
+		!strings.Contains(string(b), "[L15–17](https://example.com/blob/x/internal/a/a.go#L15-L17)") || !strings.Contains(string(b), "since `HEAD~1`") {
+		t.Errorf("an untested change's report:\n%s", b)
 	}
 	stdout(t, func() { err = cover([]string{"-base", "HEAD~1", "-min", "0"}) })
 	if err != nil {

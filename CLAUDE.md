@@ -32,7 +32,10 @@ the same day (checked by the workflow, which publishes them); the version reache
 `dev-<commit>`).
 
 Pull requests run `.github/workflows/ci.yml` only: `go test ./cmd/...` and
-`go run ./cmd/qa cover -base origin/<base> -min 98`. Builds and the docs site run on pushes to main.
+`go run ./cmd/qa cover -base origin/<base> -min 98 -report coverage.md` (cmd/qa/report.go: the
+Markdown report, pass or fail, on the run's summary and uploaded as an artifact). `coverage-comment.yml`
+(`workflow_run` on CI, from main, since a fork's run has a read-only token) posts it on the PR as one
+comment marked `<!-- qa-cover -->` that later pushes edit. Builds and the docs site run on pushes to main.
 
 Releases are always tagged through Claude, with `CHANGELOG.md` as their notes (the release job
 publishes the tag's section and fails without one). To release:
