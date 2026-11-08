@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lfdominguez/desk/internal/infra"
 )
 
 // TestConfigAsbru: an org page's Servers part says where its servers file
@@ -20,6 +22,18 @@ func TestConfigAsbru(t *testing.T) {
 	defer func() { asbruFile = f0 }()
 	h.u.openConfig("Acme")
 	h.frame()
+	c0 := asbruCurrent
+	asbruCurrent = func(f string) error {
+		if f != src {
+			t.Errorf("checked %q", f)
+		}
+		return infra.ErrAsbruOpen
+	}
+	h.clickButton("cfgAsbru")
+	if h.u.toast != infra.ErrAsbruOpen.Error() || !h.u.toastBad || h.u.cfg.asbru != nil {
+		t.Fatalf("Ásbrú open: %q", h.u.toast)
+	}
+	asbruCurrent = c0
 	if !strings.HasPrefix(h.u.cfg.srvFile, "no servers file yet: an import makes ") {
 		t.Fatalf("line %q", h.u.cfg.srvFile)
 	}

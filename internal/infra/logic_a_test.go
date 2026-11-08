@@ -1661,7 +1661,7 @@ func TestKeyConnStateA(t *testing.T) {
 	}
 	p.term.Close()
 	p.term.exited, p.term.reached = true, false
-	for i := 0; i < 50 && tab.connState() != "failed"; i++ {
+	for i := 0; i < 250 && tab.connState() != "failed"; i++ { // up to 5 s: 1 s ran out on a busy CI runner
 		time.Sleep(20 * time.Millisecond)
 	}
 	press("c")

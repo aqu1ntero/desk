@@ -405,6 +405,7 @@ func TestPaneStateRestore(t *testing.T) {
 			os.Mkdir(dir, 0o755)
 			start := func(st paneState, w, h int) *Term {
 				cmd := exec.Command(name, sh[:2]...)
+				cmd.Dir = filepath.Dir(dir) // outside the repo: fish's default prompt runs git there, slow in a CI checkout
 				cmd.Env = append(os.Environ(), "PS1=$ ", "DESK_GONE=1")
 				term, err := startCmd("local", cmd, w, h, func() {}, st)
 				if err != nil {
