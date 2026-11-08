@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // ErrAsbruOpen: Ásbrú is running, so its asbru.yml is what it was when it
@@ -14,21 +16,39 @@ var ErrAsbruOpen = errors.New("Ásbrú is open: close it first (its menu or tray
 // asbruProcs is where asbruOpen looks for running programs (a var for tests).
 var asbruProcs = "/proc"
 
-// asbruOpen is whether Ásbrú is running: a process whose program, or the
-// script its interpreter runs (perl asbru-cm), is asbru-cm. Ásbrú only runs
-// on Linux; elsewhere there's no /proc and so none.
+// asbruOpen is whether this user's Ásbrú is running: a process of theirs
+// whose program, or the script perl runs, is asbru-cm. Another user's has
+// its own asbru.yml. Ásbrú only runs on Linux; elsewhere there's no /proc
+// and so none.
 func asbruOpen() bool {
+	uid := []byte("\nUid:\t" + strconv.Itoa(os.Getuid()) + "\t") // the real uid, first of four
 	ds, _ := os.ReadDir(asbruProcs)
 	for _, d := range ds {
-		b, err := os.ReadFile(filepath.Join(asbruProcs, d.Name(), "cmdline"))
-		if err != nil {
+		dir := filepath.Join(asbruProcs, d.Name())
+		b, err := os.ReadFile(filepath.Join(dir, "cmdline"))
+		if err != nil || !asbruCmd(bytes.Split(b, []byte{0})) {
 			continue
 		}
-		args := bytes.Split(b, []byte{0})
-		for _, a := range args[:min(2, len(args))] {
-			if n := filepath.Base(string(a)); n == "asbru-cm" || n == "asbru-cm.pl" {
-				return true
-			}
+		if st, err := os.ReadFile(filepath.Join(dir, "status")); err == nil && bytes.Contains(st, uid) {
+			return true
+		}
+	}
+	return false
+}
+
+// asbruCmd is whether a command line runs Ásbrú: asbru-cm itself, or perl
+// with it as its script (the first argument after perl's options).
+func asbruCmd(args [][]byte) bool {
+	is := func(a []byte) bool { n := filepath.Base(string(a)); return n == "asbru-cm" || n == "asbru-cm.pl" }
+	if is(args[0]) {
+		return true
+	}
+	if !strings.HasPrefix(filepath.Base(string(args[0])), "perl") {
+		return false
+	}
+	for _, a := range args[1:] {
+		if !bytes.HasPrefix(a, []byte("-")) {
+			return is(a)
 		}
 	}
 	return false

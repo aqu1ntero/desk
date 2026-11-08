@@ -223,6 +223,10 @@ environments:
 	if strings.Contains(text, "Host jump-192.0.2.9\n") || !strings.Contains(text, "ProxyJump jump-192.0.2.9\n") {
 		t.Errorf("the file's jump host is used, not written again:\n%s", text)
 	}
+	text, _, _, _ = AsbruConfig([]byte(y), "", map[string]string{"jump-192.0.2.9": "192.0.2.50:22"})
+	if strings.Contains(text, "ProxyJump jump-192.0.2.9\n") || !strings.Contains(text, "Host jump-192.0.2.9-2\n") || !strings.Contains(text, "Host jump-192.0.2.9-3\n") {
+		t.Errorf("a file's host of the jump's name that goes elsewhere is not the jump:\n%s", text)
+	}
 	socks := "defaults: {proxy: Proxy, proxy ip: 192.0.2.7, proxy port: 1080}\nenvironments:\n  a: {name: a, ip: 192.0.2.1, method: SSH}\n"
 	if text, _, _, _ := AsbruConfig([]byte(socks), "", nil); !strings.Contains(text, "ProxyCommand nc -X 5 -x 192.0.2.7:1080 %h %p") {
 		t.Errorf("the global proxy:\n%s", text)

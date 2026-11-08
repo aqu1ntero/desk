@@ -3,6 +3,7 @@ package infra
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,21 +11,33 @@ import (
 )
 
 // fakeProcs points asbruOpen at an empty /proc of the test's, which
-// procs fills: each a pid's cmdline.
+// procs fills: each a pid's cmdline, this user's, or another's after
+// "other:", or with no status after "gone:".
 func fakeProcs(t *testing.T, procs ...string) {
 	dir := t.TempDir()
 	p0 := asbruProcs
 	asbruProcs = dir
 	t.Cleanup(func() { asbruProcs = p0 })
 	for i, c := range procs {
-		write(t, filepath.Join(dir, string(rune('1'+i)), "cmdline"), strings.ReplaceAll(c, " ", "\x00"))
+		pid := filepath.Join(dir, string(rune('1'+i)))
+		uid := os.Getuid()
+		if c2, ok := strings.CutPrefix(c, "other:"); ok {
+			c, uid = c2, uid+1
+		}
+		c, gone := strings.CutPrefix(c, "gone:")
+		write(t, filepath.Join(pid, "cmdline"), strings.ReplaceAll(c, " ", "\x00"))
+		if !gone {
+			// another user's has this user's uid second (effective): only the real one counts
+			write(t, filepath.Join(pid, "status"), fmt.Sprintf("Name:\tx\nUid:\t%d\t%d\t%d\t%d\n", uid, os.Getuid(), uid, uid))
+		}
 	}
 	os.WriteFile(filepath.Join(dir, "uptime"), []byte("1 1"), 0o644) // not a process
 	os.MkdirAll(filepath.Join(dir, "self-less"), 0o755)              // a process gone: no cmdline
 }
 
-// TestAsbruOpen: Ásbrú runs as its program or as perl's script; desk's own
-// import-asbru, a program further in the arguments or nothing are not it.
+// TestAsbruOpen: Ásbrú runs as its program or as perl's script, after
+// perl's options; desk's own import-asbru, a program further in the
+// arguments, another user's Ásbrú, one gone or nothing are not it.
 func TestAsbruOpen(t *testing.T) {
 	for _, c := range []struct {
 		procs []string
@@ -35,6 +48,10 @@ func TestAsbruOpen(t *testing.T) {
 		{[]string{"/opt/asbru/asbru-cm"}, true},
 		{[]string{"bash", "/usr/bin/perl /opt/asbru/asbru-cm --no-splash"}, true},
 		{[]string{"perl ./asbru-cm.pl"}, true},
+		{[]string{"/usr/bin/perl -w -CS /opt/asbru/asbru-cm"}, true},
+		{[]string{"perl -w ./other.pl /opt/asbru/asbru-cm", "perl -w"}, false},
+		{[]string{"other:/opt/asbru/asbru-cm"}, false},
+		{[]string{"gone:/opt/asbru/asbru-cm"}, false},
 	} {
 		fakeProcs(t, c.procs...)
 		if got := asbruOpen(); got != c.open {

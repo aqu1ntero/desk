@@ -390,7 +390,13 @@ func asbruJump(ip, port, user, key string, jumps map[string]*asbruHost, taken ma
 	if port != "" && port != "22" && port != "0" {
 		alias += "-" + port
 	}
-	for n := 2; slices.ContainsFunc(slices.Collect(maps.Values(jumps)), func(o *asbruHost) bool { return o.alias == alias }); n++ { // another user or key there
+	clash := func(a string) bool {
+		if w, ok := taken[a]; ok && w != asbruWhere(a, ip, port) { // the file's host of that name goes elsewhere
+			return true
+		}
+		return slices.ContainsFunc(slices.Collect(maps.Values(jumps)), func(o *asbruHost) bool { return o.alias == a }) // another user or key there
+	}
+	for n := 2; clash(alias); n++ {
 		alias = strings.TrimSuffix(alias, "-"+strconv.Itoa(n-1)) + "-" + strconv.Itoa(n)
 	}
 	_, old := taken[alias]
