@@ -169,11 +169,12 @@ func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, act *func()
 			if r.root > 0 {
 				fg, face = kit.CText, kit.Semi(kit.Sans)
 			}
-			mark := "  "
+			mark, icon := "", k.FileIcon(r.e.name, 16)
 			if r.e.dir {
-				mark = "▸ "
-				if st.open[r.e.path] {
-					mark = "▾ "
+				open := st.open[r.e.path]
+				mark, icon = "▸", kit.FolderIcon(16, kit.CAccText, open)
+				if open {
+					mark = "▾"
 				}
 			}
 			row := layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -181,7 +182,8 @@ func (u *ui) wsTree(gtx layout.Context, c *kanban.Card, st *wsState, act *func()
 					semantic.SelectedOp(on).Add(gtx.Ops) // the file shown, for screen readers
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-						layout.Rigid(k.Lbl(mark, 12, kit.CText3, kit.Mono)),
+						layout.Rigid(kit.IconBox(14, k.Lbl(mark, 12, kit.CText3, kit.Mono))), // a fixed width: ▸ comes from a fallback font
+						layout.Rigid(icon), layout.Rigid(kit.HGap(5)),
 						layout.Flexed(1, k.LblFill(r.e.name, 12, fg, face)))
 				})
 				if ok {
@@ -258,6 +260,7 @@ func (u *ui) wsCenter(gtx layout.Context, id string, st *wsState, act *func()) l
 				d, ok := k.Button(gtx, "wsTab"+tb.path, fill, kit.CHover, 0, layout.Inset{Top: 7, Bottom: 7, Left: 12, Right: 4}, func(gtx layout.Context) layout.Dimensions {
 					semantic.SelectedOp(on).Add(gtx.Ops) // the tab shown, for screen readers
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(k.FileIcon(tb.path, 16)), layout.Rigid(kit.HGap(4)),
 						layout.Rigid(k.Lbl(name, 12, fg, kit.Medium(kit.Sans))), layout.Rigid(kit.HGap(6)),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							d, ok := k.Button(gtx, "wsTabX"+tb.path, color.NRGBA{}, kit.CHover, kit.RCtl, layout.UniformInset(2), kit.Icon(11, kit.CText3, kit.IcoX))
