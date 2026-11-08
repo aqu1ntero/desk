@@ -38,8 +38,42 @@ jobs:
             libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libegl-mesa0 libgl1-mesa-dri \
             fish zsh
 
+      # internal/sshconfig's parity tests diff its output against ssh -G of
+      # OpenSSH 10.5 exactly (10.6 prints some keywords differently); without
+      # it they skip and the package falls under its floor. Ubuntu has 9.6.
+      - uses: cachix/install-nix-action@v31
+      - name: OpenSSH 10.5
+        run: |
+          ssh=$(nix build --no-link --print-out-paths "github:NixOS/nixpkgs/774debe7a0d1b496e35677ad955a1011c6ff74f3#openssh^out")
+          echo "$ssh/bin" >> "$GITHUB_PATH"
+          "$ssh/bin/ssh" -V
+
       - name: Tests
         run: go test -count=1 ./cmd/...
 
       - name: Tests and coverage
-        run: go run ./cmd/qa cover -base "origin/$GITHUB_BASE_REF" -min 98
+        run: |
+          go run ./cmd/qa cover -base "origin/$GITHUB_BASE_REF" -min 98 -report coverage.md \
+            -link "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA"
+
+      # The report, pass or fail: on the run's summary page, and as an
+      # artifact that coverage-comment.yml posts on the pull request (this
+      # run's token can't comment on a fork's).
+      - name: Coverage report
+        if: ${{ !cancelled() && hashFiles('coverage.md') != '' }}
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          cat coverage.md >> "$GITHUB_STEP_SUMMARY"
+          mkdir coverage-report
+          mv coverage.md coverage-report/
+          echo "$PR" > coverage-report/pr
+          echo "$HEAD" > coverage-report/sha
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && hashFiles('coverage-report/coverage.md') != '' }}
+        with:
+          name: coverage-report
+          path: coverage-report/
+          retention-days: 7

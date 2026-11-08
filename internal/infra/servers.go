@@ -67,6 +67,7 @@ const topGroup = "servers"
 // serverHost is one concrete Host alias of an org's servers file.
 type serverHost struct {
 	alias, addr, user, group string
+	port                     string     // its Port, "" when it has none
 	file                     string     // the file holding its Host block (applyFixes edits it)
 	password                 *SecretRef // nil: none
 	wol, desc, nagios, tags  string
@@ -203,13 +204,15 @@ func (p *serverParse) read(path, group string, depth int) {
 			}
 		case "match":
 			cur = nil
-		case "hostname", "user":
+		case "hostname", "user", "port":
 			for _, i := range cur {
 				h := &p.hosts[i]
 				if kw == "hostname" && h.addr == "" {
 					h.addr = args[0]
 				} else if kw == "user" && h.user == "" {
 					h.user = args[0]
+				} else if kw == "port" && h.port == "" {
+					h.port = args[0]
 				}
 			}
 		case "include":

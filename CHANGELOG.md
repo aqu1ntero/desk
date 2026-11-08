@@ -18,6 +18,32 @@ day). A release's section here is its notes on GitHub. The format follows
 - The infra workspace's toolbar icons (new pane, broadcast, directory, group view, Claude panel)
   show a tip with their name and key on hover.
 
+### Changed
+
+- **Importing from Ásbrú refuses while Ásbrú is open**, in Settings and in
+  `desk servers import-asbru`: Ásbrú writes its connections only when it closes, so its file could
+  be days old. Close it from its menu or tray icon, then import. An export is read anyway.
+
+### Fixed
+
+- Importing from Ásbrú one group at a time no longer drops hosts whose name another group's host
+  already took (each client's `tracker`, say): they come with their group in front
+  (`Globex-tracker`). Hosts already there are recognized by address and port, not by name, and
+  accents leave names as their plain letter instead of vanishing.
+
+## [2026.11.07.1] - 2026-11-07
+
+### Changed
+
+- **The Team view is now a canvas.** A card's full window switches **Canvas | Conversation**, and
+  the canvas draws the card's process as nodes and wires, as Blender draws nodes: the card, its
+  tickets and the workspace Claude feed the session, the session hands work to its subagents and
+  shells, its pull requests and commits go to their CI, and all of it to Done. Each Claude's node
+  shows its avatar and what it's on. Drag or scroll to pan, Ctrl/⌘+scroll to zoom, Fit to see it
+  all; a click on a node opens it (a conversation, a shell's output, the workspace, a link). Any
+  card can show it; a card that runs as an agent opens on it. The handoffs list is behind
+  **Handoffs**, and a question Claude asks now shows over the canvas too.
+
 ## [2026.11.07] - 2026-11-07
 
 desk now runs on macOS and Windows as well as Linux. Both are new and not fully tested: Windows
@@ -107,7 +133,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.07...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.07.1...HEAD
+[2026.11.07.1]: https://github.com/lfdominguez/desk/compare/2026.11.07...2026.11.07.1
 [2026.11.07]: https://github.com/lfdominguez/desk/compare/2026.11.05.1...2026.11.07
 [2026.11.05.1]: https://github.com/lfdominguez/desk/compare/2026.11.05...2026.11.05.1
 [2026.11.05]: https://github.com/lfdominguez/desk/compare/2026.11.04...2026.11.05

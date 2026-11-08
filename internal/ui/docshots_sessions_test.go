@@ -1,7 +1,7 @@
 package ui
 
 // The Sessions section's screenshots: a card's panel and full window, its
-// questions and permissions, "!" commands, subagents, the team view, diffs,
+// questions and permissions, "!" commands, subagents, the canvas, diffs,
 // the terminal's way in and the usage figures.
 
 import (
@@ -17,6 +17,8 @@ import (
 
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/kanban"
+	"github.com/lfdominguez/desk/internal/links"
+	"github.com/lfdominguez/desk/internal/orgs"
 )
 
 const (
@@ -99,7 +101,7 @@ func init() {
 		scene{"sess-question", sessQuestion},
 		scene{"sess-shell", sessShell},
 		scene{"sess-held", sessHeld},
-		scene{"sess-team", sessTeam},
+		scene{"sess-canvas", sessCanvas},
 		scene{"sess-diffs", sessDiffs},
 		scene{"sess-terminal", sessTerminal},
 		scene{"sess-full", sessFull},
@@ -376,11 +378,17 @@ func sessHeld(s *shooter) {
 	s.shot("sess-shell-task")
 }
 
-// sessTeam is the rate-limit card run as an agent: its team.
-func sessTeam(s *shooter) {
+// sessCanvas is the rate-limit card run as an agent: its canvas, with its
+// ticket, the workspace Claude, three agents and a shell, a pull request
+// whose CI failed.
+func sessCanvas(s *shooter) {
 	id := sessID(s, sessRate)
 	c := s.u.b.Card(id)
 	c.Agent, c.Status, c.Session = "planner", kanban.StatusWorking, kanban.Session{ID: "demo-team", Turns: 3, Tokens: 96000, Cost: 1.27, Context: 64000, Window: 200000}
+	pr := kanban.Link{URL: "https://github.com/acme-org/api/pull/604", Kind: links.KindGitHubPR, Ref: "PR #604", State: "open · CI failed", Tone: links.ToneBad}
+	c.Links, c.WSSession = append(c.Links, pr), "demo-ws"
+	runs, _ := ciRuns(context.Background(), pr, orgs.Config{})
+	s.u.ci["Acme"] = []ciItem{{id: id, key: c.Key(), title: c.Title, link: pr, runs: runs}}
 	s.u.moveTo(id, "In progress") // where a session's first message takes it (c is stale after)
 	s.u.save()
 	now := time.Now()
@@ -408,12 +416,39 @@ func sessTeam(s *shooter) {
 	s.settle()
 	mode, send := s.at("pnMode1"), s.at("pnSend")
 	s.move(sessPt(10, 10))
-	s.shot("sess-team",
+	s.settle()
+	s.shot("sess-canvas",
 		cut{"switch", around(union(s.at("pnMode0"), mode), 4), true},
-		cut{"handoffs", image.Rect(scaled(image.Pt(shotSize.X-380, 0)).X, mode.Max.Y+scaled(image.Pt(0, 92)).Y, scaled(shotSize).X, send.Min.Y-scaled(image.Pt(0, 112)).Y), false})
-	s.click("teamNodeExplore")
+		cut{"agents", around(union(s.node(id, "main"), s.node(id, "agent:Explore"), s.node(id, "agent:reviewer"), s.node(id, "shell:m3")), 30), false},
+		cut{"delivery", around(union(s.node(id, "link:"+pr.URL), s.node(id, "ci:"+pr.URL), s.node(id, "done")), 30), false})
+	s.click("cvHand")
 	s.move(sessPt(10, 10))
-	s.shot("sess-team-agent")
+	s.shot("sess-canvas-team",
+		cut{"handoffs", image.Rect(scaled(image.Pt(shotSize.X-380, 0)).X, mode.Max.Y+scaled(image.Pt(0, 92)).Y, scaled(shotSize).X, send.Min.Y-scaled(image.Pt(0, 112)).Y), false})
+	s.clickAt(center(s.node(id, "agent:Explore")), pointer.ButtonPrimary)
+	s.move(sessPt(10, 10))
+	s.shot("sess-canvas-agent")
+}
+
+// node is where card id's canvas drew node n last frame, in the window's
+// px: the canvas knows its own px, and where the pointer was in them.
+func (s *shooter) node(id, n string) image.Rectangle {
+	s.t.Helper()
+	mid := center(image.Rectangle{Max: scaled(shotSize)})
+	s.move(mid)
+	v := s.u.cv[id]
+	off := mid.Sub(v.ptr).Round()
+	for _, x := range v.nodes {
+		if x.id == n {
+			z := v.zoom * shotScale
+			at := func(p image.Point) image.Point {
+				return image.Pt(int(v.pan.X+float32(p.X)*z), int(v.pan.Y+float32(p.Y)*z))
+			}
+			return image.Rectangle{Min: at(x.r.Min), Max: at(x.r.Max)}.Add(off)
+		}
+	}
+	s.t.Fatalf("no node %s on the canvas", n)
+	return image.Rectangle{}
 }
 
 // sessDiffs is a turn's file changes on the rate-limit card: an edit of a

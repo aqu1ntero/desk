@@ -254,8 +254,10 @@ runs under.
   opens a rail with each one (model, task, tools, tokens, time) and their history. A held subagent
   says why: **Waiting on \<its shell\>**, **Running \<tool\>** over 30 s, **No activity** after 2
   minutes.
-- **The team view**: a card that runs as an agent shows its session as a team: the lead in the
-  middle, the agents it handed work to on a ring around it, and the briefs and results in order.
+- **The canvas**: a card's full window draws its process as a node graph (Canvas | Conversation):
+  the card, its tickets and the workspace Claude feed the session, the session hands work to its
+  subagents and shells, its pull requests go to their CI and on to Done; each Claude shows where
+  it is and what it's on. Pan, zoom, and click a node to open it.
 - **File changes**: every Edit shows as a diff (unified, split or word diff, picked per block),
   over the code's highlighting. A Write shows its size.
 - **Shell commands, explained**: Claude describes every command it runs in plain words;
@@ -463,7 +465,8 @@ desk servers import-asbru > ssh_config                   # or just print the fil
 ```
 
 It reads `~/.config/asbru/asbru.yml` (or `$ASBRU_CFG`; give another file, such as an export, as the
-last argument). Ásbrú writes that file when it closes cleanly, so close it before importing.
+last argument). Ásbrú writes that file when it closes cleanly, so close it before importing: while it runs, desk
+refuses its file and says so (an export is read anyway).
 
 - Groups become `#@ group` paths, relative to the group you picked.
 - For each host it brings the address, user (the key's user for a key login), port and key.
@@ -477,7 +480,9 @@ last argument). Ásbrú writes that file when it closes cleanly, so close it bef
 - Passwords stay behind: an ssh_config can't hold them. Point `#@ password` at your vault instead.
 - Connections that aren't SSH (RDP, VNC, Telnet…) are skipped, and so are hosts written with Ásbrú's
   variables (`<GV:…>`, `<ENV:…>`). The toast and the shell say which ones.
-- A host the file already has (by name) is left as it is, so importing again only adds the new ones.
+- A host the file already has (same address and port, under its name or the one it would get) is left
+  as it is, so importing again only adds the new ones. A name the file gives another host gets the
+  host's group in front (`acme-tracker`), even when you import one group at a time.
 
 ## Keys
 

@@ -96,7 +96,7 @@ desk servers import-asbru -org ~/Work/Acme -group Prod   # add Prod's hosts to A
 desk servers import-asbru > ssh_config                   # or just print the file
 ```
 
-It reports on stderr the hosts it skipped (`skipped …`) and how many it added (`N servers added to …`). Passwords are never imported. Close Ásbrú first: it writes its file when it closes. More in [Import from Ásbrú](/servers/asbru/).
+It reports on stderr the hosts it skipped (`skipped …`) and how many it added (`N servers added to …`). Passwords are never imported. Close Ásbrú first: it writes its file when it closes, and while it runs the command refuses that file ("Ásbrú is open: close it first…", exit 1). A `FILE` you exported is read anyway. More in [Import from Ásbrú](/servers/asbru/).
 
 ## Internal commands
 

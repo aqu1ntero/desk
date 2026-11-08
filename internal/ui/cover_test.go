@@ -2415,8 +2415,7 @@ func TestCoverServersInfra(t *testing.T) {
 // ---- team ----
 
 // TestCoverTeam: a kind run twice, one that failed, the earlier chip both
-// ways, a handoff's click, the helm alone when narrow, and a team with no
-// agents or handoffs yet.
+// ways, a handoff's click, the canvas alone when narrow.
 func TestCoverTeam(t *testing.T) {
 	h := newHarness(t)
 	c := teamCard(h)
@@ -2426,37 +2425,33 @@ func TestCoverTeam(t *testing.T) {
 	if ms := h.u.members(c.ID); ms[0].runs != 2 {
 		t.Fatalf("api runs %d", ms[0].runs)
 	}
-	sz := image.Pt(1200, 800)
+	sz := image.Pt(1400, 800)
 	var act func()
-	body := func(gtx layout.Context) layout.Dimensions { return h.u.teamBody(gtx, c, &act) }
+	body := func(gtx layout.Context) layout.Dimensions { return h.u.canvasBody(gtx, c, &act) }
 	all := image.Rectangle{Max: sz}
-	h.clickIn(sz, all, body, "teamEarlier"+c.ID)
+	h.clickIn(sz, all, body, "cvEarlier"+c.ID)
 	if act(); !h.u.earlier[c.ID] {
 		t.Fatal("earlier: shown")
 	}
-	h.clickIn(sz, all, body, "teamEarlier"+c.ID)
+	h.clickIn(sz, all, body, "cvEarlier"+c.ID)
 	if act(); h.u.earlier[c.ID] {
 		t.Fatal("earlier: hidden again")
 	}
+	h.u.handoffsOn = true
 	h.clickIn(sz, all, body, "teamHand1-a1") // after web's result, which ended long ago
 	if act(); h.u.sub != "a1" {
 		t.Fatalf("handoff: sub %q", h.u.sub)
 	}
-	h.draw(image.Pt(700, 600), body) // narrow: the helm alone
-	if s, _ := h.u.leadStatus(&kanban.Card{}, nil); s != "Idle" {
+	act = nil
+	h.draw(image.Pt(700, 600), body) // narrow: the canvas alone
+	if act != nil || len(h.labels()) == 0 {
+		t.Fatal("narrow: nothing drawn")
+	}
+	if s := leadStatus(&kanban.Card{}, nil); s != "Idle" {
 		t.Errorf("lead %q", s)
 	}
-	if s, _ := h.u.leadStatus(&kanban.Card{Status: kanban.StatusWaiting}, nil); s != statusName[kanban.StatusWaiting] {
+	if s := leadStatus(&kanban.Card{Status: kanban.StatusWaiting}, nil); s != statusName[kanban.StatusWaiting] {
 		t.Errorf("lead %q", s)
-	}
-	empty := h.u.b.Add(0, kanban.Card{Title: "y", Org: "Acme", Agent: "planner"})
-	h.draw(sz, func(gtx layout.Context) layout.Dimensions { return h.u.teamBody(gtx, h.u.b.Card(empty.ID), &act) })
-	h.u.onTask(empty.ID, &claude.Task{ID: "b9", Status: "completed"})
-	h.draw(sz, func(gtx layout.Context) layout.Dimensions { return h.u.teamBody(gtx, h.u.b.Card(empty.ID), &act) })
-	p := image.Pt(5, 5)
-	spoke(new(op.Ops), p, p, kit.CText, 1, 0)
-	if toward(p, p, 9) != p {
-		t.Error("toward itself")
 	}
 	if got := oneParagraph("First line\nsame paragraph.\n\nSecond."); got != "First line same paragraph." {
 		t.Errorf("oneParagraph %q", got)

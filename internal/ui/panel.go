@@ -160,7 +160,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 				top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill(statusName[c.Status], sc, kit.Mix(sc, kit.CPanel, .82))))
 			}
 			if c.Agent != "" {
-				top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill("Team · "+c.Agent, pastels[0], kit.Mix(pastels[0], kit.CPanel, .84))))
+				top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill("Agent · "+c.Agent, pastels[0], kit.Mix(pastels[0], kit.CPanel, .84))))
 			}
 			top = append(top, layout.Rigid(kit.HGap(8)), layout.Rigid(k.Pill("Claude · "+u.accountName(c.Org), kit.CText2, kit.CPanelCard)))
 			if t, ok := u.cardTask(c.Key()); ok { // its server work: a click shows the infra session on it
@@ -189,20 +189,14 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 			top = append(top, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
 			}))
-			if full && c.Agent != "" { // the team, or the lead's own conversation
+			if full && u.started(c) { // the canvas, or the session's own conversation
 				top = append(top, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					cur := 0
-					if u.convo[id] {
-						cur = 1
+					cur := 1
+					if u.canvasOn(c) {
+						cur = 0
 					}
-					return u.choice(gtx, "pnMode", []string{"Team", "Conversation"}, cur, func(int) color.NRGBA { return color.NRGBA{} }, func(i int) {
-						act = func() {
-							if u.sub = ""; i == 0 {
-								delete(u.convo, id)
-							} else {
-								u.convo[id] = true
-							}
-						}
+					return u.choice(gtx, "pnMode", []string{"Canvas", "Conversation"}, cur, func(int) color.NRGBA { return color.NRGBA{} }, func(i int) {
+						act = func() { u.sub, u.canvas[id] = "", i == 0 }
 					})
 				}), layout.Rigid(kit.HGap(8)))
 			}
@@ -325,13 +319,12 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 	} else if u.sub == historyKey && len(u.tasks[id]) > 0 {
 		body = func(gtx layout.Context) layout.Dimensions { return u.historyBody(gtx, id, &act) }
 	}
-	team := u.teamMode(c, full)
-	if team {
-		u.tick(gtx, id)
-		body = func(gtx layout.Context) layout.Dimensions { return u.teamBody(gtx, c, &act) }
+	canvas := u.canvasMode(c, full)
+	if canvas {
+		body = func(gtx layout.Context) layout.Dimensions { return u.canvasBody(gtx, c, &act) }
 	}
 	kids := []layout.FlexChild{layout.Rigid(header)}
-	if len(u.tasks[id]) > 0 && !team { // the team view shows them all
+	if len(u.tasks[id]) > 0 && !canvas { // the canvas shows them all
 		u.tick(gtx, id)
 		kids = append(kids, layout.Rigid(kit.VGap(1)), layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.taskBar(gtx, id, full, &act) }))
 	}
@@ -342,7 +335,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 	if why := u.snoozeAsk[id]; why != "" && !archived {
 		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.snoozeBar(gtx, c, why) }))
 	}
-	if ask != nil && !archived && !team { // docked: it can't scroll out of view
+	if ask != nil && !archived { // docked: it can't scroll out of view, over the canvas too
 		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.askBox(gtx, id, ask, &act) }))
 	}
 	if !archived {

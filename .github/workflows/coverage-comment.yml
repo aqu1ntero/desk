@@ -1,0 +1,59 @@
+name: Coverage comment
+
+# Posts ci.yml's coverage report on its pull request, as one comment that
+# each push updates. A run of its own because a pull request from a fork
+# gets a read-only token: this one runs from main's copy of this file, with
+# write access, and only reads the report the CI run left behind (as text
+# for the comment, never as code). It runs once this file is on main.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read # the CI run's artifact
+  pull-requests: write
+
+concurrency:
+  group: coverage-comment-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion != 'cancelled'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        continue-on-error: true # none when CI failed before the tests ran
+        with:
+          name: coverage-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: report
+
+      - name: Post or update the comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          [ -f report/coverage.md ] || { echo "no report in the CI run"; exit 0; }
+          pr=$(cat report/pr)
+          case "$pr" in '' | *[!0-9]*) echo "not a PR number: $pr"; exit 1 ;; esac
+          # The report must be this PR's latest: a run for an older push is
+          # skipped (the newer run posts its own).
+          head=$(gh api "repos/$REPO/pulls/$pr" --jq .head.sha)
+          if [ "$head" != "$RUN_SHA" ]; then
+            echo "PR #$pr is at $head, this run was for $RUN_SHA: skipped"
+            exit 0
+          fi
+          { cat report/coverage.md; echo; echo "<sub>[CI run]($RUN_URL) for ${RUN_SHA:0:7}</sub>"; } > body.md
+          id=$(gh api --paginate "repos/$REPO/issues/$pr/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- qa-cover -->"))) | .id' | head -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@body.md > /dev/null
+            echo "updated comment $id on #$pr"
+          else
+            gh api "repos/$REPO/issues/$pr/comments" -F body=@body.md > /dev/null
+            echo "commented on #$pr"
+          fi
