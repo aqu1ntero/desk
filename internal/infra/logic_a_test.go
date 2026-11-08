@@ -502,6 +502,28 @@ func TestPowerShellIntegration(t *testing.T) {
 	}
 }
 
+// TestInjectFullWidthPrompt: a prompt that fills the pane leaves the cursor on
+// the next, empty line; the shell's own B mark still finds it (fish's default
+// prompt with a long git branch). Unmarked, an empty line is no prompt.
+func TestInjectFullWidthPrompt(t *testing.T) {
+	for _, marked := range []bool{false, true} {
+		term, r := fakeTermA(t, "local")
+		term.emu.Resize(10, 5)
+		term.b = nil // fakeTermA's own; the shell's B mark is set by osc133, not wired here
+		if marked {
+			term.b = &pos{0, 9}
+		}
+		term.emu.Write([]byte("~/a (br)> \r\n"))
+		term.maybeInject()
+		if term.injected != marked {
+			t.Fatalf("marked %v: injected %v", marked, term.injected)
+		}
+		if got := readPipeA(r); marked && !strings.Contains(got, "BASH_VERSION") {
+			t.Errorf("typed %q", got)
+		}
+	}
+}
+
 // TestPowerShellRestoreEnv: a restored PowerShell pane reports its start's
 // environment first, then sets the kept variables with $env: (quoted the
 // PowerShell way, curly quotes too) and removes the unset ones; names a
