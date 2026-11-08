@@ -1,0 +1,37 @@
+package infra
+
+import (
+	"image"
+
+	"gioui.org/layout"
+	"gioui.org/op"
+)
+
+// tbTips is what each toolbar button does, with its key: the buttons are
+// icons only.
+var tbTips = map[string]string{
+	"tbPane":      "New pane (" + modText("T") + ")",
+	"tbBroadcast": "Broadcast: type into every pane of the tab",
+	"tbFiles":     "Directory: this server's files beside this machine's (" + modText("F") + ")",
+	"tbGroup":     "Group view: every session of the group on one page (" + modText("G") + ")",
+	"tbClaude":    "Claude panel (" + modText("J") + ")",
+}
+
+// tip shows s under button id (laid out as d) while the pointer is on it,
+// over everything else, its right edge on the button's: the toolbar's
+// buttons sit at the window's right. As kit.Tip, read after the button is
+// laid out, so the hover is this frame's.
+func (u *ui) tip(gtx layout.Context, id string, d layout.Dimensions, s string) {
+	if !u.click(id).Hovered() {
+		return
+	}
+	m := op.Record(gtx.Ops)
+	tgtx := gtx
+	tgtx.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(360), gtx.Dp(120))}
+	td := boxed(cPanelCard, cRim, rCtl, layout.Inset{Top: 4, Bottom: 4, Left: 8, Right: 8}, u.lbl(s, 11, cText, sansFont))(tgtx)
+	call := m.Stop()
+	m = op.Record(gtx.Ops)
+	op.Offset(image.Pt(d.Size.X-td.Size.X, d.Size.Y+gtx.Dp(4))).Add(gtx.Ops)
+	call.Add(gtx.Ops)
+	op.Defer(gtx.Ops, m.Stop())
+}

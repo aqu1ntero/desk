@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The infra workspace's toolbar icons (new pane, broadcast, directory, group view, Claude panel)
+  show a tip with their name and key on hover.
+
 ## [2026.11.07] - 2026-11-07
 
 desk now runs on macOS and Windows as well as Linux. Both are new and not fully tested: Windows

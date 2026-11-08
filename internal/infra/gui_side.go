@@ -597,6 +597,7 @@ func (u *ui) toolbar(gtx layout.Context) layout.Dimensions {
 					c, bg = cAccText, cAccSoft
 				}
 				d, ok := u.button(gtx, id, bg, cHover, rCtl, layout.UniformInset(5), icon(15, c, ico))
+				u.tip(gtx, id, d, tbTips[id])
 				if ok {
 					f()
 				}
