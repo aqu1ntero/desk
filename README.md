@@ -572,7 +572,9 @@ Planned, not there yet:
   search box, [go-adf](https://github.com/nyactl/go-adf) and
   [go-passbolt](https://github.com/passbolt/go-passbolt).
 - Fonts: [Manrope](https://github.com/sharanda/manrope) and
-  [Geist Mono](https://github.com/vercel/geist-font), under the SIL Open Font License.
+  [Geist Mono](https://github.com/vercel/geist-font), under the SIL Open Font License; the
+  file icons are [Seti UI](https://github.com/jesseweed/seti-ui)'s font and colors, as VS Code
+  ships them, under the MIT License.
 
 ## License
 

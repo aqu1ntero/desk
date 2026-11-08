@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The workspace's tree and tabs show an icon for each file, colored by its kind (Go, Markdown,
+  Dockerfile…), and folders a folder that opens.
+
 ## [2026.11.07.1] - 2026-11-07
 
 ### Changed

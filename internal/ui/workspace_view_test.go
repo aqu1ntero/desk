@@ -52,8 +52,8 @@ func TestWorkspaceTreeDraws(t *testing.T) {
 	h.frame()
 	h.clickButton("wsRow" + filepath.Join(dir, "pkg"))
 	// api ▾, pkg ▾, a.go, v2 ▸, main.go
-	if o, cl, f := h.count("▾ ", treeArea), h.count("▸ ", treeArea), h.count("  ", treeArea); o != 2 || cl != 1 || f != 2 {
-		t.Fatalf("marks: open %d closed %d files %d", o, cl, f)
+	if o, cl := h.count("▾", treeArea), h.count("▸", treeArea); o != 2 || cl != 1 { // files have none
+		t.Fatalf("marks: open %d closed %d", o, cl)
 	}
 	x := func(name string) int {
 		for _, l := range h.labels() {
