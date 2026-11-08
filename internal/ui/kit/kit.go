@@ -91,6 +91,7 @@ func New() *Kit {
 		"Manrope-Regular": Sans, "Manrope-Medium": Medium(Sans), "Manrope-SemiBold": Semi(Sans), "Manrope-Bold": Bold(Sans),
 		"GeistMono-Regular": Mono, "GeistMono-Bold": Bold(Mono),
 		"GeistMono-Italic": Italic(Mono), "GeistMono-BoldItalic": Italic(Bold(Mono)),
+		"seti": Seti,
 	} {
 		b, _ := fonts.ReadFile("fonts/" + file + ".ttf")
 		if face, err := opentype.Parse(b); err == nil {

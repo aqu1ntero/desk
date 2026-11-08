@@ -23,6 +23,8 @@ day). A release's section here is its notes on GitHub. The format follows
 - **Importing from Ásbrú refuses while Ásbrú is open**, in Settings and in
   `desk servers import-asbru`: Ásbrú writes its connections only when it closes, so its file could
   be days old. Close it from its menu or tray icon, then import. An export is read anyway.
+- The workspace's tree and tabs show an icon for each file, colored by its kind (Go, Markdown,
+  Dockerfile…), and folders a folder that opens.
 
 ### Fixed
 
@@ -30,6 +32,9 @@ day). A release's section here is its notes on GitHub. The format follows
   already took (each client's `tracker`, say): they come with their group in front
   (`Globex-tracker`). Hosts already there are recognized by address and port, not by name, and
   accents leave names as their plain letter instead of vanishing.
+- A terminal pane whose shell prompt is exactly as wide as the pane (fish's default prompt in a
+  git repository with a long branch name, in a narrow pane) now gets its shell integration, so a
+  restored pane brings back its directory, environment and history instead of staying busy.
 
 ## [2026.11.07.1] - 2026-11-07
 

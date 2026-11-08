@@ -307,6 +307,11 @@ func (t *Term) maybeInject() {
 	}
 	p := t.emu.CursorPosition()
 	l := strings.TrimRight(t.line(t.emu.ScrollbackLen()+p.Y), " ")
+	if l == "" && t.b != nil {
+		// a prompt as wide as the pane leaves the cursor on the next line;
+		// one the shell marked itself (fish's 133;B) is still found there
+		l = strings.TrimRight(t.line(t.b.line), " ")
+	}
 	for _, e := range promptEnd {
 		if strings.HasSuffix(l, e) {
 			t.injected = true
