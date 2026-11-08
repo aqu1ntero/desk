@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- In the infra workspace, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Page Down</kbd> and
+  <kbd>Page Up</kbd> go to the organization's next and previous tab (⌘ on macOS).
+
 ## [2026.11.08] - 2026-11-08
 
 ### Added
