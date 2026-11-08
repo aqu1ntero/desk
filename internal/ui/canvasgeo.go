@@ -320,7 +320,7 @@ type cvView struct {
 	start   f32.Point
 	last    f32.Point
 	ptr     f32.Point // where the pointer last moved, in the pane's px
-	nodes   []cvNode // last frame's, laid out
+	nodes   []cvNode  // last frame's, laid out
 }
 
 // toCanvas is pane point p (px) in canvas units, at px per dp.

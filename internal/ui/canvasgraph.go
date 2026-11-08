@@ -72,7 +72,7 @@ func (u *ui) cardGraph(c *kanban.Card, now time.Time) cvGraph {
 			status = "Answering"
 		}
 		g.nodes = append(g.nodes, cvNode{id: "ws", title: "Claude · workspace", badge: "read-only", fam: famClaude, open: "ws",
-			who: &cvWho{initials: "WS", col: wsColor, status: status, busy: busy},
+			who:  &cvWho{initials: "WS", col: wsColor, status: status, busy: busy},
 			rows: []cvRow{{name: "tools", value: "Read, Glob, Grep"}, {name: "projects", value: fmt.Sprint(len(u.projects(c)))}, {name: "Answers", out: true, sock: sockText}}})
 		sess.rows = append(sess.rows, cvRow{name: "Workspace", in: true, sock: sockText})
 		wire("ws", "Answers", "main", "Workspace")
@@ -89,7 +89,7 @@ func (u *ui) cardGraph(c *kanban.Card, now time.Time) cvGraph {
 		sess.rows = append(sess.rows, cvRow{name: "context", value: fmt.Sprintf("%d%%", s.Context*100/s.Window)})
 	}
 	sess.rows = append(sess.rows, cvRow{name: "Finish", out: true})
-	sess.who =&cvWho{initials: initials(cmp.Or(c.Agent, "Claude")), col: pastels[0], status: u.mainStatus(c, ms), busy: c.Status == kanban.StatusWorking}
+	sess.who = &cvWho{initials: initials(cmp.Or(c.Agent, "Claude")), col: pastels[0], status: u.mainStatus(c, ms), busy: c.Status == kanban.StatusWorking}
 
 	// its subagents, one node per kind, and the shells
 	shells := map[string][]*task{} // by who ran them: a subagent's node id, or "main"

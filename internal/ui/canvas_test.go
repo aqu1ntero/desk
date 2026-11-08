@@ -155,7 +155,7 @@ func TestCvRoute(t *testing.T) {
 	if !hits(cvCurve(a, b), m) {
 		t.Fatal("the straight curve should cross the middle node")
 	}
-	g.nodes =[]cvNode{g.nodes[0], g.nodes[2]} // neighbors now: one curve
+	g.nodes = []cvNode{g.nodes[0], g.nodes[2]} // neighbors now: one curve
 	if segs, _, ok := cvRoute(&g, g.wires[0]); !ok || len(segs) != 1 || segs[0][0] != a || segs[0][3] != b {
 		t.Fatalf("neighbors: %v %v", segs, ok)
 	}
@@ -301,11 +301,11 @@ func TestGridLines(t *testing.T) {
 		want []gridLine
 	}{
 		{40, 90, []gridLine{{16, false}, {40, true}, {64, false}, {88, false}}},
-		{-30, 70, []gridLine{{18, false}, {42, false}, {66, false}}},   // index 2 first
-		{-48, 30, []gridLine{{0, false}, {24, false}}},                 // exactly on 0: index 2
-		{-120, 30, []gridLine{{0, true}, {24, false}}},                 // index 5
-		{100, 30, []gridLine{{4, false}, {28, false}}},                 // indexes -4 and -3
-		{120, 30, []gridLine{{0, true}, {24, false}}},                  // index -5
+		{-30, 70, []gridLine{{18, false}, {42, false}, {66, false}}}, // index 2 first
+		{-48, 30, []gridLine{{0, false}, {24, false}}},               // exactly on 0: index 2
+		{-120, 30, []gridLine{{0, true}, {24, false}}},               // index 5
+		{100, 30, []gridLine{{4, false}, {28, false}}},               // indexes -4 and -3
+		{120, 30, []gridLine{{0, true}, {24, false}}},                // index -5
 	} {
 		if got := gridLines(c.o, 24, c.n); !slices.Equal(got, c.want) {
 			t.Errorf("gridLines(%v, 24, %d) = %v, want %v", c.o, c.n, got, c.want)
