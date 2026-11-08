@@ -539,6 +539,11 @@ func (u *ui) shortcut(e key.Event) bool {
 		}
 	case name == "V":
 		u.pasteWanted = true
+	// ponytail: on Linux this never matches: Gio's xkb names a key by its
+	// shifted keysym, so Ctrl+Shift+1 arrives as "!" (US layout), and a
+	// non-ASCII one (ES Shift+3 "·") as no key.Event at all. Upgrade: a
+	// patched Gio in third_party naming a digit key by its level-0 keysym
+	// while Ctrl+Shift is held.
 	case len(name) == 1 && name[0] >= '1' && name[0] <= '9':
 		if ts, n := u.orgTabs(), int(name[0]-'1'); n < len(ts) {
 			d.activate(ts[n])
