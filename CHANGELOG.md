@@ -8,6 +8,9 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- The server picker (double-click **Servers**) moves its selection with <kbd>↑</kbd>,
+  <kbd>↓</kbd>, <kbd>Page Up</kbd> and <kbd>Page Down</kbd>, and <kbd>Enter</kbd> opens the
+  selected server. A long list shows a scrollbar.
 - The infra workspace's toolbar icons (new pane, broadcast, directory, group view, Claude panel)
   show a tip with their name and key on hover.
 
