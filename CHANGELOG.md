@@ -8,6 +8,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Show the server's login message**, a switch in an organization's settings
+  (`clear_login = false` in its `desk.toml`), keeps what a server prints at login (banner,
+  message of the day) in its panes. By default the screen is still cleared once desk's
+  shell integration is in.
 - The server picker (double-click **Servers**) moves its selection with <kbd>↑</kbd>,
   <kbd>↓</kbd>, <kbd>Page Up</kbd> and <kbd>Page Down</kbd>, and <kbd>Enter</kbd> opens the
   selected server. A long list shows a scrollbar.
