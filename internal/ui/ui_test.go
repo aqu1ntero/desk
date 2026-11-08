@@ -53,8 +53,9 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Setenv("DESK_ROOT", root)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // not the user's folders to search
-	if onWindows {
-		t.Setenv("USERPROFILE", t.TempDir()) // Windows' temp folder is inside the profile: root would read as ~/…
+	if home, _ := os.UserHomeDir(); strings.HasPrefix(root, home+string(filepath.Separator)) {
+		// a temp folder inside home (Windows' always, a CI runner's TMPDIR): root would read as ~/…
+		t.Setenv(map[bool]string{true: "USERPROFILE", false: "HOME"}[onWindows], t.TempDir())
 	}
 	fakeBin(t, "claude", "exit 0") // a terminal's command needs one on PATH; never the machine's
 	assigned = func(context.Context, orgs.Config) ([]links.Ticket, error) { return nil, nil }
