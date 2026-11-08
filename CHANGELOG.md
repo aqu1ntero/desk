@@ -6,6 +6,18 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Show the server's login message**, a switch in an organization's settings
+  (`clear_login = false` in its `desk.toml`), keeps what a server prints at login (banner,
+  message of the day) in its panes. By default the screen is still cleared once desk's
+  shell integration is in.
+- The server picker (double-click **Servers**) moves its selection with <kbd>↑</kbd>,
+  <kbd>↓</kbd>, <kbd>Page Up</kbd> and <kbd>Page Down</kbd>, and <kbd>Enter</kbd> opens the
+  selected server. A long list shows a scrollbar.
+- The infra workspace's toolbar icons (new pane, broadcast, directory, group view, Claude panel)
+  show a tip with their name and key on hover.
+
 ### Changed
 
 - **Importing from Ásbrú refuses while Ásbrú is open**, in Settings and in

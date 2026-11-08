@@ -23,6 +23,7 @@ import (
 // internal/orgs), the same file desk's links read:
 //
 //	record = false # top-level, before any [table]: don't record panes as asciicasts (on by default)
+//	clear_login = false # top-level: keep what a pane printed before its first prompt (the motd)
 //
 //	[[vault]]                  # passbolt and bitwarden open through internal/vault (shared with desk's links)
 //	name = "hv"
@@ -57,7 +58,10 @@ type orgConfig struct {
 	Metrics   []SourceCfg
 	Approvals deskorgs.Approvals
 	Record    *bool // record every pane as an asciicast (audit.go); unset means on
-	Schedule  deskorgs.Schedule
+	// ClearLogin: false keeps a pane's login output past the shell
+	// integration's clear (term.go's keepLogin); unset means clear.
+	ClearLogin *bool
+	Schedule   deskorgs.Schedule
 
 	mu     sync.Mutex
 	vaults map[string]vault
@@ -171,7 +175,7 @@ func loadOrg(dir string) (*orgConfig, error) {
 
 // fromDesk is the Org desk.toml describes.
 func fromDesk(c deskorgs.Config) *orgConfig {
-	o := &orgConfig{Record: c.Record, Approvals: c.Approvals, Schedule: c.Schedule}
+	o := &orgConfig{Record: c.Record, ClearLogin: c.ClearLogin, Approvals: c.Approvals, Schedule: c.Schedule}
 	for _, v := range c.Vaults {
 		o.Vaults = append(o.Vaults, VaultCfg{Name: v.Name, Type: v.Kind, URL: v.URL, Insecure: v.Insecure, Mount: v.Mount, TokenEnv: v.TokenEnv, desk: v})
 	}
@@ -201,6 +205,10 @@ func sourceName(name, raw string) string {
 // records: panes are recorded unless the org's config says record = false
 // (no config at all records too).
 func (o *orgConfig) records() bool { return o == nil || o.Record == nil || *o.Record }
+
+// keepsLogin: a pane keeps its login output only when the org's config
+// says clear_login = false.
+func (o *orgConfig) keepsLogin() bool { return o != nil && o.ClearLogin != nil && !*o.ClearLogin }
 
 // toolGroups names the optional tool sets this org has sources for.
 func (o *orgConfig) toolGroups() []string {

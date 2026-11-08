@@ -70,6 +70,8 @@ type Term struct {
 	restore    string            // commands run after the shell integration (cd, exports of a restored session)
 	psRestore  string            // restore's environment for PowerShell ("; $env:K = 'v'"…)
 	pending    *paneState        // restored history, written once the injection's clear ran (replayMark)
+	keepLogin  bool              // put what came before the first prompt back after the clear (banner)
+	banner     string            // that text, waiting for the replayMark
 	rev        int               // bumps when something paneState keeps changes (session saves)
 	onBlock    func(Block)       // called (with mu held) as each command finishes
 	rec        *recorder         // records the output (unless desk.toml says record = false)
@@ -263,7 +265,7 @@ func startTerm(host string, p proc, w, h int, notify func(), prelude paneState) 
 				return
 			}
 			data := buf[:n]
-			if t.pending != nil {
+			if t.pending != nil || t.banner != "" {
 				if i := bytes.Index(data, replayMark); i >= 0 {
 					t.emu.Write(data[:i+len(replayMark)])
 					t.writeHistory()
@@ -308,20 +310,23 @@ func (t *Term) maybeInject() {
 	for _, e := range promptEnd {
 		if strings.HasSuffix(l, e) {
 			t.injected = true
+			if t.keepLogin {
+				t.banner = t.loginText(t.emu.ScrollbackLen() + p.Y)
+			}
 			if e == ">" && strings.HasPrefix(l, "PS ") {
 				// the start's environment first, then the restored one
 				mark := `; [Console]::Write("$(__deskE)")` + t.psRestore
 				if t.cwd != "" { // a restored pane's
 					mark += "; Set-Location -LiteralPath " + psQuote(t.cwd)
 				}
-				if t.pending != nil {
+				if t.pending != nil || t.banner != "" {
 					mark += `; [Console]::Write("$([char]27)]6974$([char]7)")` // replayMark
 				}
 				io.WriteString(t.pty, psIntegration+mark+"\r")
 				return
 			}
 			clear := "clear" // ED 3: the motd and our line go, scrollback too
-			if t.pending != nil {
+			if t.pending != nil || t.banner != "" {
 				clear += `; printf '\033]6974\007'` // replayMark: the history goes in after the wipe
 			}
 			io.WriteString(t.pty, strings.TrimSuffix(shellIntegration, "clear\r")+"__desk_e; "+t.restore+clear+"\r")
@@ -401,6 +406,8 @@ type paneState struct {
 	Cwd    string            `json:",omitempty"`
 	Env    map[string]string `json:",omitempty"` // exported or changed since the shell started
 	Unset  []string          `json:",omitempty"` // unset since it started
+
+	keepLogin bool // the org's clear_login = false: never saved, set by dial
 }
 
 // keptLines caps the text a pane keeps.
@@ -484,6 +491,7 @@ var replayMark = []byte("\x1b]6974\x07")
 // replay queues a kept state: its text for writeHistory, the cd and exports
 // for after the shell integration.
 func (t *Term) replay(st paneState) {
+	t.keepLogin = st.keepLogin
 	if st.Text != "" {
 		t.pending = &st
 	}
@@ -512,10 +520,37 @@ func (t *Term) replay(st paneState) {
 	t.cwd = st.Cwd
 }
 
-// writeHistory writes the pending text into the just-cleared emulator, puts
+// loginText is what the shell printed above its first prompt (on line
+// end): the login banner and motd, without the blank lines at its end.
+// Plain text: their colors don't come back. mu is held.
+func (t *Term) loginText(end int) string {
+	var ls []string
+	for i := max(0, end-keptLines); i < end; i++ {
+		ls = append(ls, strings.TrimRight(t.line(i), " "))
+	}
+	for len(ls) > 0 && ls[len(ls)-1] == "" {
+		ls = ls[:len(ls)-1]
+	}
+	return strings.Join(ls, "\n")
+}
+
+// writeHistory writes what goes back into the just-cleared emulator: the
+// restored history (writeKept) into the scrollback, then the login output
+// on screen above the coming prompt. mu is held.
+func (t *Term) writeHistory() {
+	if t.pending != nil {
+		t.writeKept()
+	}
+	if t.banner != "" {
+		t.emu.Write([]byte(strings.ReplaceAll(t.banner, "\n", "\r\n") + "\r\n"))
+		t.banner = ""
+	}
+}
+
+// writeKept writes the pending text into the just-cleared emulator, puts
 // its blocks back where their lines landed (wrapping may move them) and
 // pushes it all into the scrollback above the coming prompt. mu is held.
-func (t *Term) writeHistory() {
+func (t *Term) writeKept() {
 	st := t.pending
 	t.pending = nil
 	lines := strings.Split(st.Text, "\n")

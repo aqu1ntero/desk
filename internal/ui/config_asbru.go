@@ -54,9 +54,28 @@ func (u *ui) cfgServers(gtx layout.Context) layout.Dimensions {
 		row = append(row, btn("cfgAsbruNo", "Cancel", func() { d.asbru = nil }))
 	}
 	hint := d.asbruHint()
+	login := func(gtx layout.Context) layout.Dimensions { // clear_login = false
+		return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				dim, ok := k.Switch(gtx, "cfgKeepLogin", d.opts.on["keep_login"])
+				if ok {
+					d.act = func() { d.opts.on["keep_login"] = !d.opts.on["keep_login"] }
+				}
+				return dim
+			}),
+			layout.Rigid(kit.HGap(10)),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(k.Lbl("Show the server's login message", 13, kit.CText, kit.Sans)),
+					layout.Rigid(k.Lbl("Its banner and message of the day stay above a pane's first prompt, as plain text; off, the screen is cleared once desk's shell integration is in.", 11, kit.CText3, kit.Sans)))
+			}))
+	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(kit.VGap(18)),
 		layout.Rigid(k.Caption("Servers")),
+		layout.Rigid(kit.VGap(8)),
+		layout.Rigid(login),
+		layout.Rigid(kit.VGap(12)),
 		layout.Rigid(kit.VGap(4)),
 		layout.Rigid(k.Lbl(state, 12, kit.CText2, kit.Mono)),
 		layout.Rigid(kit.VGap(4)),

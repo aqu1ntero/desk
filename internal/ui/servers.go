@@ -205,7 +205,7 @@ func (u *ui) serversClicked(org string, now time.Time) {
 	if u.srvClickOf == org && now.Sub(u.srvClickAt) < doubleClick {
 		u.pick, u.srvClickOf = org, ""
 		u.pickQ.SetText("")
-		u.pickFocus = true
+		u.pickSel, u.pickLast, u.pickFocus = 0, "", true
 		return
 	}
 	u.srvClickOf, u.srvClickAt = org, now
@@ -248,22 +248,78 @@ func (u *ui) pickServer(org string, r pickRow) {
 	u.view, u.pick = "srv:"+org, ""
 }
 
+// pickAt is the list index of rows[i]: the group headers come before
+// their first host.
+func pickAt(rows []pickRow, i int) int {
+	at, group := 0, "\x00"
+	for j, r := range rows[:i+1] {
+		if r.host.Name != "" && r.group != group {
+			group = r.group
+			at++
+		}
+		if j < i {
+			at++
+		}
+	}
+	return at
+}
+
 // serverPicker is the dialog of all an org's servers, by group, searched as
-// typed; a click (or enter, on the first) opens its session.
+// typed; up and down move the selection (the first row at the start), and
+// enter or a click opens its session.
 func (u *ui) serverPicker(gtx layout.Context) {
 	org := u.pick
 	if org == "" || u.infra == nil {
 		return
 	}
 	k := u.k
+	if q := u.pickQ.Text(); q != u.pickLast {
+		u.pickSel, u.pickLast = 0, q
+	}
 	rows := u.pickRows(org, u.pickQ.Text())
+	u.pickSel = max(min(u.pickSel, len(rows)-1), 0)
+	open := func() bool {
+		if u.pickSel < len(rows) {
+			u.pickServer(org, rows[u.pickSel])
+			return true
+		}
+		return false
+	}
+	for { // focus-less filters, so they beat the search field's own
+		ev, ok := gtx.Event(key.Filter{Name: key.NameUpArrow}, key.Filter{Name: key.NameDownArrow},
+			key.Filter{Name: key.NamePageUp}, key.Filter{Name: key.NamePageDown},
+			key.Filter{Name: key.NameReturn}, key.Filter{Name: key.NameEnter})
+		if !ok {
+			break
+		}
+		e, ok := ev.(key.Event)
+		if !ok || e.State != key.Press {
+			continue
+		}
+		step := 0
+		switch e.Name {
+		case key.NameUpArrow:
+			step = -1
+		case key.NameDownArrow:
+			step = 1
+		case key.NamePageUp:
+			step = -pickPage
+		case key.NamePageDown:
+			step = pickPage
+		default:
+			if open() {
+				return
+			}
+		}
+		u.pickSel = max(min(u.pickSel+step, len(rows)-1), 0)
+		u.pickReveal(rows)
+	}
 	for {
 		ev, ok := u.pickQ.Update(gtx)
 		if !ok {
 			break
 		}
-		if _, ok := ev.(widget.SubmitEvent); ok && len(rows) > 0 {
-			u.pickServer(org, rows[0])
+		if _, ok := ev.(widget.SubmitEvent); ok && open() {
 			return
 		}
 	}
@@ -297,6 +353,10 @@ func (u *ui) serverPicker(gtx layout.Context) {
 			event.Op(gtx.Ops, &u.pickList)
 			box.Pop()
 			var ws []layout.Widget
+			at := -1
+			if len(rows) > 0 {
+				at = pickAt(rows, u.pickSel)
+			}
 			group := "\x00"
 			for _, r := range rows {
 				if r.host.Name != "" && r.group != group {
@@ -305,7 +365,8 @@ func (u *ui) serverPicker(gtx layout.Context) {
 						return layout.Inset{Top: 10, Bottom: 4, Left: 4}.Layout(gtx, k.Lbl(r.group, 12, kit.CText3, kit.Semi(kit.Sans)))
 					})
 				}
-				ws = append(ws, func(gtx layout.Context) layout.Dimensions { return u.pickItem(gtx, org, r) })
+				on := len(ws) == at
+				ws = append(ws, func(gtx layout.Context) layout.Dimensions { return u.pickItem(gtx, org, r, on) })
 			}
 			if len(ws) == 0 {
 				ws = append(ws, func(gtx layout.Context) layout.Dimensions {
@@ -322,15 +383,34 @@ func (u *ui) serverPicker(gtx layout.Context) {
 				layout.Rigid(kit.VGap(4)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { // as tall as its rows, up to the window
 					gtx.Constraints.Min.Y = 0
-					return u.pickList.Layout(gtx, len(ws), func(gtx layout.Context, i int) layout.Dimensions { return ws[i](gtx) })
+					return kit.ScrollList(gtx, &u.pickList, len(ws), func(gtx layout.Context, i int) layout.Dimensions { return ws[i](gtx) })
 				}))
 		})(gtx)
 	})
 }
 
+// pickPage is how many rows page up and down move the picker's selection.
+const pickPage = 8
+
+// pickReveal scrolls the picker's list to keep the selected row in view;
+// the first row takes its group's header along.
+func (u *ui) pickReveal(rows []pickRow) {
+	if len(rows) == 0 {
+		return
+	}
+	r := pickAt(rows, u.pickSel)
+	if u.pickSel == 0 {
+		r = 0
+	}
+	if pos := u.pickList.Position; r < pos.First || r >= pos.First+pos.Count-1 {
+		u.pickList.ScrollTo(max(r-1, 0))
+	}
+}
+
 // pickItem is a picker row: its state dot, name and what the host tree prints
-// beside it (address, "2 panes", the alert).
-func (u *ui) pickItem(gtx layout.Context, org string, r pickRow) layout.Dimensions {
+// beside it (address, "2 panes", the alert); on, the selected one, shows
+// the enter key.
+func (u *ui) pickItem(gtx layout.Context, org string, r pickRow, on bool) layout.Dimensions {
 	k := u.k
 	name, ico, c := r.host.Name, kit.IconPath(nil), serverColor[r.host.State]
 	meta := cmp.Or(r.host.Meta, r.host.Addr)
@@ -338,7 +418,11 @@ func (u *ui) pickItem(gtx layout.Context, org string, r pickRow) layout.Dimensio
 		name, ico, c, meta = org+" Claude", kit.IcoSpark, kit.CPurple, "the org-wide session, no server"
 	}
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
-	d, ok := k.Button(gtx, "pick"+r.group+"/"+r.host.Name, color.NRGBA{}, kit.CHover, kit.RCtl, layout.Inset{Top: 6, Bottom: 6, Left: 8, Right: 8}, func(gtx layout.Context) layout.Dimensions {
+	fill := color.NRGBA{}
+	if on {
+		fill = kit.CSel
+	}
+	d, ok := k.Button(gtx, "pick"+r.group+"/"+r.host.Name, fill, kit.CHover, kit.RCtl, layout.Inset{Top: 6, Bottom: 6, Left: 8, Right: 8}, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		mark := kit.Dot(c)
 		if ico != nil {
@@ -351,7 +435,13 @@ func (u *ui) pickItem(gtx layout.Context, org string, r pickRow) layout.Dimensio
 			}),
 			layout.Rigid(kit.HGap(8)),
 			layout.Flexed(1, k.LblFill(name, 13, kit.CText, kit.Medium(kit.Sans))),
-			layout.Rigid(k.Lbl(meta, 12, kit.CText3, kit.Sans)))
+			layout.Rigid(k.Lbl(meta, 12, kit.CText3, kit.Sans)),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if !on {
+					return layout.Dimensions{}
+				}
+				return layout.Inset{Left: 8}.Layout(gtx, k.KeyCap("↵", false))
+			}))
 	})
 	if ok {
 		u.pickServer(org, r)

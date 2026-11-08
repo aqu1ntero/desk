@@ -86,7 +86,9 @@ type ui struct {
 	infraOn    bool                       // the workspace is what the user looks at
 	pick       string                     // the org whose server picker is open, "" none
 	pickQ      widget.Editor              // its search
-	pickList   layout.List                //
+	pickList   widget.List                // its rows, with a scrollbar
+	pickSel    int                        // the row up/down moved to, enter opens
+	pickLast   string                     // the search pickSel was moved under: a new one starts at the top
 	pickFocus  bool                       // focus its search next frame
 	srvClickOf string                     // the org whose Servers row was clicked last, and when: a second click soon opens the picker
 	srvClickAt time.Time                  //
@@ -292,7 +294,7 @@ func (u *ui) busy(org string) (done func()) {
 
 // sig is the UI state a frame draws from, cheaply. Add new state here.
 func (u *ui) sig() string {
-	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, orgs.Zoom())
+	return fmt.Sprint(u.gen, u.view, u.side, u.sel, u.panel, u.edit != nil, u.edit != nil && u.edit.optStop != nil, u.search.Text(), u.blur, u.chatFocus, u.unlock != nil, len(u.locked), u.cfg.sig(), u.tkGen, len(u.terms), len(u.asks), u.limGen, u.sub, u.rail, u.selRange(), u.menu != nil, u.exGen, len(u.diffOpen), u.diffOpenCount(), fmt.Sprint(u.canvas), u.handoffsOn, len(u.earlier), u.pick, u.pickSel, fmt.Sprint(u.diffMode), len(u.shellStop), u.palSig(), u.wsGen, orgs.Zoom())
 }
 
 // frame draws the window. Gio draws only when an event comes, and a click

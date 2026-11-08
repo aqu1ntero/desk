@@ -401,6 +401,7 @@ func (m *model) addPaneFrom(t *Tab, n node, claude bool, st paneState) *Pane {
 // dial starts a terminal for a pane of t: audited, and recorded unless the
 // org opts out.
 func (m *model) dial(t *Tab, host, dir, label string, w, h int, prelude paneState) *Term {
+	prelude.keepLogin = t.orgCfg.keepsLogin()
 	term, err := NewTerm(host, dir, w, h, notify, prelude)
 	if err != nil {
 		m.errText = err.Error()

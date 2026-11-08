@@ -43,11 +43,13 @@ with the organization's own Claude first.
 
 ![The picker: "Globex · servers", a search field "Find a server: name, group, address", Globex Claude, then web-01 and web-02 under web, db-01 and db-02 under db, each with its address](../../../assets/shots/srv-picker-box.png)
 
-<figcaption>Type to filter by name, group or address. Enter opens the first match.</figcaption>
+<figcaption>Type to filter by name, group or address. Enter opens the selected match, the first one at the start.</figcaption>
 </figure>
 
-The search uses the same [fzf syntax](/board/search/) as the board. A click opens the
-server's session, or goes to it if it's already open. A click outside closes the picker.
+The search uses the same [fzf syntax](/board/search/) as the board. <kbd>↑</kbd> and <kbd>↓</kbd>
+move the selection (<kbd>Page Up</kbd> and <kbd>Page Down</kbd> a page at a time) and
+<kbd>Enter</kbd> opens it; a click opens any row. Either opens the server's session, or goes to it
+if it's already open. A long list shows a scrollbar. A click outside closes the picker.
 
 Pick **Globex Claude** for the organization-wide session: a Claude with no terminal yet, which
 connects to the servers you ask it about.
@@ -93,7 +95,7 @@ directory, the conversation and Claude's session all come back.
 <figcaption>The toolbar, on the right of the tab strip.</figcaption>
 </figure>
 
-From left to right:
+From left to right (hover an icon for its name and key):
 
 | Button | What it does | Key |
 |---|---|---|

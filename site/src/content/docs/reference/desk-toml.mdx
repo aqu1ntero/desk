@@ -21,6 +21,7 @@ These go before the first `[table]` (a TOML rule: after a table header, a key be
 | `agent` | string | none | The Claude Code agent new cards' sessions run as. The new-card dialog's **Agent** row starts on it. |
 | `agents` | string | `.claude/agents` | Where the agent files are, relative to this folder. |
 | `record` | bool | `true` | `false` stops recording the infra workspace's panes. |
+| `clear_login` | bool | `true` | `false` keeps what a server prints at login (banner, message of the day) above a pane's first prompt, after the shell integration clears the screen. The organization's settings page has it as **Show the server's login message**. |
 
 ## Tokens
 
@@ -165,6 +166,7 @@ Which of the infra Claude's commands run without asking. Patterns match the whol
 agent = "planner"                 # new cards' sessions run as this Claude Code agent
 agents = "meta/.claude/agents"    # where its agent files are (default .claude/agents)
 record = true                     # record the infra panes (default)
+clear_login = false               # keep the login banner and motd in the panes
 
 [[vault]]
 name = "me"

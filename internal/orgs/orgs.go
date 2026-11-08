@@ -205,11 +205,14 @@ type Config struct {
 	Nagios    []Nagios    `toml:"nagios"`
 	Vaults    []Vault     `toml:"vault"`
 	// The infra workspace's (internal/infra).
-	Servers   Servers   `toml:"servers"`
-	Record    *bool     `toml:"record"` // false: don't record its terminals as asciicasts (on by default)
-	Approvals Approvals `toml:"approvals"`
-	Schedule  Schedule  `toml:"schedule"`
-	Metrics   []Metrics `toml:"metrics"`
+	Servers Servers `toml:"servers"`
+	Record  *bool   `toml:"record"` // false: don't record its terminals as asciicasts (on by default)
+	// ClearLogin false keeps what a pane printed before its first prompt
+	// (the login banner, the motd); on by default.
+	ClearLogin *bool     `toml:"clear_login"`
+	Approvals  Approvals `toml:"approvals"`
+	Schedule   Schedule  `toml:"schedule"`
+	Metrics    []Metrics `toml:"metrics"`
 }
 
 // Root is the folder of organizations: $DESK_ROOT, else ~/Work.

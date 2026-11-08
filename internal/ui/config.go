@@ -110,6 +110,7 @@ type cfgDialog struct {
 	raw     map[string]any // the file; tables desk doesn't edit are kept
 	entries []*cfgEntry
 	langs   *cfgEntry // cfgFolders only: the languages ("card", "chat"), saved with the folders
+	opts    *cfgEntry // an org page only: its top-level switches (on["keep_login"]: clear_login = false)
 	list    layout.List
 	err     string
 	broken  bool   // the file didn't parse: saving would lose it
@@ -185,6 +186,9 @@ func (e *cfgEntry) edited() bool { return e.old && e.snap() != e.base }
 func (d *cfgDialog) changes() int {
 	n := d.n0
 	if d.langs != nil && d.langs.edited() {
+		n++
+	}
+	if d.opts != nil && d.opts.edited() {
 		n++
 	}
 	for _, e := range d.entries {
@@ -329,6 +333,9 @@ func (u *ui) loadOrg(d *cfgDialog) {
 		d.err, d.broken, raw = firstLine(err.Error())+" — fix it by hand", true, map[string]any{}
 	}
 	d.raw = raw
+	d.opts = &cfgEntry{kind: "opts", eds: map[string]*widget.Editor{}, src: map[string]int{}, on: map[string]bool{}}
+	d.opts.on["keep_login"] = raw["clear_login"] == false
+	d.opts.old, d.opts.base = true, d.opts.snap()
 	for _, k := range cfgKinds {
 		tables, _ := raw[k.key].([]map[string]any)
 		for _, t := range tables {
@@ -421,6 +428,10 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 		if i, _ := kindOf(k); i < 0 {
 			out[k] = v
 		}
+	}
+	delete(out, "clear_login") // the switch's: written only when it keeps the login output
+	if d.opts.on["keep_login"] {
+		out["clear_login"] = false
 	}
 	for _, e := range d.entries {
 		t := e.raw
