@@ -1,0 +1,43 @@
+name: Bug report
+description: Something in desk doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. See …
+  - type: input
+    id: version
+    attributes:
+      label: desk version
+      description: "`desk --version`, or the version in Settings."
+      placeholder: "2026.11.07.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installed from
+      options: [AppImage, .deb, AUR, Nix, Windows MSI or zip, macOS zip, From source]
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Operating system and, on Linux, the desktop or compositor.
+      placeholder: "Ubuntu 24.04, GNOME"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error text or screenshots
+      description: Leave out tokens, passwords, host names and anything else private.

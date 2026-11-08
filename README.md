@@ -505,6 +505,9 @@ every key, Esc included, for Claude Code, except the text size's.
 
 ## Development
 
+[CONTRIBUTING.md](CONTRIBUTING.md) says how to report bugs and send pull requests;
+[SECURITY.md](SECURITY.md), how to report a vulnerability privately.
+
 ```sh
 nix develop                     # Go, cgo and the Wayland headers; or install them yourself
 go test ./...                   # the dev shell sets -tags nox11
