@@ -539,11 +539,18 @@ func (u *ui) shortcut(e key.Event) bool {
 		}
 	case name == "V":
 		u.pasteWanted = true
+	// ponytail: on Linux this never matches: Gio's xkb names a key by its
+	// shifted keysym, so Ctrl+Shift+1 arrives as "!" (US layout), and a
+	// non-ASCII one (ES Shift+3 "·") as no key.Event at all. Upgrade: a
+	// patched Gio in third_party naming a digit key by its level-0 keysym
+	// while Ctrl+Shift is held.
 	case len(name) == 1 && name[0] >= '1' && name[0] <= '9':
 		if ts, n := u.orgTabs(), int(name[0]-'1'); n < len(ts) {
 			d.activate(ts[n])
 			u.wantTerm = true
 		}
+	case e.Name == key.NamePageUp || e.Name == key.NamePageDown:
+		u.cycleTab(e.Name == key.NamePageDown)
 	default:
 		return false
 	}
@@ -551,12 +558,29 @@ func (u *ui) shortcut(e key.Event) bool {
 	return true
 }
 
+// cycleTab activates the org's next tab (or previous), wrapping around; from a
+// tab of another org, its first (or last).
+func (u *ui) cycleTab(next bool) {
+	ts := u.orgTabs()
+	if len(ts) == 0 {
+		return
+	}
+	n := map[bool]int{true: 0, false: len(ts) - 1}[next]
+	for j, i := range ts {
+		if i == u.st.Active {
+			n = (j + map[bool]int{true: 1, false: len(ts) - 1}[next]) % len(ts)
+		}
+	}
+	u.d.activate(ts[n])
+	u.wantTerm = true
+}
+
 // shortcutFilters are the keys shortcut handles, for the window-wide handler.
 // On macOS ⌘C and ⌘V stay out: a focus-less filter beats the focused
 // editor, whose copy and paste they are there; a focused terminal still
 // hands them to shortcut (termEvents).
 func shortcutFilters() []key.Filter {
-	names := []key.Name{"K", "T", "W", "J", "G", "Y", "P", "S", "L", "F", "H", key.NameUpArrow, key.NameDownArrow, "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+	names := []key.Name{"K", "T", "W", "J", "G", "Y", "P", "S", "L", "F", "H", key.NameUpArrow, key.NameDownArrow, key.NamePageUp, key.NamePageDown, "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 	if shortcutMod != key.ModCommand {
 		names = append(names, "C", "V")
 	}
