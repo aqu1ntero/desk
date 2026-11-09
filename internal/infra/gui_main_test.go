@@ -825,8 +825,45 @@ func TestGMShortcut(t *testing.T) {
 	if len(h.acts()) != 0 {
 		t.Error("4 is past the org's tabs")
 	}
-	if n := map[bool]int{true: 22, false: 24}[shortcutMod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'
+	if n := map[bool]int{true: 24, false: 26}[shortcutMod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'
 		t.Error("filters")
+	}
+}
+
+func TestGMCycleTab(t *testing.T) {
+	h := newGM(t)
+	u := h.u
+	tabs := append(append(gmTabs("Globex", 1), gmTabs("Acme", 3)...), gmTabs("Initech", 1)...)
+	u.org = "Acme"
+	step := func(active int, name key.Name) int {
+		t.Helper()
+		h.set(&guiState{Tabs: tabs, Active: active})
+		u.wantTerm = false
+		if !u.shortcut(key.Event{Name: name, Modifiers: shortcutMod, State: key.Press}) || !u.wantTerm {
+			t.Fatalf("%s from %d isn't handled", name, active)
+		}
+		m := &model{tabs: make([]*Tab, len(tabs)), active: -1}
+		h.runActs(m)
+		return m.active
+	}
+	for _, c := range []struct {
+		from int
+		name key.Name
+		want int
+	}{
+		{1, key.NamePageDown, 2}, {2, key.NamePageDown, 3}, {3, key.NamePageDown, 1}, // wraps
+		{3, key.NamePageUp, 2}, {2, key.NamePageUp, 1}, {1, key.NamePageUp, 3},
+		{0, key.NamePageDown, 1}, {0, key.NamePageUp, 3}, // from another org's tab
+	} {
+		if got := step(c.from, c.name); got != c.want {
+			t.Errorf("%s from %d: %d, want %d", c.name, c.from, got, c.want)
+		}
+	}
+	u.org = "Umbrella" // no tabs
+	h.set(&guiState{Tabs: tabs})
+	u.shortcut(key.Event{Name: key.NamePageDown, Modifiers: shortcutMod, State: key.Press})
+	if len(h.acts()) != 0 {
+		t.Error("an org without tabs has none to go to")
 	}
 }
 
