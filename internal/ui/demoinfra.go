@@ -91,7 +91,7 @@ func demoInfra(dir string) error {
 		c.Env = []string{"DESK_DEMO_HOST=" + host, "HOME=" + home}
 		return c
 	}
-	exe, err := os.Executable()
+	exe, err := infra.Self()
 	infra.ClaudeCmd = func(args ...string) *exec.Cmd { return exec.Command(exe, "demo-infra", demoSock(args)) }
 	return err
 }

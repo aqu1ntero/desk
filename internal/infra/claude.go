@@ -177,7 +177,7 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 		return nil, err
 	}
 	fail := func(err error) (*Claude, error) { ln.Close(); return nil, err }
-	exe, _ := os.Executable()
+	exe, _ := Self()
 	mcp, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{
 		"desk": map[string]any{"type": "stdio", "command": exe, "args": []string{"mcp", sock, strings.Join(org.toolGroups(), ",")}}}})
 	// Built-in tools off: Claude only acts through the shared terminal. Auto

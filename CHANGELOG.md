@@ -6,6 +6,14 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The AppImage updates itself** with AppImageUpdate (or AppImageLauncher, Gear Lever…): it
+  carries where its updates are published, and each release has its `.zsync`, so an update
+  downloads only what changed.
+- The AppImage brings its own glibc and uses it on distributions older than Ubuntu 22.04 (Debian
+  11, RHEL 8…), where it didn't start before.
+
 ## [2026.11.15.1] - 2026-11-15
 
 ### Fixed

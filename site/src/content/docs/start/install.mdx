@@ -45,6 +45,8 @@ chmod +x desk-*-x86_64.AppImage
 ./desk-*-x86_64.AppImage
 ```
 
+It opens under Wayland and X11 and brings the libraries it needs, glibc too: on a distribution older than Ubuntu 22.04 (Debian 11, RHEL 8…) it runs on the glibc it carries. It knows where its updates are published, so [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate) (or AppImageLauncher, Gear Lever…) updates it to the latest release, downloading only what changed.
+
 </TabItem>
 <TabItem label="Debian / Ubuntu">
 
