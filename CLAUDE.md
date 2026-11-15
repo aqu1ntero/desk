@@ -25,7 +25,7 @@ that it opens a window under Xvfb as the AppImage catalog tests it; PipeWire is 
 gui_camera.go, never linked; 22.04's glibc in `usr/lib/glibc`, which `packaging/appimage/AppRun`
 uses through its own loader only on an older host glibc (`DESK_BUNDLED_GLIBC=1` forces it), and
 sets `DESK_SELF` (`infra.Self`) so desk runs itself through AppRun; `appimage-old-glibc` checks it
-on Debian 11; `appimagetool -u` gh-releases-zsync update info, `.zsync` published beside it by
+on Ubuntu 20.04; `appimagetool -u` gh-releases-zsync update info, `.zsync` published beside it by
 `appimage-publish`), and its `macos` job the universal `desk.app` zip
 (`packaging/macos/build-app.sh`; Developer ID signing and notarization only with the `APPLE_*` secrets), and its
 `windows` job, on Ubuntu, the Windows zip and the MSI's inputs (`packaging/windows/build.sh`:

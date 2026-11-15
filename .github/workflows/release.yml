@@ -130,7 +130,7 @@ jobs:
   # too). linuxdeploy bundles the libraries not on AppImage's excludelist (xkbcommon, Xcursor,
   # wayland-cursor/egl…); PipeWire is dlopened by the camera, so it isn't needed to start.
   # It also carries 22.04's glibc, which packaging/appimage/AppRun uses only on hosts with an
-  # older one (appimage-old-glibc checks that on Debian 11). Its update information points
+  # older one (appimage-old-glibc checks that on Ubuntu 20.04). Its update information points
   # AppImageUpdate at the latest release's .zsync (a nightly's at nightly's).
   appimage:
     needs: package
@@ -214,12 +214,12 @@ jobs:
             dist/*.AppImage
             dist/*.AppImage.zsync
 
-  # The AppImage on a host older than its glibc (Debian 11: glibc 2.31): AppRun must run it
-  # through the bundled glibc, and desk run itself through AppRun.
+  # The AppImage on a host older than its glibc (Ubuntu 20.04: glibc 2.31; Debian 11 has left
+  # deb.debian.org): AppRun must run it through the bundled glibc, and desk run itself through AppRun.
   appimage-old-glibc:
     needs: [package, appimage]
     runs-on: ubuntu-24.04
-    container: debian:11
+    container: ubuntu:20.04
     env:
       VERSION: ${{ needs.package.outputs.version }}
       DEBIAN_FRONTEND: noninteractive
