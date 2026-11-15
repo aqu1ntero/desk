@@ -251,6 +251,7 @@ jobs:
       - name: Opens a window under X11
         run: |
           home=$(mktemp -d)
+          EGL_LOG_LEVEL=debug LIBGL_DEBUG=verbose \
           HOME=$home XDG_CONFIG_HOME=$home/.config XDG_DATA_HOME=$home/.local/share XDG_STATE_HOME=$home/.local/state \
           xvfb-run -a -s '-screen 0 1600x1000x24' sh packaging/appimage/check-window.sh dist/desk-*-x86_64.AppImage
 
