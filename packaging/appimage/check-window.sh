@@ -14,6 +14,6 @@ for i in $(seq 60); do
 	sleep 1
 done
 kill -0 $p 2>/dev/null && echo "no desk window after 60 s"
-cat "${XDG_DATA_HOME:-$HOME/.local/share}/desk/crash.log" 2>/dev/null
+find "$HOME" -name crash.log -exec cat {} + 2>/dev/null
 xwininfo -root -tree | head -20
 exit 1

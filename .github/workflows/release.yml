@@ -247,6 +247,7 @@ jobs:
           [ "$("./dist/$app" --version)" = "desk $VERSION" ]
           cd dist && "./$app" --appimage-extract >/dev/null
           [ "$(./squashfs-root/desk --version)" = "desk $VERSION" ]
+          ls squashfs-root/usr/lib squashfs-root/usr/lib/glibc
 
       - name: Opens a window under X11
         run: |
