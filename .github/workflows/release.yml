@@ -191,7 +191,9 @@ jobs:
 
       - name: Update information and the .zsync
         run: |
-          "./dist/desk-${VERSION}-x86_64.AppImage" --appimage-updateinformation | grep -q '^gh-releases-zsync|'
+          # the runtime's .upd_info section (--appimage-updateinformation goes to desk under
+          # APPIMAGE_EXTRACT_AND_RUN)
+          readelf -p .upd_info "dist/desk-${VERSION}-x86_64.AppImage" | tee /dev/stderr | grep -q 'gh-releases-zsync|'
           [ -s "dist/desk-${VERSION}-x86_64.AppImage.zsync" ]
 
       # As the AppImage catalog checks it: X11 only, no network, a fresh home; and again with
