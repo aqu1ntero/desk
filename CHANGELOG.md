@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.15.1] - 2026-11-15
+
+### Fixed
+
+- The AppImage is in the release again: 2026.11.15 shipped without it. This is the one that opens
+  under X11 and brings its libraries (see 2026.11.15).
+
 ## [2026.11.15] - 2026-11-15
 
 ### Added
@@ -360,7 +367,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.15...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.15.1...HEAD
+[2026.11.15.1]: https://github.com/lfdominguez/desk/compare/2026.11.15...2026.11.15.1
 [2026.11.15]: https://github.com/lfdominguez/desk/compare/2026.11.12.1...2026.11.15
 [2026.11.12.1]: https://github.com/lfdominguez/desk/compare/2026.11.12...2026.11.12.1
 [2026.11.12]: https://github.com/lfdominguez/desk/compare/2026.11.11.1...2026.11.12
