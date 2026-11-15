@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.15.2] - 2026-11-15
+
 ### Added
 
 - **The AppImage updates itself** with AppImageUpdate (or AppImageLauncher, Gear Lever…): it
@@ -13,6 +15,11 @@ day). A release's section here is its notes on GitHub. The format follows
   downloads only what changed.
 - The AppImage brings its own glibc and uses it on distributions older than Ubuntu 22.04 (Debian
   11, RHEL 8…), where it didn't start before.
+
+### Fixed
+
+- The AppImage opens its window on systems without the GLES library (`libgles2`), which it now
+  brings along.
 
 ## [2026.11.15.1] - 2026-11-15
 
@@ -375,7 +382,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.15.1...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.15.2...HEAD
+[2026.11.15.2]: https://github.com/lfdominguez/desk/compare/2026.11.15.1...2026.11.15.2
 [2026.11.15.1]: https://github.com/lfdominguez/desk/compare/2026.11.15...2026.11.15.1
 [2026.11.15]: https://github.com/lfdominguez/desk/compare/2026.11.12.1...2026.11.15
 [2026.11.12.1]: https://github.com/lfdominguez/desk/compare/2026.11.12...2026.11.12.1
