@@ -51,7 +51,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libwayland-dev libxkbcommon-dev \
-            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev libfuse2t64 librsvg2-bin
+            libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev
 
       - name: Version
         id: version
@@ -91,8 +91,8 @@ jobs:
           Architecture: amd64
           Maintainer: Luis Felipe Domínguez Vega <ldominguezvega@gmail.com>
           Homepage: https://github.com/lfdominguez/desk
-          Depends: libc6, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libxkbcommon0, libpipewire-0.3-0t64 | libpipewire-0.3-0
-          Recommends: bubblewrap, openssh-client
+          Depends: libc6, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libxkbcommon0
+          Recommends: bubblewrap, openssh-client, libpipewire-0.3-0t64 | libpipewire-0.3-0
           Section: devel
           Priority: optional
           Description: A Kanban board where every card is a Claude Code session
@@ -101,31 +101,16 @@ jobs:
           EOF
           dpkg-deb --root-owner-group --build $root "dist/desk_${VERSION}_amd64.deb"
 
-      - name: AppImage
-        run: |
-          app=dist/desk.AppDir
-          install -Dm755 dist/desk $app/usr/bin/desk
-          install -Dm644 packaging/desk.desktop $app/desk.desktop
-          # .DirIcon must be a PNG: file managers and thumbnailers don't read SVG
-          rsvg-convert -w 256 -h 256 packaging/desk.svg -o $app/desk.png
-          ln -s desk.png $app/.DirIcon
-          ln -s usr/bin/desk $app/AppRun
-          curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool
-          ARCH=x86_64 ./appimagetool $app "dist/desk-${VERSION}-x86_64.AppImage"
-
       - uses: actions/upload-artifact@v4
         with:
           name: desk-${{ env.VERSION }}
-          path: |
-            dist/*.deb
-            dist/*.AppImage
+          path: dist/*.deb
 
       - name: Release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "desk $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" dist/*.deb dist/*.AppImage
+        run: gh release create "$GITHUB_REF_NAME" --title "desk $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" dist/*.deb
 
       # Every push to main replaces the rolling "nightly" pre-release (and
       # moves its tag to this commit); dated tags stay the real releases.
@@ -138,7 +123,90 @@ jobs:
           gh release create nightly --prerelease --latest=false --target "$GITHUB_SHA" \
             --title "desk nightly ($VERSION)" \
             --notes "Built from main at $GITHUB_SHA. Replaced on every push; for a stable version take a dated release." \
-            dist/*.deb dist/*.AppImage
+            dist/*.deb
+
+  # desk-<version>-x86_64.AppImage, added to the release (or nightly) the package job made.
+  # Built in Ubuntu 22.04 so it runs on glibc 2.35 and later, with X11 as well as Wayland
+  # (no nox11: the AppImage catalog tests under Xvfb, and X11 sessions should open it too).
+  # linuxdeploy bundles the libraries not on AppImage's excludelist (xkbcommon, Xcursor,
+  # wayland-cursor/egl…); PipeWire is dlopened by the camera, so it isn't needed to start.
+  appimage:
+    needs: package
+    runs-on: ubuntu-24.04
+    container: ubuntu:22.04
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+      CGO_CFLAGS_ALLOW: -fno-strict-overflow
+      DEBIAN_FRONTEND: noninteractive
+      APPIMAGE_EXTRACT_AND_RUN: 1 # no FUSE in a container
+    steps:
+      - name: System libraries
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git file gcc libc6-dev pkg-config \
+            libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-dev libx11-xcb-dev libxcursor-dev \
+            libxfixes-dev libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev librsvg2-bin \
+            xvfb xauth x11-utils libegl-mesa0 libgl1-mesa-dri
+          # gh, to add the AppImage to the release
+          curl -fsSLo /usr/share/keyrings/githubcli.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/githubcli.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+          apt-get update
+          apt-get install -y --no-install-recommends gh
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build -buildvcs=false -trimpath -ldflags "-s -w -X main.version=$VERSION" -o dist/desk ./cmd/desk
+
+      - name: Check the version and that PipeWire isn't linked
+        run: |
+          [ "$(dist/desk --version)" = "desk $VERSION" ]
+          ! readelf -d dist/desk | grep -i pipewire
+
+      - name: AppImage
+        run: |
+          # the icon must be a PNG: file managers and thumbnailers don't read SVG
+          rsvg-convert -w 256 -h 256 packaging/desk.svg -o dist/desk.png
+          curl -fsSLo linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x linuxdeploy appimagetool
+          ./linuxdeploy --appdir dist/desk.AppDir -e dist/desk -d packaging/desk.desktop -i dist/desk.png
+          ARCH=x86_64 ./appimagetool dist/desk.AppDir "dist/desk-${VERSION}-x86_64.AppImage"
+
+      # As the AppImage catalog checks it: X11 only, no network, a fresh home
+      - name: Opens a window under X11
+        run: |
+          home=$(mktemp -d)
+          HOME=$home XDG_CONFIG_HOME=$home/.config XDG_DATA_HOME=$home/.local/share XDG_STATE_HOME=$home/.local/state \
+          xvfb-run -a -s '-screen 0 1600x1000x24' sh -c '
+            ./dist/desk-*-x86_64.AppImage & p=$!
+            for i in $(seq 60); do
+              xwininfo -root -tree | grep -q "\"desk\"" && exit 0
+              kill -0 $p || exit 1
+              sleep 1
+            done
+            exit 1'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desk-${{ env.VERSION }}-appimage
+          path: dist/*.AppImage
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload -R "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" dist/*.AppImage
+
+      - name: Nightly
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload -R "$GITHUB_REPOSITORY" nightly --clobber dist/*.AppImage
 
   # desk.app for macOS (universal: arm64 + x86_64) as desk-<version>-macos.zip, built by
   # packaging/macos/build-app.sh with the package job's version, then added to the release

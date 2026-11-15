@@ -34,8 +34,16 @@ const maxImage = 64 << 20
 var pipe = os.Pipe
 
 // Image is the clipboard's image and its type (image/png preferred), or
-// nil when it holds no image.
+// nil when it holds no image: the X server's (clip_x11.go) when desk runs
+// under one without Wayland, else the compositor's.
 func Image() ([]byte, string, error) {
+	if d := os.Getenv("DISPLAY"); d != "" && os.Getenv("WAYLAND_DISPLAY") == "" {
+		return imageX11(d)
+	}
+	return imageWayland()
+}
+
+func imageWayland() ([]byte, string, error) {
 	w, err := dial()
 	if err != nil {
 		return nil, "", err

@@ -61,8 +61,8 @@ Taken from `desk demo`: the organizations, tickets and servers are made up.
 
 ## Install
 
-desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…; X11 is on the
-[roadmap](#roadmap)), on **macOS 12+** (Apple silicon and Intel) and on **Windows 10/11** (x64).
+desk runs on **Linux under Wayland** (Hyprland, Sway, KDE, GNOME…; the AppImage also opens under
+X11, the other packages are on the [roadmap](#roadmap) for it), on **macOS 12+** (Apple silicon and Intel) and on **Windows 10/11** (x64).
 It needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`) on `PATH`, or where its native installer puts it (`~/.local/bin`, on Windows `%USERPROFILE%\.local\bin\claude.exe`).
 Optional on Linux: `bwrap` ([bubblewrap](https://github.com/containers/bubblewrap)) for
 per-organization Claude profiles (macOS and Windows hand the profile to Claude Code as
@@ -603,8 +603,8 @@ has the versions copied.
 
 Planned, not there yet:
 
-- **X11.** Gio, the UI toolkit, can draw on X11, but desk builds with `-tags nox11`, and pasting
-  images reads the Wayland clipboard itself (`internal/clip`).
+- **X11 in every package.** The AppImage opens under X11 (and pastes images there), but the Nix,
+  .deb and AUR builds still use `-tags nox11`.
 - **Apple signing and Homebrew.** macOS support is done (see [Install](#macos)), but the release's
   `desk.app` is only ad-hoc signed: signing it with a Developer ID and notarizing it needs an Apple
   Developer account, which the developer doesn't have and doesn't plan to get for now. The release

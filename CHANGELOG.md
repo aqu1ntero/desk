@@ -6,11 +6,21 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.15] - 2026-11-15
+
 ### Added
 
 - **Exit confirmation**: closing desk while cards have Claude at work (a turn, background
   subagents or shells, a `!` command) asks first and names those cards. Exit anyway with Enter, or
   stay with Esc.
+- **The AppImage opens under X11** as well as Wayland, and brings the libraries it needs, so it
+  runs on Ubuntu 22.04 and later and other distributions without installing anything. Under X11,
+  Ctrl+V of an image pastes it, as under Wayland.
+
+### Changed
+
+- PipeWire is only needed for the infra workspace's virtual camera, loaded when the camera
+  starts: desk starts without it, and the .deb and AUR package only recommend it.
 
 ### Fixed
 
@@ -350,7 +360,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.12.1...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.15...HEAD
+[2026.11.15]: https://github.com/lfdominguez/desk/compare/2026.11.12.1...2026.11.15
 [2026.11.12.1]: https://github.com/lfdominguez/desk/compare/2026.11.12...2026.11.12.1
 [2026.11.12]: https://github.com/lfdominguez/desk/compare/2026.11.11.1...2026.11.12
 [2026.11.11.1]: https://github.com/lfdominguez/desk/compare/2026.11.11...2026.11.11.1
