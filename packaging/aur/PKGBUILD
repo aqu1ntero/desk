@@ -8,9 +8,10 @@ pkgdesc='A Kanban board where every card is a Claude Code session'
 arch=('x86_64' 'aarch64')
 url='https://github.com/lfdominguez/desk'
 license=('MIT')
-depends=('glibc' 'wayland' 'libxkbcommon' 'libglvnd' 'libpipewire' 'hicolor-icon-theme')
-makedepends=('go' 'pkgconf' 'vulkan-headers')
+depends=('glibc' 'wayland' 'libxkbcommon' 'libglvnd' 'hicolor-icon-theme')
+makedepends=('go' 'pkgconf' 'vulkan-headers' 'libpipewire')
 optdepends=('claude-code: the Claude Code CLI every card runs'
+            'libpipewire: the infra workspace'"'"'s virtual camera'
             'bubblewrap: a Claude account per organization'
             'openssh: the infra workspace'"'"'s server panes')
 provides=('desk')

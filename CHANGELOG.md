@@ -11,6 +11,13 @@ day). A release's section here is its notes on GitHub. The format follows
 - **Exit confirmation**: closing desk while cards have Claude at work (a turn, background
   subagents or shells, a `!` command) asks first and names those cards. Exit anyway with Enter, or
   stay with Esc.
+- **The AppImage opens under X11** as well as Wayland, and brings the libraries it needs, so it
+  runs on Ubuntu 22.04 and later and other distributions without installing anything.
+
+### Changed
+
+- PipeWire is only needed for the infra workspace's virtual camera, loaded when the camera
+  starts: desk starts without it, and the .deb and AUR package only recommend it.
 
 ### Fixed
 

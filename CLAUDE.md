@@ -18,8 +18,11 @@ nix build                         # the package; bump vendorHash in flake.nix wh
 Without the flake, the same through
 `nix-shell -p go pkg-config wayland libxkbcommon libGL vulkan-headers pipewire --run 'CGO_CFLAGS_ALLOW=-fno-strict-overflow GOTOOLCHAIN=local go test -tags nox11 ./...'`.
 
-Packaging: `.github/workflows/release.yml` builds the `.deb` and the AppImage on every push, from
-`packaging/` (desktop file, icon), and its `macos` job the universal `desk.app` zip
+Packaging: `.github/workflows/release.yml` builds the `.deb` on every push, from
+`packaging/` (desktop file, icon), its `appimage` job the AppImage (in an `ubuntu:22.04` container
+for glibc 2.35, with X11 as well, linuxdeploy bundling what AppImage's excludelist leaves, a check
+that it opens a window under Xvfb as the AppImage catalog tests it; PipeWire is dlopened by
+gui_camera.go, never linked), and its `macos` job the universal `desk.app` zip
 (`packaging/macos/build-app.sh`; Developer ID signing and notarization only with the `APPLE_*` secrets), and its
 `windows` job, on Ubuntu, the Windows zip and the MSI's inputs (`packaging/windows/build.sh`:
 cross-built with `-H windowsgui`, icon and version info from a go-winres `.syso`, the wizard's

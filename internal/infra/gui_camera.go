@@ -4,11 +4,52 @@ package infra
 
 /*
 #cgo pkg-config: libpipewire-0.3
+#cgo LDFLAGS: -Wl,--as-needed -ldl
 #include <pipewire/pipewire.h>
 #include <spa/param/video/format-utils.h>
 #include <spa/param/buffers.h>
+#include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
+
+// PipeWire is loaded only when the camera starts (pw_load), so desk starts on
+// machines without it (an AppImage can't count on it): the functions below are
+// pointers dlsym fills, and nothing links to libpipewire (--as-needed drops it).
+#define PW_FUNCS(X) X(pw_init) X(pw_properties_new) X(pw_stream_connect) \
+	X(pw_stream_dequeue_buffer) X(pw_stream_destroy) X(pw_stream_get_state) \
+	X(pw_stream_new_simple) X(pw_stream_queue_buffer) X(pw_stream_trigger_process) \
+	X(pw_stream_update_params) X(pw_thread_loop_destroy) X(pw_thread_loop_get_loop) \
+	X(pw_thread_loop_lock) X(pw_thread_loop_new) X(pw_thread_loop_start) \
+	X(pw_thread_loop_stop) X(pw_thread_loop_unlock)
+#define PW_PTR(f) static __typeof__(f) *p_##f;
+PW_FUNCS(PW_PTR)
+#define PW_SYM(f) if (!(p_##f = (__typeof__(f) *)dlsym(h, #f))) return 0;
+
+// pw_load: whether libpipewire-0.3 and every function desk calls are there.
+static int pw_load(void) {
+	void *h = dlopen("libpipewire-0.3.so.0", RTLD_NOW | RTLD_LOCAL);
+	if (!h) return 0;
+	PW_FUNCS(PW_SYM)
+	return 1;
+}
+
+#define pw_init (*p_pw_init)
+#define pw_properties_new (*p_pw_properties_new)
+#define pw_stream_connect (*p_pw_stream_connect)
+#define pw_stream_dequeue_buffer (*p_pw_stream_dequeue_buffer)
+#define pw_stream_destroy (*p_pw_stream_destroy)
+#define pw_stream_get_state (*p_pw_stream_get_state)
+#define pw_stream_new_simple (*p_pw_stream_new_simple)
+#define pw_stream_queue_buffer (*p_pw_stream_queue_buffer)
+#define pw_stream_trigger_process (*p_pw_stream_trigger_process)
+#define pw_stream_update_params (*p_pw_stream_update_params)
+#define pw_thread_loop_destroy (*p_pw_thread_loop_destroy)
+#define pw_thread_loop_get_loop (*p_pw_thread_loop_get_loop)
+#define pw_thread_loop_lock (*p_pw_thread_loop_lock)
+#define pw_thread_loop_new (*p_pw_thread_loop_new)
+#define pw_thread_loop_start (*p_pw_thread_loop_start)
+#define pw_thread_loop_stop (*p_pw_thread_loop_stop)
+#define pw_thread_loop_unlock (*p_pw_thread_loop_unlock)
 
 // cam is a PipeWire Video/Source node (a camera other apps can pick) that we
 // drive: cam_push copies a frame in and asks the stream for a process cycle.
@@ -64,6 +105,7 @@ static void cam_free(cam *c) {
 }
 
 static cam *cam_new(int w, int h, int fps) {
+	if (!pw_load()) return NULL;
 	pw_init(NULL, NULL);
 	cam *c = calloc(1, sizeof *c);
 	c->w = w, c->h = h;
