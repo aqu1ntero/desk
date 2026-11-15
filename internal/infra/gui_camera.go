@@ -7,7 +7,9 @@ package infra
 #cgo LDFLAGS: -Wl,--as-needed -ldl
 #include <pipewire/pipewire.h>
 #include <spa/param/video/format-utils.h>
+#if __has_include(<spa/param/buffers.h>) // PipeWire before 0.3.5x has these in param.h
 #include <spa/param/buffers.h>
+#endif
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
