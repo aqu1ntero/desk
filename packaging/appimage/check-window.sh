@@ -2,6 +2,7 @@
 # check-window.sh APPIMAGE: run it on $DISPLAY and wait (60 s at most) for its
 # "desk" window, as the AppImage catalog's test does; fails if it exits first,
 # saying how and showing desk's crash log.
+mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/desk" # where desk notes a lost window
 "$1" &
 p=$!
 for i in $(seq 60); do
