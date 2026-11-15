@@ -12,7 +12,8 @@ day). A release's section here is its notes on GitHub. The format follows
   subagents or shells, a `!` command) asks first and names those cards. Exit anyway with Enter, or
   stay with Esc.
 - **The AppImage opens under X11** as well as Wayland, and brings the libraries it needs, so it
-  runs on Ubuntu 22.04 and later and other distributions without installing anything.
+  runs on Ubuntu 22.04 and later and other distributions without installing anything. Under X11,
+  Ctrl+V of an image pastes it, as under Wayland.
 
 ### Changed
 

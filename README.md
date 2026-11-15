@@ -603,8 +603,8 @@ has the versions copied.
 
 Planned, not there yet:
 
-- **X11.** Gio, the UI toolkit, can draw on X11, but desk builds with `-tags nox11`, and pasting
-  images reads the Wayland clipboard itself (`internal/clip`).
+- **X11 in every package.** The AppImage opens under X11 (and pastes images there), but the Nix,
+  .deb and AUR builds still use `-tags nox11`.
 - **Apple signing and Homebrew.** macOS support is done (see [Install](#macos)), but the release's
   `desk.app` is only ad-hoc signed: signing it with a Developer ID and notarizing it needs an Apple
   Developer account, which the developer doesn't have and doesn't plan to get for now. The release

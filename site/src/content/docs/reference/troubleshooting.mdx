@@ -35,7 +35,7 @@ They are harmless. `10de` is NVIDIA's PCI vendor id, and `driver (null)` means M
 
 ## Wayland only
 
-On Linux, the Nix, .deb and AUR builds need a Wayland session (Hyprland, Sway, KDE, GNOME…): they're built without X11 support, so they don't open under an X11 session. Under X11, use the [AppImage](/start/install/), which opens there too (pasting images from the clipboard works only under Wayland). X11 for the other packages is on the roadmap.
+On Linux, the Nix, .deb and AUR builds need a Wayland session (Hyprland, Sway, KDE, GNOME…): they're built without X11 support, so they don't open under an X11 session. Under X11, use the [AppImage](/start/install/), which opens there too. X11 for the other packages is on the roadmap.
 
 ## macOS
 
@@ -70,7 +70,7 @@ On macOS and Windows there is no bwrap: a profile's sessions run `claude` with `
 
 ## Pasting an image does nothing
 
-On Linux, <kbd>Ctrl</kbd>+<kbd>V</kbd> of an image reads the clipboard straight from the compositor, through the Wayland data-control protocol (`ext-data-control` or wlroots' `wlr-data-control`). Hyprland, Sway, other wlroots compositors and KDE have it. On macOS, <kbd>⌘</kbd>+<kbd>V</kbd> reads the pasteboard's PNG or TIFF image. On Windows, <kbd>Ctrl</kbd>+<kbd>V</kbd> reads the clipboard's PNG (what browsers copy), else its bitmap (screenshots, the Snipping Tool).
+On Linux, <kbd>Ctrl</kbd>+<kbd>V</kbd> of an image reads the clipboard straight from the compositor, through the Wayland data-control protocol (`ext-data-control` or wlroots' `wlr-data-control`). Hyprland, Sway, other wlroots compositors and KDE have it. Under X11 (the AppImage), it asks the X server for the clipboard's image instead, which works with any desktop. On macOS, <kbd>⌘</kbd>+<kbd>V</kbd> reads the pasteboard's PNG or TIFF image. On Windows, <kbd>Ctrl</kbd>+<kbd>V</kbd> reads the clipboard's PNG (what browsers copy), else its bitmap (screenshots, the Snipping Tool).
 
 On a compositor without it, desk can't see the image, and <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes the clipboard's text (if any) without an error. Save the image to a file and put its path in the message instead.
 
