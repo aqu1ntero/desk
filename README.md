@@ -133,6 +133,9 @@ chmod +x desk-*-x86_64.AppImage
 ./desk-*-x86_64.AppImage
 ```
 
+It brings its libraries, glibc too (used on distributions older than Ubuntu 22.04), and updates
+with [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate) from the latest release.
+
 ### Debian / Ubuntu
 
 ```sh

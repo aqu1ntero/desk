@@ -1,0 +1,22 @@
+#!/bin/sh
+# desk's AppImage entry point. The AppImage carries the glibc it was built
+# with (usr/lib/glibc) and uses it only where the host's is older, or missing
+# (musl): through that glibc's own loader, so the binary and the libraries
+# it loads, the host's GPU drivers too, get a glibc new enough for them.
+# Elsewhere desk runs on the host's glibc, which the host's drivers need.
+here=$(dirname "$(readlink -f "$0")")
+
+# How desk runs itself (desk mcp, desk peer): this script, not the loader.
+export DESK_SELF="$here/desk"
+
+bundled=$(cat "$here/usr/lib/glibc/VERSION")
+host=$(getconf GNU_LIBC_VERSION 2>/dev/null | cut -d' ' -f2)
+older=$(awk -v h="$host" -v b="$bundled" 'BEGIN {
+	split(h, x, "."); split(b, y, ".")
+	print (h == "" || x[1] < y[1] || (x[1] == y[1] && x[2] + 0 < y[2] + 0)) ? 1 : 0
+}')
+if [ "$older" = 1 ] || [ -n "$DESK_BUNDLED_GLIBC" ]; then
+	exec "$here/usr/lib/glibc/ld-linux-x86-64.so.2" --library-path "$here/usr/lib/glibc:$here/usr/lib" \
+		"$here/usr/bin/desk" "$@"
+fi
+exec "$here/usr/bin/desk" "$@"

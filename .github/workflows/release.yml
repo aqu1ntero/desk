@@ -125,11 +125,13 @@ jobs:
             --notes "Built from main at $GITHUB_SHA. Replaced on every push; for a stable version take a dated release." \
             dist/*.deb
 
-  # desk-<version>-x86_64.AppImage, added to the release (or nightly) the package job made.
-  # Built in Ubuntu 22.04 so it runs on glibc 2.35 and later, with X11 as well as Wayland
-  # (no nox11: the AppImage catalog tests under Xvfb, and X11 sessions should open it too).
-  # linuxdeploy bundles the libraries not on AppImage's excludelist (xkbcommon, Xcursor,
+  # desk-<version>-x86_64.AppImage and its .zsync, built in Ubuntu 22.04 with X11 as well as
+  # Wayland (no nox11: the AppImage catalog tests under Xvfb, and X11 sessions should open it
+  # too). linuxdeploy bundles the libraries not on AppImage's excludelist (xkbcommon, Xcursor,
   # wayland-cursor/egl…); PipeWire is dlopened by the camera, so it isn't needed to start.
+  # It also carries 22.04's glibc, which packaging/appimage/AppRun uses only on hosts with an
+  # older one (appimage-old-glibc checks that on Ubuntu 20.04). Its update information points
+  # AppImageUpdate at the latest release's .zsync (a nightly's at nightly's).
   appimage:
     needs: package
     runs-on: ubuntu-24.04
@@ -146,12 +148,7 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates curl git file gcc libc6-dev pkg-config \
             libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-dev libx11-xcb-dev libxcursor-dev \
             libxfixes-dev libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev libpipewire-0.3-dev librsvg2-bin \
-            xvfb xauth x11-utils libegl-mesa0 libgl1-mesa-dri
-          # gh, to add the AppImage to the release
-          curl -fsSLo /usr/share/keyrings/githubcli.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/githubcli.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
-          apt-get update
-          apt-get install -y --no-install-recommends gh
+            xvfb xauth x11-utils libegl-mesa0 libgl1-mesa-dri zsync
 
       - uses: actions/checkout@v4
 
@@ -174,39 +171,115 @@ jobs:
           curl -fsSLo linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           curl -fsSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x linuxdeploy appimagetool
-          ./linuxdeploy --appdir dist/desk.AppDir -e dist/desk -d packaging/desk.desktop -i dist/desk.png
-          ARCH=x86_64 ./appimagetool dist/desk.AppDir "dist/desk-${VERSION}-x86_64.AppImage"
+          app=dist/desk.AppDir
+          # libGLESv2: Gio dlopens it (so linuxdeploy can't see it), and it isn't excludelisted:
+          # hosts without libgles2 have libEGL and libGLdispatch, which it uses, still
+          ./linuxdeploy --appdir $app -e dist/desk -d packaging/desk.desktop -i dist/desk.png \
+            --custom-apprun packaging/appimage/AppRun -l /usr/lib/x86_64-linux-gnu/libGLESv2.so.2
+          # glibc, for AppRun to use on older hosts (excludelisted, so linuxdeploy leaves it out)
+          mkdir -p $app/usr/lib/glibc
+          for l in ld-linux-x86-64.so.2 libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 \
+            libresolv.so.2 libutil.so.1; do
+            cp -L /lib/x86_64-linux-gnu/$l $app/usr/lib/glibc/
+          done
+          getconf GNU_LIBC_VERSION | cut -d' ' -f2 > $app/usr/lib/glibc/VERSION
+          ln -s AppRun $app/desk # DESK_SELF: desk mcp, desk peer go through AppRun too
+          release=latest
+          [ "$GITHUB_REF_TYPE" = tag ] || release=nightly
+          cd dist
+          ARCH=x86_64 ../appimagetool -u "gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|$release|desk-*-x86_64.AppImage.zsync" \
+            desk.AppDir "desk-${VERSION}-x86_64.AppImage"
+          ls -l desk-*
 
-      # As the AppImage catalog checks it: X11 only, no network, a fresh home
+      - name: Update information and the .zsync
+        run: |
+          # the runtime's .upd_info section (--appimage-updateinformation goes to desk under
+          # APPIMAGE_EXTRACT_AND_RUN)
+          readelf -p .upd_info "dist/desk-${VERSION}-x86_64.AppImage" | tee /dev/stderr | grep -q 'gh-releases-zsync|'
+          [ -s "dist/desk-${VERSION}-x86_64.AppImage.zsync" ]
+
+      # As the AppImage catalog checks it: X11 only, no network, a fresh home; and again with
+      # the bundled glibc forced, as on an older host
       - name: Opens a window under X11
         run: |
-          home=$(mktemp -d)
-          HOME=$home XDG_CONFIG_HOME=$home/.config XDG_DATA_HOME=$home/.local/share XDG_STATE_HOME=$home/.local/state \
-          xvfb-run -a -s '-screen 0 1600x1000x24' sh -c '
-            ./dist/desk-*-x86_64.AppImage & p=$!
-            for i in $(seq 60); do
-              xwininfo -root -tree | grep -q "\"desk\"" && exit 0
-              kill -0 $p || exit 1
-              sleep 1
-            done
-            exit 1'
+          for forced in "" 1; do
+            home=$(mktemp -d)
+            DESK_BUNDLED_GLIBC=$forced HOME=$home XDG_CONFIG_HOME=$home/.config \
+            XDG_DATA_HOME=$home/.local/share XDG_STATE_HOME=$home/.local/state \
+            xvfb-run -a -s '-screen 0 1600x1000x24' sh packaging/appimage/check-window.sh dist/desk-*-x86_64.AppImage
+          done
 
       - uses: actions/upload-artifact@v4
         with:
           name: desk-${{ env.VERSION }}-appimage
-          path: dist/*.AppImage
+          path: |
+            dist/*.AppImage
+            dist/*.AppImage.zsync
+
+  # The AppImage on a host older than its glibc (Ubuntu 20.04: glibc 2.31; Debian 11 has left
+  # deb.debian.org): AppRun must run it through the bundled glibc, and desk run itself through AppRun.
+  appimage-old-glibc:
+    needs: [package, appimage]
+    runs-on: ubuntu-24.04
+    container: ubuntu:20.04
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+      DEBIAN_FRONTEND: noninteractive
+      APPIMAGE_EXTRACT_AND_RUN: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-appimage'
+          path: dist
+          merge-multiple: true
+
+      # only what AppImage's excludelist expects from the host (no libgles2: the AppImage brings it)
+      - name: Host libraries
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends xvfb xauth x11-utils libegl1 libegl-mesa0 \
+            libgl1-mesa-dri libwayland-client0 libx11-6 libx11-xcb1 libxcb1
+
+      - name: Runs, and runs itself
+        run: |
+          app="desk-${VERSION}-x86_64.AppImage"
+          chmod +x "dist/$app"
+          [ "$("./dist/$app" --version)" = "desk $VERSION" ]
+          cd dist && "./$app" --appimage-extract >/dev/null
+          [ "$(./squashfs-root/desk --version)" = "desk $VERSION" ]
+          ls squashfs-root/usr/lib squashfs-root/usr/lib/glibc
+
+      - name: Opens a window under X11
+        run: |
+          home=$(mktemp -d)
+          HOME=$home XDG_CONFIG_HOME=$home/.config XDG_DATA_HOME=$home/.local/share XDG_STATE_HOME=$home/.local/state \
+          xvfb-run -a -s '-screen 0 1600x1000x24' sh packaging/appimage/check-window.sh dist/desk-*-x86_64.AppImage
+
+  # The AppImage and its .zsync, once both checks passed, added to the release (or nightly)
+  # the package job made
+  appimage-publish:
+    needs: [appimage, appimage-old-glibc]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-appimage'
+          path: dist
+          merge-multiple: true
 
       - name: Release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload -R "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" dist/*.AppImage
+        run: gh release upload -R "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" dist/*.AppImage dist/*.zsync
 
       - name: Nightly
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload -R "$GITHUB_REPOSITORY" nightly --clobber dist/*.AppImage
+        run: gh release upload -R "$GITHUB_REPOSITORY" nightly --clobber dist/*.AppImage dist/*.zsync
 
   # desk.app for macOS (universal: arm64 + x86_64) as desk-<version>-macos.zip, built by
   # packaging/macos/build-app.sh with the package job's version, then added to the release

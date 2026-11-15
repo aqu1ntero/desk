@@ -431,7 +431,7 @@ func WorkspaceMCP(sock, id string) (string, []string) {
 }
 
 func toolsMCP(sock, group string, tools []map[string]any) (string, []string) {
-	exe, err := os.Executable()
+	exe, err := Self()
 	if err != nil || sock == "" {
 		return "", nil
 	}

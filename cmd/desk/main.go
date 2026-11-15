@@ -141,7 +141,8 @@ func run(args []string) int {
 		}
 	}
 	loginPath(runtime.GOOS == "darwin")
-	exeOnPath(os.Executable())
+	exeOnPath(infra.Self())
+	os.Unsetenv("DESK_SELF") // read by infra already; not for the programs desk starts
 	path := kanban.Path()
 	b, err := kanban.Load(path)
 	if err != nil {
