@@ -422,6 +422,9 @@ func (m *model) dial(t *Tab, host, dir, label string, w, h int, prelude paneStat
 		m.errText = err.Error()
 		return nil
 	}
+	if p, ok := term.pty.(ptyProc); ok { // a local shell: what runs in it is the tab's
+		Own(p.Pid(), Owner{Org: t.org, Tab: t})
+	}
 	term.OnBlock(func(b Block) { blockDone(t, label, b) })
 	if t.orgCfg.records() {
 		if err := term.Record(recordingPath(t.org, label, time.Now())); err != nil {

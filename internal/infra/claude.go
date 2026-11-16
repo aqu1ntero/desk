@@ -406,7 +406,7 @@ func claudeCmd(dir string, args ...string) (*exec.Cmd, error) {
 	}
 	name, cfg, js := profileFor(home, dir)
 	if name == "" {
-		return exec.Command(bin, args...), nil
+		return claude.Jail(exec.Command(bin, args...), home, dir), nil
 	}
 	if claude.NoBwrap { // macOS, Windows: the profile folder is Claude Code's config dir
 		cmd := exec.Command(bin, args...)
@@ -436,7 +436,7 @@ func claudeCmd(dir string, args ...string) (*exec.Cmd, error) {
 		"--bind", js, filepath.Join(home, ".claude.json"),
 		"--unsetenv", "CLAUDE_CONFIG_DIR", "--setenv", "CLAUDE_PROFILE", name,
 		"--", bin}, args...)...)
-	return cmd, nil
+	return claude.Jail(cmd, home, dir), nil
 }
 
 func (c *Claude) Ask(prompt string) error {

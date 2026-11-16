@@ -383,6 +383,7 @@ func Start(o Options, on func(Event)) (*Proc, error) {
 		return nil, err
 	}
 	cmd.Dir = o.Dir
+	cmd = Jail(cmd, o.Home, o.Dir)
 	// CLAUDE_CODE_ARTIFACT: stream-json makes Claude Code an SDK session
 	// (entrypoint sdk-cli), whose claude.ai Artifact tools are off unless asked for.
 	cmd.Env = append(cmd.Env, "CLAUDE_CODE_ARTIFACT=1")
@@ -606,13 +607,9 @@ func command(home, org string, args ...string) (*exec.Cmd, error) {
 			return nil, err
 		}
 	}
-	bwrap, err := exec.LookPath("bwrap")
-	if err != nil { // NixOS: not on PATH, but in the store
-		m, _ := filepath.Glob(storeBwrap)
-		if len(m) == 0 {
-			return nil, fmt.Errorf("profile %s needs bwrap", org)
-		}
-		bwrap = m[len(m)-1]
+	bwrap := bwrapBin()
+	if bwrap == "" {
+		return nil, fmt.Errorf("profile %s needs bwrap", org)
 	}
 	binds := []string{"--dev-bind", "/", "/",
 		"--bind", cfg, filepath.Join(home, ".claude"),
@@ -635,6 +632,17 @@ var NoBwrap = runtime.GOOS != "linux"
 
 // storeBwrap is where NixOS keeps bwrap off PATH; tests point it elsewhere.
 var storeBwrap = "/nix/store/*-bubblewrap-*/bin/bwrap"
+
+// bwrapBin is bwrap's path: on PATH, else in the Nix store; "" when none.
+func bwrapBin() string {
+	if b, err := exec.LookPath("bwrap"); err == nil {
+		return b
+	}
+	if m, _ := filepath.Glob(storeBwrap); len(m) > 0 {
+		return m[len(m)-1]
+	}
+	return ""
+}
 
 // sshConfig copies ssh config src to dst, its Includes inlined, when src
 // is a symlink (NixOS and home-manager link both configs into the
@@ -693,7 +701,7 @@ func Interactive(home, org, dir, root, id, system string, extra ...string) (*exe
 		return nil, err
 	}
 	c.Dir = dir
-	return c, nil
+	return Jail(c, home, dir), nil
 }
 
 // NewSessionID is a random UUID (v4) for --session-id.

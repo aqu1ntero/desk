@@ -99,6 +99,7 @@ func Optimize(ctx context.Context, a Ask, on func(Progress)) (Draft, error) {
 	if err != nil {
 		return Draft{}, err
 	}
+	c = Jail(c, a.Home, a.Dir)
 	cmd := exec.CommandContext(ctx, c.Path, c.Args[1:]...)
 	cmd.Dir = a.Dir
 	var stderr tail

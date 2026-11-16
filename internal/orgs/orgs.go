@@ -599,3 +599,19 @@ func Load(root, org string) (Config, error) {
 	}
 	return c, nil
 }
+
+// Walls are the organizations' folders a session working in dir mustn't
+// see: every one but those dir lies in (its own, and an organization
+// around a nested one), so an organization nested in dir's is walled too.
+// ponytail: an organization around dir's stays seen, since dir is inside it.
+func Walls(root, dir string) []string {
+	var out []string
+	for _, n := range List(root) {
+		d := where(root, n)
+		if rel, err := filepath.Rel(d, dir); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue // dir is in it
+		}
+		out = append(out, d)
+	}
+	return out
+}

@@ -22,6 +22,7 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/vt"
+	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/tty"
 )
 
@@ -189,9 +190,10 @@ func (p ptyProc) Wait() (int, bool) {
 func NewTerm(host, dir string, w, h int, notify func(), prelude paneState) (*Term, error) {
 	var cmd *exec.Cmd
 	switch {
-	case host == "local":
+	case host == "local": // in its organization's walls, as its Claude is
 		sh := localShell(runtime.GOOS)
-		cmd = exec.Command(sh[0], sh[1:]...)
+		home, _ := os.UserHomeDir()
+		cmd = claude.Jail(exec.Command(sh[0], sh[1:]...), home, dir)
 	case HostCmd != nil:
 		cmd = HostCmd(host)
 	}

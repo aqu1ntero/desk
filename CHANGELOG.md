@@ -14,8 +14,13 @@ day). A release's section here is its notes on GitHub. The format follows
   organization's infra Claude under any name and list them all, an infra Claude's
   `message_card` could write to another organization's card, the infra tabs' server tools
   answered any caller, and a drawing's name could lead out of its folder. desk now knows each
-  call's Claude by its process (on Linux) and holds it to its own card and organization; your own
-  programs outside desk's Claudes keep full reach.
+  call's Claude by its process (Linux, macOS, Windows) and holds it to its own card and
+  organization; your own programs outside desk's Claudes keep full reach.
+- **Each session walled into its organization (Linux, with bubblewrap).** A session's Claude,
+  and an infra tab's local panes, now find every other organization's folder empty, as well as
+  desk's board, chats and state and the other Claude accounts' profiles; its own folder, its added
+  projects and pasted images stay. What it starts stays in its own process namespace, so a
+  background process can't leave it.
 
 ### Fixed
 

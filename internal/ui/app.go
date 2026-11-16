@@ -256,6 +256,7 @@ func (u *ui) startInfra() {
 func Run(b *kanban.Board, path string) error {
 	u := newUI(b, path)
 	u.loadKeys()
+	claude.Confine = u.walls
 	u.startInfra()
 	files := explorer.NewExplorer(u.w)
 	pickFile = func(exts ...string) (io.ReadCloser, error) {

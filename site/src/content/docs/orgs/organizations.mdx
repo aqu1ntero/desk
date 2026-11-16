@@ -133,8 +133,25 @@ Whatever desk itself hands a Claude stays inside that Claude's organization:
 desk knows who is calling by the process: every Claude it starts is recorded, and a call counts as
 the Claude whose process made it (or started the one that did), whatever name the call gives. A
 program you run yourself, outside desk's Claudes (your shell, your own Claude Code session with
-the desk plugin), keeps full reach. This holds on Linux; on macOS and Windows, desk goes on the
-names the calls give.
+the desk plugin), keeps full reach.
+
+On Linux, with [bubblewrap](https://github.com/containers/bubblewrap) installed, each session also
+runs walled in: its card, workspace, drawing and terminal Claudes, Improve with Claude, the infra
+Claude, and an infra tab's local panes. Inside it:
+
+- every other organization's folder is empty, an organization nested inside this one's included;
+- so are desk's board, chats and state (`~/.local/share/desk`, `~/.local/state/desk`), apart from
+  the images you pasted, and the other Claude accounts' profiles (`~/Secure/Claudes`);
+- the session's own folder and the projects added to it stay, even one inside another
+  organization's folder (you added it);
+- everything it starts stays its own, so desk keeps knowing who calls, even from a background
+  process.
+
+A local pane's shell counts as that tab's own, so `desk peer` from it is refused, as from any
+infra tab.
+
+On macOS and Windows desk still knows who calls, but the sessions see every folder; without
+bubblewrap on Linux, too.
 
 ## Reload
 

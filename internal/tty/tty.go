@@ -9,3 +9,6 @@ func (p *PTY) Wait() int {
 	st, _ := p.wait()
 	return st.ExitCode()
 }
+
+// Pid is the program's process.
+func (p *PTY) Pid() int { return p.p.Pid }
