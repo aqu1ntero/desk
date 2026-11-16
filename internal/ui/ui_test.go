@@ -471,12 +471,16 @@ func TestKeyboardFlow(t *testing.T) {
 // fakeClaude records prompts; its on func plays Claude's side.
 type fakeClaude struct {
 	prompts []string
-	replies []string // Respond's: "id allow input" or "id deny msg"
+	images  [][]string // each Send's images
+	replies []string   // Respond's: "id allow input" or "id deny msg"
 	opts    claude.Options
 	on      func(claude.Event)
 }
 
-func (f *fakeClaude) Send(p string) error { f.prompts = append(f.prompts, p); return nil }
+func (f *fakeClaude) Send(p string, imgs ...string) error {
+	f.prompts, f.images = append(f.prompts, p), append(f.images, imgs)
+	return nil
+}
 func (f *fakeClaude) Respond(id string, allow bool, input json.RawMessage, msg string) error {
 	if allow {
 		f.replies = append(f.replies, id+" allow "+string(input))

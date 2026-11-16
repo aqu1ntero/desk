@@ -56,17 +56,18 @@ type Card struct {
 	Last      string    `json:"last,omitempty"` // the latest message, either side
 	Links     []Link    `json:"links,omitempty"`
 	Session   Session   `json:"session,omitzero"`
-	Allowed   float64   `json:"allowed,omitempty"`    // Session.Cost when the user last wrote: its budget counts from there
-	Artifacts []string  `json:"artifacts,omitempty"`  // claude.ai artifacts the session published
-	Pushed    string    `json:"pushed,omitempty"`     // the column its tickets were last moved to match
-	Ticket    bool      `json:"ticket,omitempty"`     // its Claude creates its ticket before any work`
-	Remote    bool      `json:"remote,omitempty"`     // its terminal's Claude runs with Remote Control
-	Alert     string    `json:"alert,omitempty"`      // the monitoring alert it investigates: "org|host|service"
-	Projects  []string  `json:"projects,omitempty"`   // its workspace's folders beyond its own (absolute)
-	Tabs      []string  `json:"tabs,omitempty"`       // the files open in its workspace, in order (absolute)
-	WSSession string    `json:"ws_session,omitempty"` // its workspace Claude's session (claude --resume)
-	Draft     string    `json:"draft,omitempty"`      // a message to its Claude written but not sent
-	Detached  bool      `json:"detached,omitempty"`   // its session has a window of its own (ui's detach.go)
+	Allowed   float64   `json:"allowed,omitempty"`      // Session.Cost when the user last wrote: its budget counts from there
+	Artifacts []string  `json:"artifacts,omitempty"`    // claude.ai artifacts the session published
+	Pushed    string    `json:"pushed,omitempty"`       // the column its tickets were last moved to match
+	Ticket    bool      `json:"ticket,omitempty"`       // its Claude creates its ticket before any work`
+	Remote    bool      `json:"remote,omitempty"`       // its terminal's Claude runs with Remote Control
+	Alert     string    `json:"alert,omitempty"`        // the monitoring alert it investigates: "org|host|service"
+	Projects  []string  `json:"projects,omitempty"`     // its workspace's folders beyond its own (absolute)
+	Tabs      []string  `json:"tabs,omitempty"`         // the files open in its workspace, in order (absolute)
+	WSSession string    `json:"ws_session,omitempty"`   // its workspace Claude's session (claude --resume)
+	Draft     string    `json:"draft,omitempty"`        // a message to its Claude written but not sent
+	DraftImgs []string  `json:"draft_images,omitempty"` // the images pasted in it: [Image n] is DraftImgs[n-1], "" once removed
+	Detached  bool      `json:"detached,omitempty"`     // its session has a window of its own (ui's detach.go)
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`

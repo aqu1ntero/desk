@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- An image pasted in a session's message box goes in as `[Image 1]`, as in Claude Code, with its
+  thumbnail and name above the box (× takes it out), and reaches Claude as an image of the
+  message instead of a file path. A message starting with `!` that holds an image goes to Claude
+  instead of running as a shell command, and the images stay with an unsent draft.
+
 ## [2026.11.16.2] - 2026-11-16
 
 ### Added

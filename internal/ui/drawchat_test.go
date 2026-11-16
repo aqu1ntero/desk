@@ -220,7 +220,7 @@ func TestDrawChatFails(t *testing.T) {
 
 type failSend struct{ fakeClaude }
 
-func (*failSend) Send(string) error { return errors.New("send failed") }
+func (*failSend) Send(string, ...string) error { return errors.New("send failed") }
 
 func TestDrawChatHides(t *testing.T) {
 	h := newHarness(t)

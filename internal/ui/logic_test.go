@@ -1162,7 +1162,7 @@ func TestDeliverPaths(t *testing.T) {
 
 type sendFails struct{ fakeClaude }
 
-func (*sendFails) Send(string) error { return errors.New("pipe closed") }
+func (*sendFails) Send(string, ...string) error { return errors.New("pipe closed") }
 
 // TestMakeTicketFails: a ticket that can't be created blocks the card with
 // why; a card that's gone makes none.

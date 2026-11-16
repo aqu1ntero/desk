@@ -253,7 +253,8 @@ Look it over, edit anything, then **Create**; **Ask again…** reruns it on what
 holds now. What you wrote is kept: **Use mine** or **Discard suggestions** goes back to it.
 
 - **Screenshots**: Ctrl+V of an image saves it beside the board and puts `![image](path)` in the
-  notes; the session reads it. desk reads images from the compositor itself (the Wayland
+  notes; the session reads it. In a session's message box it goes in as `[Image 1]` with its
+  thumbnail above the box, and reaches Claude as an image of the message. desk reads images from the compositor itself (the Wayland
   data-control protocol: Hyprland, Sway, other wlroots compositors, KDE), on macOS from the
   pasteboard (⌘V), on Windows from the clipboard (a PNG or a screenshot's bitmap), nothing to
   install.

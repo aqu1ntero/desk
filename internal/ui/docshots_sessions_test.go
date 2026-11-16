@@ -5,9 +5,13 @@ package ui
 // the terminal's way in and the usage figures.
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"io"
 	"strings"
 	"time"
@@ -105,6 +109,7 @@ func init() {
 		scene{"sess-diffs", sessDiffs},
 		scene{"sess-terminal", sessTerminal},
 		scene{"sess-full", sessFull},
+		scene{"sess-image", sessImage},
 	)
 }
 
@@ -541,4 +546,32 @@ func sessFull(s *shooter) {
 	s.shot("sess-full",
 		cut{"sessions", image.Rect(0, sr.Min.Y-scaled(image.Pt(0, 44)).Y, scaled(image.Pt(232, 0)).X, sr.Max.Y+scaled(image.Pt(0, 6)).Y), true},
 		cut{"usage", image.Rect(scaled(image.Pt(233, 0)).X, send.Min.Y-scaled(image.Pt(0, 110)).Y, scaled(image.Pt(1100, 0)).X, send.Min.Y-scaled(image.Pt(0, 84)).Y), true})
+}
+
+// sessImage is the billing card's message box with a pasted screenshot: its
+// [Image 1] in the text and its thumbnail above the box.
+func sessImage(s *shooter) {
+	id := sessID(s, sessBilling)
+	s.u.openPanel(id)
+	s.settle()
+	pic := image.NewRGBA(image.Rect(0, 0, 320, 200)) // a made-up chart: bars on a light page
+	draw.Draw(pic, pic.Bounds(), image.NewUniform(color.RGBA{0xf4, 0xf1, 0xea, 0xff}), image.Point{}, draw.Src)
+	for i, h := range []int{60, 120, 90, 150, 40} {
+		draw.Draw(pic, image.Rect(30+i*55, 180-h, 70+i*55, 180), image.NewUniform(color.RGBA{0x7c, 0x9c, 0xe8, 0xff}), image.Point{}, draw.Src)
+	}
+	var b bytes.Buffer
+	png.Encode(&b, pic)
+	path, err := s.u.saveImage(b.Bytes(), "image/png")
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	s.u.chatIn.SetText("The export chart has a gap on Thursday: ")
+	s.u.chatIn.SetCaret(s.u.chatIn.Len(), s.u.chatIn.Len())
+	s.u.attach(path)
+	s.settle()
+	send := s.at("pnSend")
+	x := s.at("pnImgX1")
+	s.move(sessPt(10, 10))
+	s.settle()
+	s.shot("sess-image", cut{"composer", sessRows(sessPanelX, x.Min.Y-scaled(image.Pt(0, 16)).Y, send.Max.Y+scaled(image.Pt(0, 12)).Y), false})
 }

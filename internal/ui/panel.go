@@ -174,16 +174,16 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 		u.selBack = &u.chatIn
 		defer func() { u.selBack = nil }()
 	}
-	u.pasteImage(gtx, &u.chatIn, &u.chatPaste, func() bool { return true }) // one box for every card, the panel's and the session view's
+	pn := u.pane                                                                       // the window whose box the image goes in, when the clipboard answers
+	u.pasteImage(gtx, &u.chatIn, &u.chatPaste, func() bool { return true }, pn.attach) // one box for every card, the panel's and the session view's
 	kit.Newline(gtx, &u.chatIn)
 	for {
 		ev, ok := u.chatIn.Update(gtx)
 		if !ok {
 			break
 		}
-		if s, ok := ev.(widget.SubmitEvent); ok && strings.TrimSpace(s.Text) != "" {
-			u.send(id, s.Text)
-			u.chatIn.SetText("")
+		if _, ok := ev.(widget.SubmitEvent); ok && strings.TrimSpace(u.chatIn.Text()) != "" {
+			u.sendBox(id)
 			c = u.b.Card(id)
 		}
 	}
@@ -411,7 +411,7 @@ func (u *ui) composer(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 	running := u.shellStop[c.ID] != nil // the user's "!" command: the box is locked until it ends and Claude has its output
 	working := c.Status == kanban.StatusWorking && !running
 	u.chatIn.ReadOnly = running
-	shell := bang(u.chatIn.Text()) != "" && !running // "!": the user's own command, run directly: the box warns
+	shell := bang(u.chatIn.Text()) != "" && !running && !u.hasImgs() // "!": the user's own command, run directly: the box warns (not with images: those go to Claude)
 	return layout.Inset{Top: 10, Bottom: 10, Left: 12, Right: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		rim, fill, face, fg := kit.CLine, kit.CPane, kit.Sans, kit.CText
 		if gtx.Focused(&u.chatIn) {
@@ -436,6 +436,7 @@ func (u *ui) composer(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 			}))
 		}
 		kids = append(kids,
+			layout.Rigid(u.imgStrip),
 			layout.Rigid(kit.Boxed(fill, rim, kit.RCard, layout.Inset{Top: 10, Bottom: 10, Left: 12, Right: 12}, func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min = image.Pt(gtx.Constraints.Max.X, gtx.Dp(44))
 				gtx.Constraints.Max.Y = gtx.Dp(200)
@@ -504,8 +505,7 @@ func (u *ui) composer(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 						return layout.Flex{Alignment: layout.Middle}.Layout(gtx, layout.Rigid(kit.Icon(12, kit.CWhite, kit.IcoSend)), layout.Rigid(kit.HGap(6)), layout.Rigid(k.Lbl(label, 12, kit.CWhite, kit.Semi(kit.Sans))))
 					})
 					if ok && strings.TrimSpace(u.chatIn.Text()) != "" {
-						u.send(c.ID, u.chatIn.Text())
-						u.chatIn.SetText("")
+						u.sendBox(c.ID)
 					}
 					return d
 				}))

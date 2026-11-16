@@ -287,7 +287,7 @@ func (u *ui) sheet(gtx layout.Context) {
 		return
 	}
 	if s.optStop == nil { // while Claude works the request stays as sent
-		u.pasteImage(gtx, &s.notes, &s.pasteText, func() bool { return u.edit == s })
+		u.pasteImage(gtx, &s.notes, &s.pasteText, func() bool { return u.edit == s }, func(p string) { s.notes.Insert(fmt.Sprintf("![image](%s)\n", p)) })
 		kit.Newline(gtx, &s.notes)
 	}
 	// the dialog's own shortcuts, over its fields: Ctrl+Enter creates or

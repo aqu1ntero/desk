@@ -9,10 +9,13 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -433,8 +436,35 @@ func (p *Proc) write(v any) error {
 }
 
 // Send starts a turn with prompt.
-func (p *Proc) Send(prompt string) error {
-	return p.write(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": prompt}})
+func (p *Proc) Send(prompt string, images ...string) error {
+	content, err := Content(prompt, images)
+	if err != nil {
+		return err
+	}
+	return p.write(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": content}})
+}
+
+// Content is a user message: prompt alone, or with the image files as
+// image blocks, each after an "[Image n]" line (n from 1, as the prompt
+// names them), so Claude sees them without reading files.
+func Content(prompt string, images []string) (any, error) {
+	if len(images) == 0 {
+		return prompt, nil
+	}
+	blocks := []any{map[string]any{"type": "text", "text": prompt}}
+	for i, path := range images {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		typ := mime.TypeByExtension(filepath.Ext(path))
+		if typ == "" {
+			typ = http.DetectContentType(b)
+		}
+		blocks = append(blocks, map[string]any{"type": "text", "text": fmt.Sprintf("[Image %d]", i+1)},
+			map[string]any{"type": "image", "source": map[string]any{"type": "base64", "media_type": typ, "data": base64.StdEncoding.EncodeToString(b)}})
+	}
+	return blocks, nil
 }
 
 // Respond answers request id: allow runs the tool with input (for
