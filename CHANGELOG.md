@@ -6,17 +6,20 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
-### Fixed
-
-- Ctrl+Backspace and Ctrl+Delete delete a word again in desk's text boxes (Linux and Windows).
+## [2026.11.16.3] - 2026-11-16
 
 ### Changed
 
-- An image pasted in a session's message box goes in as `[Image 1]`, as in Claude Code, with its
-  thumbnail and name above the box, and a badge in the text that edits as one piece (Backspace,
-Delete or the thumbnail's × removes the whole image), and reaches Claude as an image of the
-  message instead of a file path. A message starting with `!` that holds an image goes to Claude
-  instead of running as a shell command, and the images stay with an unsent draft.
+- **Pasted images in the message box.** An image pasted in a session's message box goes in as
+  `[Image 1]`, as in Claude Code: a badge in the text that edits as one piece (arrows step over
+  it; Backspace, Delete or the thumbnail's × removes the whole image), with its thumbnail and name
+  above the box. It reaches Claude as an image of the message instead of a file path, so a
+  message holding one is never run as a `!` shell command, and the images stay with an unsent
+  draft.
+
+### Fixed
+
+- Ctrl+Backspace and Ctrl+Delete delete a word again in desk's text boxes (Linux and Windows).
 
 ## [2026.11.16.2] - 2026-11-16
 
@@ -470,7 +473,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.2...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.3...HEAD
+[2026.11.16.3]: https://github.com/lfdominguez/desk/compare/2026.11.16.2...2026.11.16.3
 [2026.11.16.2]: https://github.com/lfdominguez/desk/compare/2026.11.16.1...2026.11.16.2
 [2026.11.16.1]: https://github.com/lfdominguez/desk/compare/2026.11.16...2026.11.16.1
 [2026.11.16]: https://github.com/lfdominguez/desk/compare/2026.11.15.2...2026.11.16
