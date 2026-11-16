@@ -15,8 +15,8 @@ func (u *ui) chatSwitch(id string) {
 	if c := u.b.Card(id); c != nil {
 		text, imgs = c.Draft, slices.Clone(c.DraftImgs)
 	}
-	u.chatIn.SetText(text)
 	u.chatImgs = imgs
+	u.setBox(text)
 	n := u.chatIn.Len()
 	u.chatIn.SetCaret(n, n)
 }

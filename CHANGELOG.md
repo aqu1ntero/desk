@@ -9,7 +9,8 @@ day). A release's section here is its notes on GitHub. The format follows
 ### Changed
 
 - An image pasted in a session's message box goes in as `[Image 1]`, as in Claude Code, with its
-  thumbnail and name above the box (× takes it out), and reaches Claude as an image of the
+  thumbnail and name above the box, and a badge in the text that edits as one piece (Backspace,
+Delete or the thumbnail's × removes the whole image), and reaches Claude as an image of the
   message instead of a file path. A message starting with `!` that holds an image goes to Claude
   instead of running as a shell command, and the images stay with an unsent draft.
 

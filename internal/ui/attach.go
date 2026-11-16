@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -50,10 +51,21 @@ func (p *pane) hasImgs() bool {
 	return any
 }
 
-// unattach removes image n (from 1) and its tag.
+// unattach removes image n (from 1) and its tag, as edits of the box
+// (not SetText: its undo history and caret stay).
 func (p *pane) unattach(n int) {
-	p.chatIn.SetText(strings.ReplaceAll(p.chatIn.Text(), imgTag(n), ""))
-	p.chatImgs[n-1] = ""
+	p.chatImgs[n-1] = "" // keepTags leaves its spans alone now
+	tag := []rune(imgTag(n))
+	for {
+		i := strings.LastIndex(p.chatIn.Text(), string(tag))
+		if i < 0 {
+			break
+		}
+		s := utf8.RuneCountInString(p.chatIn.Text()[:i])
+		p.chatIn.SetCaret(s, s+len(tag))
+		p.chatIn.Insert("")
+	}
+	p.chatPrev = p.chatIn.Text()
 	p.hasImgs()
 }
 
@@ -81,7 +93,7 @@ func outgoing(text string, imgs []string) (string, []string) {
 // sendBox sends what the message box holds, images and all, and empties it.
 func (u *ui) sendBox(id string) {
 	text, files := outgoing(u.chatIn.Text(), u.chatImgs)
-	u.chatIn.SetText("")
+	u.setBox("")
 	u.chatImgs = nil
 	u.deliver(id, text, false, files...)
 }

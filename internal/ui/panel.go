@@ -187,6 +187,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 			c = u.b.Card(id)
 		}
 	}
+	u.keepTags() // its image tags whole, after whatever the keys did
 	if u.chatFocus && !archived {
 		gtx.Execute(key.FocusCmd{Tag: &u.chatIn})
 		u.chatFocus = false
@@ -447,7 +448,7 @@ func (u *ui) composer(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 				case working:
 					hint = "Claude is working; your message goes next"
 				}
-				return k.Editor(gtx, &u.chatIn, hint, chatSp, face, fg)
+				return u.badged(gtx, func(gtx layout.Context) layout.Dimensions { return k.Editor(gtx, &u.chatIn, hint, chatSp, face, fg) })
 			})),
 			layout.Rigid(kit.VGap(8)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
