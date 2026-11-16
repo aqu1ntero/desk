@@ -378,6 +378,21 @@ var cardTools = []map[string]any{
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
 			"question": map[string]any{"type": "string"}}, "required": []string{"question"}},
 	},
+	{
+		"name": "ask_lead",
+		"description": "Brief one of the organization's department leads: long-running Claudes that keep its decisions over cards and only read. " +
+			"engineering: architecture, conventions, decisions, work in flight; security: secrets, access, exposure; finance: costs. " +
+			"Ask when your work touches what the department decided or must agree to (servers go to the infra Claude, desk peer). " +
+			"Returns at once; the lead's answer comes into this conversation as a message, ending in a VERDICT line.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"department":  map[string]any{"type": "string", "enum": []string{"engineering", "security", "finance"}},
+			"objective":   map[string]any{"type": "string", "description": "What you need from the lead."},
+			"context":     map[string]any{"type": "string", "description": "Where to look: paths, cards, links. Not pasted content."},
+			"constraints": map[string]any{"type": "string", "description": "Limits: what must not change."},
+			"done_when":   map[string]any{"type": "string", "description": "What a complete answer contains."},
+			"decision":    map[string]any{"type": "string", "description": "The decision you need taken or checked, if any."}},
+			"required": []string{"department", "objective"}},
+	},
 }
 
 // workspaceTools are the card's workspace Claude's (`desk mcp <sock>

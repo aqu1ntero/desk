@@ -16,6 +16,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/company"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -34,6 +35,8 @@ type task struct {
 	start, end time.Time       // end: when it stopped running, zero while it runs
 	act        time.Time       // a subagent's last sign of life: a message, a tool use or result, progress
 	pending    map[string]pend // a subagent's tool uses without a result yet, by id
+	briefed    bool            // a subagent's brief is in the company log
+	reported   bool            // and its result
 }
 
 // pend is a tool use waiting on its result.
@@ -98,6 +101,25 @@ func (u *ui) onTask(card string, up *claude.Task) {
 		t.cmd = cmp.Or(u.toolCmds[t.ToolUse], strings.TrimPrefix(u.toolLines[t.ToolUse], "Bash  "))
 	}
 	t.ended()
+	u.logTask(card, t)
+}
+
+// logTask puts a subagent's brief, then its result, in its card's
+// organization's company log, once each.
+func (u *ui) logTask(card string, t *task) {
+	c := u.b.Card(card)
+	if t.Shell || c == nil {
+		return
+	}
+	who := cmp.Or(t.Agent, "subagent")
+	if !t.briefed && t.Prompt != "" {
+		t.briefed = true
+		u.logCompany(c.Org, company.Entry{Kind: "brief", From: c.Key(), To: who, Card: c.Key(), Text: t.Prompt})
+	}
+	if !t.reported && t.Status != "" && t.Status != "running" {
+		t.reported = true
+		u.logCompany(c.Org, company.Entry{Kind: "result", From: who, To: c.Key(), Card: c.Key(), Text: cmp.Or(t.Summary, t.Status)})
+	}
 }
 
 // ended stamps when t stopped running (and clears it if it runs again).

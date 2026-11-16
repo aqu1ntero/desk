@@ -176,12 +176,13 @@ type ui struct {
 	focusLater any       // a field to focus on the next frame
 	post       func()    // a click's action run once the frame is drawn (it changes the view)
 
-	ws      map[string]*wsState // cards' workspaces (workspace.go), by card
-	wsGen   int                 // bumps on any workspace change, for sig
-	wsPaths map[string]string   // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
-	unsaved []wsUnsaved         // tabs with changes not saved the last quit kept, until their workspace opens (workspace_unsaved.go)
-	wsEd    orgs.Editor         // the workspace's pane widths and wrap, as the settings keep them (workspace_panes.go)
-	wsGrips [2]wsGrip           // the tree's and the chat's edges, being dragged
+	ws      map[string]*wsState   // cards' workspaces (workspace.go), by card
+	leads   map[string]*leadState // organizations' department leads (leads.go), by leadKey
+	wsGen   int                   // bumps on any workspace change, for sig
+	wsPaths map[string]string     // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
+	unsaved []wsUnsaved           // tabs with changes not saved the last quit kept, until their workspace opens (workspace_unsaved.go)
+	wsEd    orgs.Editor           // the workspace's pane widths and wrap, as the settings keep them (workspace_panes.go)
+	wsGrips [2]wsGrip             // the tree's and the chat's edges, being dragged
 
 	draws    map[string]*drawState // open drawings (drawview.go), by file
 	libs     map[string]*drawLib   // organizations' libraries (drawlib.go), read once
@@ -249,7 +250,8 @@ func (u *ui) startInfra() {
 		New: func(org, title, notes string) (string, error) {
 			return onBoard(u, func() (string, error) { return u.cardNew(org, title, notes) })
 		},
-		Draw: func(who, name string, args []byte) (string, bool) { return u.drawTool(who, name, args) }})
+		Draw: func(who, name string, args []byte) (string, bool) { return u.drawTool(who, name, args) },
+		Note: u.logCompany})
 }
 
 // Run opens the window on board b and returns when it closes.

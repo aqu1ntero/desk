@@ -15,6 +15,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/company"
 )
 
 // Peers are other Claudes on this machine, typically one developing a service
@@ -110,6 +112,22 @@ type Cards struct {
 	New   func(org, title, notes string) (string, error) // a card in To do: its key
 	// Draw answers a drawing tool for who ("infra:<org>"): text, or ImageResult's
 	Draw func(who, name string, args []byte) (string, bool)
+	// Note puts e in org's company log: what cards hand the infra Claude
+	// and what it sends back. Any goroutine.
+	Note func(org string, e company.Entry)
+}
+
+// infraLead is the infra Claude in the company log: the Infra lead.
+const infraLead = "Infra lead"
+
+// note logs e for org through desk's board (hub unlocked); none without it.
+func note(org string, e company.Entry) {
+	hub.Lock()
+	n := cards.Note
+	hub.Unlock()
+	if n != nil {
+		n(org, e)
+	}
 }
 
 var cards Cards
@@ -124,8 +142,15 @@ func (w *Workspace) SetCards(c Cards) {
 // post queues ev for peer to, or hands it to its card (hub locked).
 func post(to string, ev peerEvent) {
 	if cards.Tell != nil && cards.Is(to) {
-		tell, text := cards.Tell, formatEvent(to, ev)
+		tell, text, n := cards.Tell, formatEvent(to, ev), cards.Note
 		go func() { // not under the hub's lock: the board takes its own turn
+			if n != nil {
+				kind := "message"
+				if ev.Kind == "result" {
+					kind = "result"
+				}
+				n(ev.Org, company.Entry{Kind: kind, From: infraLead, To: to, Card: to, Text: ev.Text})
+			}
 			if err := tell(to, text); err != nil && ev.Kind == "question" {
 				hub.Lock()
 				if q := hub.questions[ev.ID]; q != nil {
@@ -206,6 +231,7 @@ func (t *Tab) tellCard(key, text string) toolResult {
 	if err := c.Tell(key, formatEvent(key, peerEvent{Kind: "message", Org: t.org, Text: text})); err != nil {
 		return toolResult{Text: err.Error(), IsError: true}
 	}
+	note(t.org, company.Entry{Kind: "message", From: infraLead, To: key, Card: key, Text: text})
 	hub.Lock()
 	hub.last[t] = key
 	hub.Unlock()
@@ -307,12 +333,19 @@ func (m *model) peer(r peerReq) peerResp {
 	}
 	hub.Lock()
 	hub.last[t] = r.From
+	card := ""
+	if cards.Is != nil && cards.Is(r.From) {
+		card = r.From
+	}
 	hub.Unlock()
-	switch r.Op {
-	case "suggest":
+	if r.Op == "suggest" {
 		r.Text = strings.TrimSpace(fmt.Sprintf("Suggested command: %s\nWhy: %s\n%s", r.Cmd, r.Why, r.Text))
-		fallthrough
-	case "tell":
+	}
+	if kind, ok := map[string]string{"tell": "message", "suggest": "message", "do": "brief"}[r.Op]; ok {
+		note(t.org, company.Entry{Kind: kind, From: r.From, To: infraLead, Card: card, Text: r.Text})
+	}
+	switch r.Op {
+	case "suggest", "tell":
 		t.peerCtx = append(t.peerCtx, fmt.Sprintf("<peer from=%q>\n%s\n</peer>", r.From, r.Text))
 		e := &chatEntry{who: "peer", text: r.From + " · " + r.Op + "\n" + r.Text}
 		if !t.talking() { // no conversation yet: context for the task that follows

@@ -47,6 +47,12 @@ func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
 	if text, ok, done := u.wsTool(id, ws, name, raw); done {
 		return text, ok
 	}
+	if name == "ask_lead" {
+		if ws {
+			return "no tool ask_lead", false
+		}
+		return u.leadTool(id, raw)
+	}
 	var a struct {
 		URL   string `json:"url"`
 		Job   int64  `json:"job"`

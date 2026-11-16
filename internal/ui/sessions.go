@@ -259,7 +259,9 @@ func (u *ui) deliver(id, text string, quiet bool) {
 	acct := orgs.Account(u.root, c.Org)
 	exists := claude.SessionExists(u.home, acct, c.Session.ID)
 	prompt := text
-	if !exists && !slices.ContainsFunc(u.chat(id), func(m kanban.ChatMsg) bool { return m.Who != "shell" && m.Who != "peer" && m.Who != "workspace" }) { // the user's "!" commands, the infra and workspace Claudes' notes aren't the conversation
+	if !exists && !slices.ContainsFunc(u.chat(id), func(m kanban.ChatMsg) bool {
+		return !slices.Contains([]string{"shell", "peer", "workspace", "lead"}, m.Who)
+	}) { // the user's "!" commands, the infra, workspace and lead Claudes' notes aren't the conversation
 		prompt = firstPrompt(c, text)
 	} else if imageRef.MatchString(text) {
 		prompt += "\n" + imageHint

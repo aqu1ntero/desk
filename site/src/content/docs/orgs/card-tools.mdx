@@ -26,6 +26,9 @@ CI. They only read, so they're allowed without asking.
 | `ci` | `url` (optional) | the CI of a pull or merge request or commit: GitHub Actions workflow runs or GitLab pipelines, with every job's status and id. Without `url`, the ones linked on the card |
 | `ci_log` | `url`, `job`, `bytes` (optional) | the end of a CI job's log (the job id from `ci`), to see why it failed: 20,000 bytes unless `bytes` says otherwise, at most 200,000 |
 
+A card's Claude also has `ask_lead`, to brief one of the organization's department leads: see
+[The company](/orgs/company/#department-leads).
+
 `url` takes anything desk reads as a link: a GitHub, GitLab or Bitbucket URL, a Jira URL, or a
 bare Jira key of one of the organization's projects.
 

@@ -33,6 +33,45 @@ Claude decides when a role helps: a part that needs a specialist, an independent
 can run in parallel. Small tasks it does itself. Executives decide or recommend; pushes, deploys,
 spending and access changes stay yours unless the organization's own workflow says otherwise.
 
+## Department leads
+
+Beside the roles a card's Claude runs for one task, every organization has department leads:
+long-running Claudes that keep the department's decisions from card to card.
+
+| Department | Lead | Keeps |
+|---|---|---|
+| `engineering` | Engineering lead | the architecture, the conventions, the decisions taken and why, the work in flight |
+| `security` | Security lead | secrets, access, exposure, dependencies, what was approved and on what conditions |
+| `finance` | Finance lead | what the work costs, and what was agreed to spend |
+| servers | the [infra Claude](/servers/infra-claude/) | the organization's servers; reached with `desk peer` |
+
+A card's Claude briefs one with its `ask_lead` tool: the department, the objective, and if it can,
+where to look, the limits, when the answer is complete and the decision it needs. The lead starts
+the first time it's briefed, in the organization's folder under its account, and only reads (it
+never edits or runs anything). Its answer comes into the card's conversation as a message from
+it, ending in a verdict line, and the card's Claude goes on with it.
+
+A lead is one Claude Code session per organization and department, resumed every time
+(`.desk/company/leads.json`), so it remembers what it answered before. It is the organization's
+own, like its executives: other organizations' cards never reach it.
+
+## The company log
+
+Every hand-off between an organization's Claudes goes to `<Org>/.desk/company/log.jsonl`, one JSON
+line each:
+
+- a subagent's brief and its result (desk's roles and the organization's own agents);
+- a brief to a department lead and its answer;
+- what a card tells or hands the infra Claude, and what comes back (messages, task results).
+
+```json
+{"at":"2026-11-16T10:42:07-03:00","kind":"brief","from":"DESK-12","to":"desk-qa","card":"DESK-12","text":"Verify the API split…"}
+{"at":"2026-11-16T10:51:30-03:00","kind":"result","from":"desk-qa","to":"DESK-12","card":"DESK-12","text":"…\nVERDICT: READY","verdict":"READY"}
+```
+
+`kind` is `brief` (work handed over), `result` (its answer) or `message`; `verdict` is read off a
+result's last `VERDICT:` line. It's a plain file, to read or grep.
+
 ## The organization's own come first
 
 An organization's own `CLAUDE.md`, skills, agents and workflows always win: desk tells every

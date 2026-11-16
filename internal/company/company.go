@@ -93,6 +93,8 @@ DevOps, security, and this organization's CTO, CISO and CFO).
   parallel work. Small tasks you do yourself.
 - Brief each one with the objective, where to look (paths), the limits and when it's done; read
   its result and its VERDICT line before you rely on it.
+- What the organization already decided lives with its department leads: brief the engineering,
+  security or finance lead with ask_lead when your work touches their area.
 - Executives decide or recommend; the user still approves pushes, deploys, spending and access
   changes unless the organization's own workflow says otherwise.`
 

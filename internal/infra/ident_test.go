@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/company"
+	"github.com/lfdominguez/desk/internal/testwait"
 )
 
 // ownAs records pid as o's for the test.
@@ -188,6 +191,45 @@ func TestPeerSocketHoldsCards(t *testing.T) {
 	if err := json.NewDecoder(c).Decode(&resp); err != nil || !strings.Contains(resp.Err, "own organization") {
 		t.Errorf("refused: %+v %v", resp, err)
 	}
+}
+
+// TestPeerNotes: what a card hands the infra Claude, and what comes back
+// to the card, go to the organization's company log through Cards.Note.
+func TestPeerNotes(t *testing.T) {
+	notes := make(chan company.Entry, 8)
+	var w Workspace
+	w.SetCards(Cards{Is: func(n string) bool { return strings.HasPrefix(n, "DESK-") },
+		OrgOf: func(string) string { return "Acme" },
+		Tell:  func(key, text string) error { return nil },
+		Note:  func(org string, e company.Entry) { e.Text = org + ": " + e.Text; notes <- e }})
+	defer w.SetCards(Cards{})
+	m := model{tree: []node{{depth: 0, org: "Acme", dir: t.TempDir()}}}
+	m.peer(peerReq{Op: "tell", Org: "acme", From: "DESK-3", Text: "db is postgres"})
+	m.peer(peerReq{Op: "bogus", Org: "acme", From: "DESK-3"})
+	tab := m.tab()
+	tab.tellCard("DESK-3", "disk is full")
+	tab.taskDone(7, "DESK-3", "done", "rotated")
+	var got []company.Entry
+	for len(got) < 3 {
+		select {
+		case e := <-notes:
+			got = append(got, e)
+		case <-time.After(testwait.Long):
+			t.Fatalf("notes %+v", got)
+		}
+	}
+	want := []company.Entry{
+		{Kind: "message", From: "DESK-3", To: "Infra lead", Card: "DESK-3", Text: "Acme: db is postgres"},
+		{Kind: "message", From: "Infra lead", To: "DESK-3", Card: "DESK-3", Text: "Acme: disk is full"},
+		{Kind: "result", From: "Infra lead", To: "DESK-3", Card: "DESK-3", Text: "Acme: done\nrotated"},
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("note %d: %+v, want %+v", i, got[i], want[i])
+		}
+	}
+	w.SetCards(Cards{})
+	note("Acme", company.Entry{}) // no board: nothing to note to
 }
 
 // TestTellCardOwnOrg: message_card writes only to the tab's organization's cards.

@@ -15,6 +15,13 @@ day). A release's section here is its notes on GitHub. The format follows
   and workflows come first; one of its agents named like a role takes its place, and its
   `desk.toml` can map, skip or turn off desk's roles (`[company]`). Cards get them whether or
   not they run as an agent.
+- **Department leads.** Each organization has an Engineering, a Security and a Finance lead:
+  long-running Claudes that only read and keep the department's decisions from card to card. A
+  card's Claude briefs one with `ask_lead` (objective, where to look, limits, done-when, the
+  decision needed); the answer comes back into its conversation. The infra Claude is the
+  organization's Infra lead.
+- **The company log.** Every hand-off between an organization's Claudes (subagents, leads, the
+  infra Claude) and what came back, verdict included, goes to `<Org>/.desk/company/log.jsonl`.
 
 ### Security
 
