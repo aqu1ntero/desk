@@ -132,3 +132,13 @@ desk runs detached, with no terminal to print to. A crash's trace goes to `~/.lo
 ## The window vanished and came back
 
 On Wayland the compositor can drop a window, for example when a monitor powers off to save energy and comes back. desk then opens its window again, every second until it can, with the board and sessions as they were; it gives up and exits after ten minutes. `crash.log` gets a `window lost, reopening:` line with the reason the display gave (a `protocol error … on <object>` names what the compositor rejected). Include it when you report the bug.
+
+## The compositor says desk is not responding
+
+On Wayland a window answers the compositor's pings only while it is reading its events, so a few
+seconds spent elsewhere (a slow frame, a GPU driver holding the buffer swap) shows as "not
+responding" even though desk carries on right after. When a window is away from its events for
+more than 3 seconds, `crash.log` gets a `window … away from its events` line saying what it was
+doing (handling an event, waiting for another window, drawing the frame), and `stall.log` beside
+it holds every goroutine's stack at that moment, then a `back at its events` line once it
+answers again. Include both when you report it.

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"cmp"
+	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -219,13 +220,23 @@ func (u *ui) inPane(p *pane, f func()) {
 // under u.mu: both windows' frames share u. A display that dropped the
 // window opens it again a moment later.
 func (u *ui) runDetached(d *detached, next func() event.Event) {
+	s := u.watchStall(d.title)
+	defer s.stop()
 	for {
+		s.idle()
 		ev := next()
+		typ := fmt.Sprintf("%T", ev)
+		s.busy("waiting for the lock, to handle " + typ)
 		u.mu.Lock()
+		s.busy("handling " + typ)
 		state := u.detachedEvent(d, ev)
 		u.mu.Unlock()
 		if e, ok := ev.(app.FrameEvent); ok {
+			s.busy("drawing the frame (GPU, buffer swap)")
 			e.Frame(&d.ops) // outside u.mu, as loop does: a swap the driver holds stalls this window only
+		}
+		if state == winLost {
+			s.idle() // no window meanwhile: nobody to answer
 		}
 		switch state {
 		case winDone:

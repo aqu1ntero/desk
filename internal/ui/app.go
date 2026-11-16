@@ -304,15 +304,22 @@ func Run(b *kanban.Board, path string) error {
 func (u *ui) loop(next func() event.Event) error {
 	var ops op.Ops
 	failed := 0
+	s := u.watchStall("main")
+	defer s.stop()
 	for {
+		s.idle()
 		ev := next()
+		typ := fmt.Sprintf("%T", ev)
+		s.busy("waiting for the lock, to handle " + typ)
 		u.mu.Lock() // a detached window's loop shares u; held on return, so desk's cleanup doesn't race it
+		s.busy("handling " + typ)
 		tg, ig := u.termGen.Load(), u.infraGen()
 		done, err := u.event(ev, &ops)
 		if fe, ok := ev.(app.FrameEvent); ok {
 			u.mu.Unlock()
 			// fe.Frame swaps buffers, which a driver can hold (NVIDIA, a window not on screen):
 			// outside u.mu, so that stalls this window only, not every window.
+			s.busy("drawing the frame (GPU, buffer swap)")
 			fe.Frame(&ops)
 			if u.termGen.Load() != tg || u.infraGen() != ig { // output that came after frame's own check: its Invalidate was lost too
 				// Gio takes an Invalidate only once its event queue drains (mayInvalidate), which is after Frame returns.
@@ -341,6 +348,7 @@ func (u *ui) loop(next func() event.Event) error {
 		failed++
 		u.drew = false
 		u.mu.Unlock()
+		s.idle() // no window meanwhile: nobody to answer
 		u.windowLost()
 	}
 }
