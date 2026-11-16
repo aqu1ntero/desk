@@ -70,6 +70,15 @@ func (u *ui) count(v string) int {
 	if v == viewArchive {
 		return len(u.doneCards()) + len(u.b.Archive)
 	}
+	if v == viewCompany { // the cards that need the user
+		n := 0
+		for _, c := range u.coCards() {
+			if u.coCardState(c) == "you" {
+				n++
+			}
+		}
+		return n
+	}
 	if org, ok := strings.CutPrefix(v, "tk:"); ok {
 		return len(u.tickets[org])
 	}
@@ -224,7 +233,7 @@ func (u *ui) sections() []struct {
 		agents = append(agents, byOrg[o]...)
 	}
 	out := []sec{
-		{"Board", []sideItem{{"", "All cards", kit.IcoBoard, kit.CText2}}},
+		{"Board", []sideItem{{"", "All cards", kit.IcoBoard, kit.CText2}, {viewCompany, "Company", kit.IcoStar, kit.COrange}}},
 		{"Agent Sessions", agents},
 		{"Sessions", st},
 		{"Organizations", orgItems},
@@ -242,6 +251,9 @@ func (u *ui) sections() []struct {
 }
 
 func (u *ui) viewTitle() string {
+	if u.view == viewCompany {
+		return "Company"
+	}
 	if org, ok := strings.CutPrefix(u.view, "tk:"); ok {
 		return org + " · my tickets"
 	}
@@ -293,6 +305,9 @@ func (u *ui) viewTitle() string {
 
 // sentence is the view in words: "2 working · 4 blocked · 1 overdue".
 func (u *ui) sentence() string {
+	if u.view == viewCompany {
+		return u.companySentence()
+	}
 	if u.view == viewArchive {
 		return fmt.Sprintf("%d done · %d archived", len(u.doneCards()), len(u.b.Archive))
 	}

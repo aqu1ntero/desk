@@ -178,6 +178,7 @@ type ui struct {
 
 	ws      map[string]*wsState   // cards' workspaces (workspace.go), by card
 	leads   map[string]*leadState // organizations' department leads (leads.go), by leadKey
+	co      *coState              // the Company view's (company.go)
 	wsGen   int                   // bumps on any workspace change, for sig
 	wsPaths map[string]string     // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
 	unsaved []wsUnsaved           // tabs with changes not saved the last quit kept, until their workspace opens (workspace_unsaved.go)
@@ -505,6 +506,8 @@ func (u *ui) mainView() layout.Widget {
 	main := u.board
 	if u.view == viewArchive {
 		main = u.archive
+	} else if u.view == viewCompany {
+		main = u.companyView
 	} else if strings.HasPrefix(u.view, "tk:") {
 		main = u.ticketsView
 	} else if strings.HasPrefix(u.view, "al:") {

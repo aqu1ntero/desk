@@ -1329,7 +1329,7 @@ func TestSessionRowFromPanel(t *testing.T) {
 	c.Session.ID = "s1"
 	h.u.openPanel(c.ID)
 	h.frame()
-	for y := float32(110); y < 200 && h.u.view == ""; y += 4 { // the row under Agent Sessions
+	for y := float32(110); y < 260 && !strings.HasPrefix(h.u.view, "sess:"); y += 4 { // the row under Agent Sessions (Company's above it)
 		p := f32.Pt(100, y)
 		h.send(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Position: p, Buttons: pointer.ButtonPrimary},
 			pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: p})

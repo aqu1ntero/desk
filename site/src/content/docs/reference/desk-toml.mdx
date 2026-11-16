@@ -32,6 +32,9 @@ How desk's roles join the organization's own agents (see [The company](/orgs/com
 | `off` | bool | `false` | `true` leaves all of desk's roles out of this organization's sessions. |
 | `skip` | list of strings | none | Roles to leave out, by name without `desk-`: `["cfo", "cto"]`. |
 | `roles` | table | none | A role mapped to one of the organization's agents that does that job: `tl = "planner"` leaves `desk-tl` out. An agent named like the role (`tl` or `desk-tl`) does the same without it. |
+| `decides` | table | see [Who decides what](/orgs/company/#who-decides-what) | A kind of decision mapped to who takes it: a role, one of the organization's agents, or `"user"`: `security = "sec-review"`. |
+| `card_budget` | number | none | US dollars a card's session may spend between two of your messages; over it, the card pauses. |
+| `day_budget` | number | none | US dollars all the organization's sessions may spend in a day; over it, its cards pause. |
 
 ## Tokens
 

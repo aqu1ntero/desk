@@ -50,6 +50,7 @@ func TestAskLead(t *testing.T) {
 	main := h.mainClaudes()[0]
 	sent := len(main.prompts)
 	f.on(claude.Event{Kind: claude.KindInit, Session: "lead-sess"})
+	f.on(claude.Event{Kind: claude.KindTool, Tool: "Read", ToolID: "t1", Text: "api/config.go"})
 	f.on(claude.Event{Kind: claude.KindText, Text: "No: the vault.\nVERDICT: READY"})
 	f.on(claude.Event{Kind: claude.KindAsk, Ask: &claude.Request{ID: "r1", Tool: "Bash", Line: "Bash ls"}})
 	f.on(claude.Event{Kind: claude.KindResult})
@@ -60,6 +61,11 @@ func TestAskLead(t *testing.T) {
 	if ms := h.u.chat(c.ID); ms[len(ms)-1].Who != "lead" || ms[len(ms)-1].Name != "Security lead" || ms[len(ms)-1].Text != "No: the vault.\nVERDICT: READY" {
 		t.Fatalf("card chat %+v", ms[len(ms)-1])
 	}
+	if m := h.u.chat(leadKey("Acme", "security")); len(m) < 2 || m[1].Who != "tool" {
+		t.Errorf("the lead's own chat: %+v", m)
+	}
+	h.u.view = "sess:" + id // the answer drawn in the card's conversation, under the lead's name
+	h.frame()
 	if company.Sessions(org)["security"] != "lead-sess" || !slices.Equal(f.replies, []string{"r1 deny A department lead only reads: recommend instead."}) {
 		t.Errorf("session %q, replies %q", company.Sessions(org)["security"], f.replies)
 	}

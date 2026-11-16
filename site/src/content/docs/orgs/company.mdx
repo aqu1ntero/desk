@@ -3,6 +3,8 @@ title: The company
 description: desk's own roles (a tech lead, specialists, an organization's CTO, CISO and CFO) that every card's Claude can hand work to, beside the organization's own agents, which come first.
 ---
 
+![The Company view: the user as the sun, each organization a pastel sector with its executives, leads and cards' Claudes on three rings, hand-offs crossing the sky, and sticky notes for the cards that need the user](../../../assets/shots/orgs-company.png)
+
 desk works like a small tech company. Every card's Claude can hand work to desk's roles, Claude
 Code agents desk brings, through the `Agent` tool:
 
@@ -71,6 +73,68 @@ line each:
 
 `kind` is `brief` (work handed over), `result` (its answer) or `message`; `verdict` is read off a
 result's last `VERDICT:` line. It's a plain file, to read or grep.
+
+## The Company view
+
+**Company**, under **All cards** in the sidebar, shows the whole company at once, as a small solar
+system on paper:
+
+- **You** are the sun in the middle, with how many cards need you.
+- **Each organization** is a pastel slice of the sky with three rings: its executives (CTO, CISO,
+  CFO) closest to you, its department leads (and the Infra lead, when it has servers) next, and its
+  cards' Claudes outside, each with its key and title.
+- **A halo** around a planet means it's working: a card's session, a lead on a brief, an executive
+  consulted by a card right now.
+- **A sticker** says what a card wants: *needs you!* (a question, a permission, a paused budget),
+  *your turn*, *stuck* (blocked or failed) or *done* (up for review).
+- **Dots flying between planets** are the hand-offs of the last minute and a half, from the
+  [company log](#the-company-log).
+- **Notes for you**, on the right, lists the cards that need you or wait for your turn. Click a
+  note, or a card's planet, to open its session.
+
+The sidebar's count is the cards that need you; the header says how many are busy and what the
+organizations spent today. It only animates while something is busy, slower when desk isn't
+focused.
+
+## Who decides what
+
+Every card's Claude is told who takes which kind of decision in its organization, and to ask them
+before acting on it:
+
+| Decision | Who, unless the organization says otherwise |
+|---|---|
+| architecture | `desk-cto` |
+| security | `desk-ciso` |
+| spending | `desk-cfo` |
+| merge | `desk-tl` |
+| deploy | you |
+| access | you |
+
+A role recommends; what it can't grant still comes to you. The organization changes or adds rows
+in its `desk.toml`, naming a role, one of its agents, or `user`:
+
+```toml
+[company.decides]
+security = "sec-review"   # our own agent
+merge = "user"
+release = "desk-tl"
+```
+
+## Budgets
+
+An organization can cap what its sessions spend, in US dollars:
+
+```toml
+[company]
+card_budget = 5     # a card's session, between two of your messages
+day_budget = 40     # all the organization's sessions, in a day
+```
+
+desk adds each turn's cost to the organization's day (`.desk/company/spend.json`). When a turn
+ends over a budget, the card pauses: it waits for you with **Paused: over …**, and what other
+Claudes send it (a lead's answer, the infra Claude's result, the workspace Claude's) waits too.
+Your next message continues it, with what waited, and its budget counts again from there. A
+turn already running isn't cut short: the check comes when it ends.
 
 ## The organization's own come first
 

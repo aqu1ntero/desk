@@ -20,6 +20,16 @@ day). A release's section here is its notes on GitHub. The format follows
   card's Claude briefs one with `ask_lead` (objective, where to look, limits, done-when, the
   decision needed); the answer comes back into its conversation. The infra Claude is the
   organization's Infra lead.
+- **The Company view.** The sidebar's Company shows every organization's Claudes as a pastel
+  solar system around you: executives, department leads and cards on three rings, halos while
+  they work, stickers when a card needs you, hand-offs flying between them, and sticky notes for
+  the cards waiting on you. A click opens the card's session.
+- **Who decides what.** Every card's Claude is told the organization's decision rights
+  (architecture: CTO, security: CISO, spending: CFO, merge: tech lead, deploy and access: you),
+  which `[company.decides]` changes.
+- **Budgets.** `card_budget` and `day_budget` in `[company]` cap what an organization's sessions
+  spend; a card over one pauses, what other Claudes send it waits, and your next message
+  continues it.
 - **The company log.** Every hand-off between an organization's Claudes (subagents, leads, the
   infra Claude) and what came back, verdict included, goes to `<Org>/.desk/company/log.jsonl`.
 

@@ -59,10 +59,12 @@ func (u *ui) roster(c *kanban.Card) ([]claude.Agent, error) {
 	return company.Roster(claude.Agents(u.agentsDir(c.Org, cfg)), cfg.Company), err
 }
 
-// companyPrompt is company.Prompt when c's session has desk's roles.
+// companyPrompt is company.PromptFor its organization when c's session
+// has desk's roles.
 func (u *ui) companyPrompt(c *kanban.Card) string {
 	if r, _ := u.roster(c); company.HasRoles(r) {
-		return company.Prompt
+		cfg, _ := orgs.Load(u.root, c.Org)
+		return company.PromptFor(cfg.Company)
 	}
 	return ""
 }
