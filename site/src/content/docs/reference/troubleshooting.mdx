@@ -141,4 +141,5 @@ responding" even though desk carries on right after. When a window is away from 
 more than 3 seconds, `crash.log` gets a `window … away from its events` line saying what it was
 doing (handling an event, waiting for another window, drawing the frame), and `stall.log` beside
 it holds every goroutine's stack at that moment, then a `back at its events` line once it
-answers again. Include both when you report it.
+answers again. Include both when you report it. A window on a workspace you aren't looking at, or
+behind a display that is off, doesn't draw until it is shown again; that is expected.

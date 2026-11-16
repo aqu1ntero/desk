@@ -26,6 +26,10 @@ type wlContext struct {
 	win *window
 	*egl.Context
 	eglWin *C.struct_wl_egl_window
+	// vsyncOff: the swap interval is set once the context is current
+	// (Lock), since eglSwapInterval applies to the current context's
+	// surface; called before, it did nothing and the swap kept interval 1.
+	vsyncOff bool
 }
 
 func init() {
@@ -48,10 +52,6 @@ func init() {
 		if err := ctx.CreateSurface(eglSurf); err != nil {
 			return nil, err
 		}
-		// We're in charge of the frame callbacks, don't let eglSwapBuffers
-		// wait for callbacks that may never arrive.
-		ctx.EnableVSync(false)
-
 		return &wlContext{Context: ctx, win: w, eglWin: eglWin}, nil
 	}
 }
@@ -77,7 +77,17 @@ func (c *wlContext) Refresh() error {
 }
 
 func (c *wlContext) Lock() error {
-	return c.Context.MakeCurrent()
+	if err := c.Context.MakeCurrent(); err != nil {
+		return err
+	}
+	if !c.vsyncOff {
+		// We're in charge of the frame callbacks, don't let eglSwapBuffers
+		// wait for callbacks that may never arrive (a window the compositor
+		// isn't showing: another workspace, the display off).
+		c.Context.EnableVSync(false)
+		c.vsyncOff = true
+	}
+	return nil
 }
 
 func (c *wlContext) Unlock() {
