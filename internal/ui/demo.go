@@ -348,7 +348,7 @@ type demoSession struct {
 	fix  bool // its first turn was the fix: the second pushes it
 }
 
-func (s *demoSession) Send(prompt string) error {
+func (s *demoSession) Send(prompt string, _ ...string) error {
 	s.mu.Lock()
 	s.turn++
 	turn := s.turn
@@ -379,7 +379,7 @@ func (s *demoSession) Close()           {}
 // and answers (the main Claude's question, or the user's).
 type demoWorkspace struct{ on func(claude.Event) }
 
-func (s *demoWorkspace) Send(prompt string) error {
+func (s *demoWorkspace) Send(prompt string, _ ...string) error {
 	answer := demoWSAnswer
 	if strings.HasPrefix(prompt, "The card's main Claude asks:") {
 		answer = demoWSCard

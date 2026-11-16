@@ -93,6 +93,9 @@ func TestProcWrites(t *testing.T) {
 		p.Respond("r2", false, nil, "no") != nil || p.Interrupt() != nil {
 		t.Fatal("write failed")
 	}
+	if p.Send("look", filepath.Join(t.TempDir(), "gone.png")) == nil {
+		t.Fatal("a missing image sent")
+	}
 	var lines []map[string]any
 	for deadline := time.Now().Add(testwait.Long); len(lines) < 4 && time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
 		b, _ := os.ReadFile(in)

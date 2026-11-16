@@ -28,10 +28,13 @@ type pane struct {
 	view      string // what the window shows: the main one's sidebar pick (views.go), "" all cards; a detached one's "" its session
 	chatIn    widget.Editor
 	chatList  layout.List
-	chatFocus bool   // focus chatIn on the next frame
-	chatPaste bool   // Ctrl+V in chatIn found text: the editor pastes it
-	chatFor   string // the card chatIn's text is for (drafts.go)
-	chatTap   int    // the session pane's press area: its tag
+	chatFocus bool     // focus chatIn on the next frame
+	chatPaste bool     // Ctrl+V in chatIn found text: the editor pastes it
+	chatPrev  string   // chatIn's text when keepTags last saw it (badges.go)
+	chatCaret int      // and its caret then
+	chatImgs  []string // the images pasted in chatIn: [Image n] is chatImgs[n-1], "" once removed (attach.go)
+	chatFor   string   // the card chatIn's text is for (drafts.go)
+	chatTap   int      // the session pane's press area: its tag
 	selBack   *widget.Editor
 	selFocus  *widget.Selectable // the selectable text that last had the keyboard
 	selLast   *widget.Selectable // the selectable text last pressed: the one with a selection
@@ -81,7 +84,8 @@ func (u *ui) detach(id string) {
 		if u.chatFor == id {
 			u.keepDraft()
 			u.chatFor = ""
-			u.chatIn.SetText("")
+			u.chatImgs = nil
+			u.setBox("")
 		}
 	})
 	c.Detached = true

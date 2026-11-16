@@ -29,11 +29,12 @@ var imageRef = regexp.MustCompile(`!\[[^\]]*\]\(([^)\s]+)\)`)
 func (u *ui) imagesDir() string { return filepath.Join(filepath.Dir(u.path), "images") }
 
 // pasteImage takes Ctrl+V in ed before the editor does: an image in the
-// clipboard is saved and goes in as a reference Claude reads; anything else
+// clipboard is saved and handed to put (the notes' Markdown reference, the
+// message box's [Image n]: attach.go); anything else
 // is pasted by the editor as always (text set, next frame). live says ed is
 // still on screen when the clipboard answers. Called before ed is laid out,
 // so it sees the key first.
-func (u *ui) pasteImage(gtx layout.Context, ed *widget.Editor, text *bool, live func() bool) {
+func (u *ui) pasteImage(gtx layout.Context, ed *widget.Editor, text *bool, live func() bool, put func(path string)) {
 	if *text {
 		*text = false
 		gtx.Execute(clipboard.ReadCmd{Tag: ed})
@@ -61,7 +62,7 @@ func (u *ui) pasteImage(gtx layout.Context, ed *widget.Editor, text *bool, live 
 					u.showToast("Couldn't keep the image: "+err.Error(), true)
 					return
 				}
-				ed.Insert(fmt.Sprintf("![image](%s)\n", p))
+				put(p)
 			})
 		}()
 	}

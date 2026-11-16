@@ -22,7 +22,7 @@ import (
 
 // session is a running Claude, as the UI uses it.
 type session interface {
-	Send(prompt string) error
+	Send(prompt string, images ...string) error
 	Respond(id string, allow bool, input json.RawMessage, msg string) error
 	Interrupt() error
 	Close()
@@ -242,7 +242,8 @@ func (u *ui) overBudget(c *kanban.Card) string {
 // deliver is send; quiet keeps text out of the chat (desk's own note, as
 // a command's end, which the chat shows its own way). A quiet one is
 // another Claude's or desk's, held while the session is over budget.
-func (u *ui) deliver(id, text string, quiet bool) {
+// images are the files of the [Image n] in text (attach.go).
+func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 	c := u.b.Card(id)
 	text = strings.TrimSpace(text)
 	if c == nil || text == "" || !c.Archived.IsZero() {
@@ -252,7 +253,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 		u.showToast(c.Key()+": your command is still running: Stop it, or wait for it", false)
 		return
 	}
-	if cmd := bang(text); cmd != "" && !quiet { // the user's own command, run now: Claude gets it when it ends
+	if cmd := bang(text); cmd != "" && !quiet && len(images) == 0 { // the user's own command, run now: Claude gets it when it ends
 		u.shell(id, cmd)
 		return
 	}
@@ -271,7 +272,10 @@ func (u *ui) deliver(id, text string, quiet bool) {
 		u.save()
 		return
 	}
-	if a, p := u.asks[id], u.procs[id]; a != nil && p != nil { // typed instead of picking: Claude reads it as the reply
+	if a, p := u.asks[id], u.procs[id]; a != nil && p != nil && len(images) > 0 { // an answer can't carry images: it comes as the next message
+		p.Respond(a.r.ID, false, nil, "The user answers in their next message, with images.")
+		delete(u.asks, id)
+	} else if a != nil && p != nil { // typed instead of picking: Claude reads it as the reply
 		p.Respond(a.r.ID, false, nil, "The user answered in their own words instead: "+text)
 		delete(u.asks, id)
 		u.say(id, "you", text)
@@ -337,7 +341,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 		own(p, infra.Owner{Card: id, Peer: c.Key(), Org: c.Org})
 		u.procs[id] = p
 	}
-	if err := p.Send(prompt); err != nil {
+	if err := p.Send(prompt, images...); err != nil {
 		u.showToast("Claude: "+err.Error(), true)
 		return
 	}

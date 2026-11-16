@@ -516,7 +516,11 @@ func (e *Editor) command(gtx layout.Context, k key.Event) (EditorEvent, bool) {
 			e.text.MoveWord(1*direction, selAct)
 		}
 	}
-	if k.Modifiers.Contain(key.ModShortcut) {
+	// desk: where the shortcut and word modifiers are the same key (Ctrl off
+	// macOS), Ctrl+Backspace and Ctrl+Delete are a word's delete, not
+	// shortcuts: they go on to the switch below instead of ending here.
+	wordDelete := moveByWord && (k.Name == key.NameDeleteBackward || k.Name == key.NameDeleteForward)
+	if k.Modifiers.Contain(key.ModShortcut) && !wordDelete {
 		switch k.Name {
 		// Initiate a paste operation, by requesting the clipboard contents; other
 		// half is in Editor.processKey() under clipboard.Event.
