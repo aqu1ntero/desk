@@ -6,6 +6,15 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Hyprland (and other Wayland compositors) no longer reports desk as not responding at start, after
+  the display wakes, or while its window sits on another workspace, with NVIDIA's driver: drawing a
+  window the compositor isn't showing waited in the driver for a frame that never came, so desk
+  missed the compositor's pings. A hidden window now draws when it is shown again. A window away
+  from its events for more than 3 seconds also leaves a line in `crash.log` and its stacks in
+  `stall.log`.
+
 ## [2026.11.16.1] - 2026-11-16
 
 ### Fixed
