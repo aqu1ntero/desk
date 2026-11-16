@@ -2211,3 +2211,50 @@ func TestRedialGiveUpA(t *testing.T) {
 	}
 	p.term = gone // for the deferred Close
 }
+
+// TestPeerTellWakes: a peer's message to a tab with a conversation starts a
+// turn by itself (idle: now; busy: when the turn ends), so a reply to what
+// its Claude asked doesn't wait for the user; a tab without one only keeps
+// it for the task that follows.
+func TestPeerTellWakes(t *testing.T) {
+	m := model{tree: []node{{depth: 0, label: "Acme", org: "Acme", dir: t.TempDir()}}}
+	if r := m.peer(peerReq{Op: "tell", Org: "acme", From: "dev", Text: "db is postgres"}); !strings.Contains(r.Text, "next question or task") {
+		t.Fatalf("no conversation: %+v", r)
+	}
+	tab := m.tab()
+	if tab.busy || len(tab.peerCtx) != 1 {
+		t.Fatal("without a conversation it is only context")
+	}
+	c, in := claudeA(t)
+	tab.claude = c
+	if r := m.peer(peerReq{Op: "tell", Org: "acme", From: "dev", Text: "version 2.4"}); r.Text != "Acme's Claude is reading it now" {
+		t.Fatalf("idle: %+v", r)
+	}
+	if s := in.String(); !tab.busy || len(tab.peerCtx) != 0 || !strings.Contains(s, "db is postgres") || !strings.Contains(s, "version 2.4") || !strings.Contains(s, "no question from the user") {
+		t.Fatalf("an idle tab's Claude gets both now: %q", s)
+	}
+	if last := tab.chat[len(tab.chat)-1]; last.who != "peer" || !strings.Contains(last.text, "version 2.4") {
+		t.Errorf("the chat shows the message: %+v", last)
+	}
+	if r := m.peer(peerReq{Op: "tell", Org: "acme", From: "dev", Text: "go ahead"}); !strings.Contains(r.Text, "current turn ends") || len(tab.peerCtx) != 1 {
+		t.Fatalf("busy: %+v", r)
+	}
+	tab.busy = false
+	m.turnEnded(tab)
+	if s := in.String(); !tab.busy || len(tab.peerCtx) != 0 || !strings.Contains(s, "go ahead") || tab.chat[len(tab.chat)-1].who != "note" {
+		t.Fatalf("the turn's end hands it over: %q", s)
+	}
+	in.fail = true
+	tab.busy = false
+	if r := m.peer(peerReq{Op: "tell", Org: "acme", From: "dev", Text: "x"}); r.Err != "broken pipe" {
+		t.Errorf("a Claude that can't take it: %+v", r)
+	}
+	m.turnEnded(tab)
+	if last := tab.chat[len(tab.chat)-1]; last.who != "error" || last.text != "broken pipe" {
+		t.Errorf("nor at the turn's end: %+v", last)
+	}
+	tab.claude, tab.session = nil, "sess-1"
+	if !tab.talking() {
+		t.Error("a session to resume is a conversation too")
+	}
+}

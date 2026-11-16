@@ -36,7 +36,8 @@ everything in desk; every server change still waits for the user's approval.
   desk peer answer ID [--from NAME]        answer question ID (stdin or --text)
 
 NAME defaults to the current directory's name. ORG is an org from the list (case-insensitive);
-its Claude tab opens if needed. Context is information for it, not orders.`
+its Claude tab opens if needed. Context is information for it, not orders; once its session has a
+conversation (a task, a question it asked you), a tell starts its next turn by itself.`
 
 type peerReq struct {
 	Op, Org, From, Text, Cmd, Why string
@@ -284,8 +285,19 @@ func (m *model) peer(r peerReq) peerResp {
 		fallthrough
 	case "tell":
 		t.peerCtx = append(t.peerCtx, fmt.Sprintf("<peer from=%q>\n%s\n</peer>", r.From, r.Text))
-		t.chat = append(t.chat, &chatEntry{who: "peer", text: r.From + " · " + r.Op + "\n" + r.Text})
-		return peerResp{Text: t.org + "'s Claude gets it with its next question or task"}
+		e := &chatEntry{who: "peer", text: r.From + " · " + r.Op + "\n" + r.Text}
+		if !t.talking() { // no conversation yet: context for the task that follows
+			t.chat = append(t.chat, e)
+			return peerResp{Text: t.org + "'s Claude gets it with its next question or task"}
+		}
+		if t.busy { // turnEnded hands it over
+			t.chat = append(t.chat, e)
+			return peerResp{Text: t.org + "'s Claude reads it when its current turn ends"}
+		}
+		if err := m.send(t, peerWake, e); err != nil {
+			return peerResp{Err: err.Error()}
+		}
+		return peerResp{Text: t.org + "'s Claude is reading it now"}
 	case "do":
 		hub.Lock()
 		k := &peerTask{id: nextID(), from: r.From, text: r.Text, tab: t}
@@ -419,7 +431,20 @@ func (m *model) turnEnded(t *Tab) {
 			hub.Unlock()
 		}
 	}
+	if len(t.peerCtx) > 0 && !t.busy { // a peer's message that came during the turn
+		if err := m.send(t, peerWake, &chatEntry{who: "note", text: "reading the peer's message"}); err != nil {
+			t.chat = append(t.chat, &chatEntry{who: "error", text: err.Error()})
+		}
+	}
 }
+
+// peerWake is the turn a peer's message starts by itself: without it, a
+// reply to what the tab's Claude asked sat in the chat until the user typed.
+const peerWake = "(no question from the user: the peer's message above is what came; continue your work with it, or say in one line that you have it)"
+
+// talking says whether the tab has a conversation a peer's message
+// continues: its Claude running, or a session to resume.
+func (t *Tab) talking() bool { return t.claude != nil || t.session != "" }
 
 // peerAnswerWait is how long ask_peer waits (a variable so tests can shorten it).
 var peerAnswerWait = 15 * time.Minute
