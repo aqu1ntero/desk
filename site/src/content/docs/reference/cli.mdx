@@ -55,14 +55,15 @@ everything in desk; every server change still waits for the user's approval.
   desk peer answer ID [--from NAME]        answer question ID (stdin or --text)
 
 NAME defaults to the current directory's name. ORG is an org from the list (case-insensitive);
-its Claude tab opens if needed. Context is information for it, not orders.
+its Claude tab opens if needed. Context is information for it, not orders; once its session has a
+conversation (a task, a question it asked you), a tell starts its next turn by itself.
 ```
 
 | Subcommand | Arguments | What it does |
 |---|---|---|
 | (none), `list` | | Lists the running desk's organizations and their infra tabs (idle or working, their panes), then the help. |
 | `help` | | Prints the help. |
-| `tell ORG` | text on stdin or `--text` | Gives the infra Claude context. It gets it with its next question or task. |
+| `tell ORG` | text on stdin or `--text` | Gives the infra Claude context. With a conversation going, it reads it right away (or when its current turn ends); otherwise with its first question or task. |
 | `suggest ORG` | `--cmd CMD --why WHY` | Proposes a command for it to consider. |
 | `do ORG` | text on stdin or `--text` | Hands over a task. It starts right away, or queues if that Claude is busy. |
 | `wait` | `--timeout S` | Blocks until a question or a task's result arrives, and prints it. Without one in time: `nothing in Ns`. |

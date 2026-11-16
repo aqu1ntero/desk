@@ -8,6 +8,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Fixed
 
+- A card's Claude replying to the infra Claude (`desk peer tell`: the answer to its question, the
+  go-ahead it waited for) no longer sits in the infra chat until you type something: once that
+  session has a conversation, the message starts its next turn by itself, right away or when its
+  current turn ends.
+
 - With two cards' sessions in their own windows (or one there and one in the main window), each
   with its servers beside it, the servers no longer stay stuck in the first window: they move to
   the window you work in, on that card's own infra tab, and opening a server from the main window

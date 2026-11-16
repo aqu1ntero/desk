@@ -142,8 +142,11 @@ desk peer answer ID [--from NAME]           # answer question ID
   (`--from DESK-5`) sends the work to that card's own infra session; any other name goes to the
   organization's session.
 - `ORG` is an organization from the list, in any case.
-- `tell` and `suggest` are context for the infra Claude, not orders: it gets them with its next
-  question or task.
+- `tell` and `suggest` are context for the infra Claude, not orders. When its session already has a
+  conversation (a task, or a question it asked), the message starts a turn by itself: right away
+  when it's idle, when its current turn ends when it's busy. A reply to what it asked doesn't wait
+  for you to type. A session that hasn't started yet keeps the message for its first question or
+  task.
 - `do` answers "task 1 started in Globex", or "task 2 queued" when that session is busy.
 - `wait` blocks until something comes, then prints it. Cards don't need it (desk brings the
   events into the card); other sessions run it in the background, again after each event.
