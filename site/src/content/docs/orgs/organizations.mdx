@@ -150,8 +150,14 @@ Claude, and an infra tab's local panes. Inside it:
 A local pane's shell counts as that tab's own, so `desk peer` from it is refused, as from any
 infra tab.
 
-On macOS and Windows desk still knows who calls, but the sessions see every folder; without
-bubblewrap on Linux, too.
+On macOS, the same sessions run under the system's own sandbox (`sandbox-exec`): the same folders
+can't be read or written (they aren't empty, they refuse), the same ones stay. A process a session
+leaves running in the background stays in its sandbox, but desk may then take its calls for your
+own.
+
+On Windows desk knows who calls, but the sessions see every folder: Windows has no simple way to
+keep one program out of some folders. An organization nested inside another sees the outer one's
+folder, being in it.
 
 ## Reload
 

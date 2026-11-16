@@ -16,11 +16,12 @@ day). A release's section here is its notes on GitHub. The format follows
   answered any caller, and a drawing's name could lead out of its folder. desk now knows each
   call's Claude by its process (Linux, macOS, Windows) and holds it to its own card and
   organization; your own programs outside desk's Claudes keep full reach.
-- **Each session walled into its organization (Linux, with bubblewrap).** A session's Claude,
+- **Each session walled into its organization (Linux with bubblewrap, and macOS).** A session's Claude,
   and an infra tab's local panes, now find every other organization's folder empty, as well as
   desk's board, chats and state and the other Claude accounts' profiles; its own folder, its added
-  projects and pasted images stay. What it starts stays in its own process namespace, so a
-  background process can't leave it.
+  projects and pasted images stay. On Linux what it starts stays in its own process namespace, so
+  a background process can't leave it; on macOS the system's sandbox (`sandbox-exec`) refuses
+  those folders to it and to everything it starts.
 
 ### Fixed
 
