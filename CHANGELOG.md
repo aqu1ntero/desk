@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.16.1] - 2026-11-16
+
 ### Fixed
 
 - A long command waiting for approval in the infra workspace no longer pushes Approve and Deny out
@@ -401,7 +403,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.1...HEAD
+[2026.11.16.1]: https://github.com/lfdominguez/desk/compare/2026.11.16...2026.11.16.1
 [2026.11.16]: https://github.com/lfdominguez/desk/compare/2026.11.15.2...2026.11.16
 [2026.11.15.2]: https://github.com/lfdominguez/desk/compare/2026.11.15.1...2026.11.15.2
 [2026.11.15.1]: https://github.com/lfdominguez/desk/compare/2026.11.15...2026.11.15.1
