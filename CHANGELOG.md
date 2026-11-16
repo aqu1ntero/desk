@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- With two cards' sessions in their own windows (or one there and one in the main window), each
+  with its servers beside it, the servers no longer stay stuck in the first window: they move to
+  the window you work in, on that card's own infra tab, and opening a server from the main window
+  shows it there instead of in the other card's window.
+
 ## [2026.11.15.2] - 2026-11-15
 
 ### Added

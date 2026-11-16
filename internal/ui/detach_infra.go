@@ -26,42 +26,55 @@ func (u *ui) infraWake() {
 	u.w.Invalidate()
 }
 
-// infraElsewhere is the main window's servers view while a detached
-// window draws the workspace beside its chat: where, and a way to have it
-// here (that window then shows its chat alone).
+// infraTake gives the infra workspace to owner's window (a detached card's
+// id, "" the main one). The window that had it redraws without it, and the
+// new one asks for its own card's tab again (splitFor): the workspace has
+// one active tab, so the last window's would show here.
+func (u *ui) infraTake(owner string) {
+	if u.infraBy == owner {
+		return
+	}
+	old := u.infraBy
+	u.infraBy, u.splitFor = owner, ""
+	u.tkGen++
+	if d := u.detached[owner]; d != nil {
+		u.infraWin.Store(d.w)
+	} else {
+		u.infraWin.Store(nil)
+	}
+	if d := u.detached[old]; d != nil {
+		d.w.Invalidate()
+	} else if old == "" {
+		u.w.Invalidate()
+	}
+}
+
+// mainInfra says whether the main window shows the workspace: its servers
+// view, or a session of its own with its server work beside it.
+func (u *ui) mainInfra() bool {
+	v := u.mainPane.view
+	if strings.HasPrefix(v, "srv:") {
+		return true
+	}
+	id, ok := strings.CutPrefix(v, "sess:")
+	return ok && u.detached[id] == nil && u.splitOrg(id) != ""
+}
+
+// infraElsewhere is the main window's servers view while another window
+// draws the workspace and this one isn't focused: where it is. Working in
+// this window brings it here (serversView's infraTake).
 func (u *ui) infraElsewhere(gtx layout.Context) layout.Dimensions {
-	k, by := u.k, u.infraBy
-	key := by
-	if c := u.b.Card(by); c != nil {
+	key := u.infraBy
+	if c := u.b.Card(key); c != nil {
 		key = c.Key()
 	}
 	kit.Fill(gtx, kit.CColumn)
-	var act func()
-	d := layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(k.Lbl("The servers are beside "+key+"'s session, in its own window", 14, kit.CText, kit.Semi(kit.Sans))),
-			layout.Rigid(kit.VGap(14)),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				d, ok := k.Button(gtx, "infraHere", kit.CAcc, kit.Mix(kit.CAcc, kit.CWhite, .12), kit.RCtl, layout.Inset{Top: 7, Bottom: 7, Left: 14, Right: 14},
-					k.Lbl("Show them here", 13, kit.CWhite, kit.Semi(kit.Sans)))
-				if ok {
-					act = func() {
-						u.noSplit[by] = true // that window: the chat alone
-						u.infraBy = ""
-						u.infraWin.Store(nil)
-						u.tkGen++
-						if d := u.detached[by]; d != nil {
-							d.w.Invalidate()
-						}
-					}
-				}
-				return d
-			}))
+			layout.Rigid(u.k.Lbl("The servers are beside "+key+"'s session, in its own window", 14, kit.CText, kit.Semi(kit.Sans))),
+			layout.Rigid(kit.VGap(8)),
+			layout.Rigid(u.k.Lbl("Click here to bring them back", 13, kit.CText3, kit.Sans)))
 	})
-	if act != nil {
-		act()
-	}
-	return d
 }
 
 // hyprFocus focuses this process's window titled title through

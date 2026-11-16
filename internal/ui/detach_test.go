@@ -357,6 +357,10 @@ func TestDetachedSplit(t *testing.T) {
 		t.Fatalf("the detached window draws the servers: by %q", h.u.infraBy)
 	}
 	h.u.infraWake() // its output redraws that window
+	w.frame()
+	if h.u.infraBy != c.ID || !d.drewInfra {
+		t.Error("it keeps them frame after frame")
+	}
 	h.u.detach(other.ID)
 	w2 := &dwin{h: h, d: h.u.detached[other.ID]}
 	w2.frame()
@@ -369,18 +373,52 @@ func TestDetachedSplit(t *testing.T) {
 	if h.u.splitShown {
 		t.Error("the main window's session shows its chat alone meanwhile")
 	}
+	h.u.focused = true
+	h.frame()
+	if h.u.infraBy != "" || !h.u.splitShown {
+		t.Error("working in it, its session takes the servers beside it")
+	}
+	h.u.focused, d.p.focused = false, true
+	w.frame()
+	d.p.focused = false
 	h.u.view = "srv:Acme"
 	h.frame()
-	h.clickButton("infraHere")
-	if h.u.infraBy != "" || !h.u.noSplit[c.ID] {
-		t.Fatal("Show them here takes the servers back")
+	if h.u.infraBy != c.ID {
+		t.Fatal("the main window, not focused, leaves the servers where they are")
+	}
+	h.u.focused = true
+	h.frame()
+	if h.u.infraBy != "" || h.u.infraWin.Load() != nil || h.u.splitFor != "" {
+		t.Fatal("working in the main window takes the servers")
 	}
 	w.frame()
 	if h.u.infraBy != "" || d.drewInfra {
 		t.Error("that window then shows the chat alone")
 	}
-	h.u.noSplit[c.ID] = false
+	h.u.focused, d.p.focused = false, true
 	w.frame()
+	if h.u.infraBy != c.ID || !d.drewInfra || h.u.splitFor != c.ID+"\x00Acme" {
+		t.Errorf("focusing that window takes them back, on its card's tab: by %q, for %q", h.u.infraBy, h.u.splitFor)
+	}
+	d.p.focused = false
+	h.u.detach(other.ID)
+	w2 = &dwin{h: h, d: h.u.detached[other.ID]}
+	w2.d.p.focused = true
+	w2.frame()
+	if h.u.infraBy != other.ID || !w2.d.drewInfra || h.u.splitFor != other.ID+"\x00Acme" {
+		t.Errorf("another card's focused window takes them, on its own tab: by %q", h.u.infraBy)
+	}
+	w.frame()
+	if d.drewInfra {
+		t.Error("the first window then shows its chat alone")
+	}
+	w2.d.p.focused = false
+	h.u.reattach(other.ID)
+	h.u.mainPane.view = "" // the board: the main window shows no servers
+	w.frame()
+	if h.u.infraBy != c.ID {
+		t.Error("with nobody else showing them, they go back to the window that wants them")
+	}
 	h.u.reattach(c.ID)
 	if h.u.infraBy != "" || h.u.infraWin.Load() != nil {
 		t.Error("reattaching gives the servers back")

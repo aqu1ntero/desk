@@ -508,7 +508,10 @@ func (u *ui) serversView(gtx layout.Context) layout.Dimensions {
 		return layout.Center.Layout(gtx, u.k.Lbl("The infra workspace isn't running.", 13, kit.CText3, kit.Sans))
 	}
 	if u.infraBy != "" { // a detached window draws it beside its chat
-		return u.infraElsewhere(gtx)
+		if !u.focused {
+			return u.infraElsewhere(gtx)
+		}
+		u.infraTake("")
 	}
 	if a := u.infra.ActiveOrg(); a != "" && a != org && u.infraOrg(a) != nil {
 		org = a

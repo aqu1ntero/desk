@@ -48,22 +48,25 @@ func (u *ui) sessionView(gtx layout.Context) layout.Dimensions {
 
 // sessionSplit is card id's session, its infra session beside it when its
 // Claude handed server work there. That workspace is one, drawn in one
-// window at a time: a detached window takes it (u.infraBy) unless another
-// detached one has it; the main window then shows the chat alone.
+// window at a time (u.infraBy): the focused window that wants it takes it
+// (infraTake), a detached one also when nobody shows it; the others show
+// the chat alone.
 func (u *ui) sessionSplit(gtx layout.Context, id string) layout.Dimensions {
 	org := u.splitOrg(id)
 	if org == "" || u.detached[id] != nil && u.win == nil || u.b.Card(id) == nil {
 		return u.sessionBody(gtx, id)
 	}
 	if u.win != nil {
-		if u.infraBy != "" && u.infraBy != id {
+		if u.infraBy != id && !u.focused && (u.infraBy != "" || u.mainInfra()) {
 			return u.sessionBody(gtx, id)
 		}
-		u.infraBy = id
+		u.infraTake(id)
 		u.win.drewInfra = true
-		u.infraWin.Store(u.win.w)
 	} else if u.infraBy != "" {
-		return u.sessionBody(gtx, id)
+		if !u.focused {
+			return u.sessionBody(gtx, id)
+		}
+		u.infraTake("")
 	}
 	// its server work beside it, in the card's own infra session: the whole
 	// investigation in one view. Asked once per card and org: OpenCard is
