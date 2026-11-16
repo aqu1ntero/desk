@@ -49,6 +49,7 @@ type ui struct {
 	terms        map[*Term]*termView
 
 	search, input, broadcastIn, palIn, askIn, apEdit, nameIn widget.Editor
+	apList                                                   widget.List         // the approval sheet's body, scrolled when it doesn't fit
 	files                                                    map[*Tab]*filesView // each tab's directory split, if it has one
 	treeList, chatList, cardList, palList                    layout.List
 

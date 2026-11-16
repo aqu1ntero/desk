@@ -8,6 +8,7 @@ import (
 	"gioui.org/app"
 	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/widget"
 
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/ui/kit"
@@ -16,7 +17,8 @@ import (
 // exitAsk is the question asked before desk closes while cards' Claudes
 // are at work; act is the answer, run after the dialog is drawn.
 type exitAsk struct {
-	act func()
+	act  func()
+	list widget.List // the body, scrolled in a window too short for it
 }
 
 // exitShown is how many busy cards the dialog names before "and N more".
@@ -116,7 +118,9 @@ func (u *ui) exitDialog(gtx layout.Context) {
 		foot := func(gtx layout.Context) layout.Dimensions {
 			return dialogFoot(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)} }),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
+					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						d0, ok := k.KBtn(gtx, "exitCancel", kit.Ghost, "Cancel", "esc")
 						if ok {
@@ -134,7 +138,7 @@ func (u *ui) exitDialog(gtx layout.Context) {
 					}))
 			})
 		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(body), layout.Rigid(foot))
+		return kit.Pinned(gtx, &d.list, body, foot)
 	})
 	if act := d.act; act != nil { // after drawing: both answers clear u.exit
 		d.act = nil

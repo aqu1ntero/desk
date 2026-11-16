@@ -21,6 +21,7 @@ import (
 // login asks for one (Passbolt's TOTP). Neither is kept; the unlocked vault
 // stays open while desk runs.
 type unlockDialog struct {
+	list     widget.List // the body, scrolled in a window too short for it
 	le       *vault.LockedError
 	pass     widget.Editor
 	code     widget.Editor
@@ -215,7 +216,7 @@ func (u *ui) unlockDialog(gtx layout.Context) {
 				return layout.Flex{Alignment: layout.Middle}.Layout(gtx, ch...)
 			})
 		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(body), layout.Rigid(foot))
+		return kit.Pinned(gtx, &d.list, body, foot)
 	})
 	if act := d.act; act != nil { // after drawing: Not now clears u.unlock
 		d.act = nil

@@ -72,9 +72,11 @@ func (u *ui) sheets(gtx layout.Context) {
 	event.Op(gtx.Ops, scrimTag)
 	s.Pop()
 
-	top := op.Offset(image.Pt(0, gtx.Dp(map[string]unit.Dp{"ask": 120, "approval": 80, "pal": 84}[kind]))).Push(gtx.Ops)
+	topDp := map[string]unit.Dp{"ask": 120, "approval": 80, "pal": 84}[kind]
+	top := op.Offset(image.Pt(0, gtx.Dp(topDp))).Push(gtx.Ops)
 	cgtx := gtx
-	cgtx.Constraints.Min = image.Pt(gtx.Constraints.Max.X, 0) // N centers within Min
+	cgtx.Constraints.Min = image.Pt(gtx.Constraints.Max.X, 0)                       // N centers within Min
+	cgtx.Constraints.Max.Y = max(0, gtx.Constraints.Max.Y-gtx.Dp(topDp)-gtx.Dp(24)) // inside the window: a long sheet scrolls
 	layout.N.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X-gtx.Dp(32), gtx.Dp(map[string]unit.Dp{"ask": 440, "approval": 720, "pal": 700}[kind]))
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -287,6 +289,7 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 	tag := &u.editing
 	if opened {
 		gtx.Execute(keyFocus(tag))
+		u.apList.Position = layout.Position{} // a new approval starts at its top
 	}
 	verdict := func(v string) {
 		switch {
@@ -402,7 +405,7 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 				}))
 			}
 		}
-		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		buttons := func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 12, Bottom: 14, Left: 16, Right: 14}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				row := []layout.FlexChild{u.kb("apN", kit.Ghost, "Deny", "N", func() { verdict("n") }), layout.Rigid(hgap(8))}
 				if !a.Secret {
@@ -415,8 +418,12 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 				row = append(row, u.kb("apY", kit.Primary, "Approve", "Y", func() { verdict("y") }))
 				return layout.Flex{Alignment: layout.Middle}.Layout(gtx, row...)
 			})
-		}))
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
+		}
+		// a long command scrolls; the buttons stay in view
+		return kit.Pinned(gtx, &u.apList, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
+		}, buttons)
 	})(gtx)
 	content := m.Stop()
 	// the keyboard handler's area goes under the sheet, so its buttons get

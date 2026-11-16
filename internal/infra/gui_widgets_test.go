@@ -1537,3 +1537,30 @@ func cameraPalC(t *testing.T, m *model) {
 		t.Errorf("share: %q", m.flash)
 	}
 }
+
+// TestApprovalSheetScrolls: a command too long for the window scrolls inside
+// the sheet, whose buttons stay in view; a new approval starts at the top.
+func TestApprovalSheetScrolls(t *testing.T) {
+	u := wUI(t)
+	long := strings.TrimSpace(strings.Repeat("echo line\n", 300))
+	u.st = &guiState{Approval: &guiApproval{Tab: "web-1", Host: "web-1", Cmd: long, Org: "Acme"}}
+	h := newWH(t, u, func(gtx layout.Context) { u.sheets(gtx) })
+	h.size = image.Pt(1200, 400)
+	h.frame()
+	p := u.apList.Position
+	if p.Length <= 400 || p.BeforeEnd == false {
+		t.Fatalf("the body scrolls: %+v", p)
+	}
+	var d layout.Dimensions
+	h.draw = func(gtx layout.Context) { d = u.approvalSheet(gtx, false) }
+	h.frame()
+	if d.Size.Y > 400 {
+		t.Errorf("the sheet is %d tall in a 400 window", d.Size.Y)
+	}
+	u.apList.Position.Offset = 500
+	h.draw = func(gtx layout.Context) { u.approvalSheet(gtx, true) }
+	h.frame()
+	if u.apList.Position.Offset != 0 || u.apList.Position.First != 0 {
+		t.Errorf("a new approval starts at its top: %+v", u.apList.Position)
+	}
+}

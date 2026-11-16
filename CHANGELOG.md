@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A long command waiting for approval in the infra workspace no longer pushes Approve and Deny out
+  of the window: the sheet stays inside the window and the command scrolls, the buttons always in
+  view. The vault unlock and exit questions scroll the same way in a short window.
+
 ## [2026.11.16] - 2026-11-16
 
 ### Fixed
