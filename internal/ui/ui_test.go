@@ -2006,9 +2006,23 @@ func TestCardAgent(t *testing.T) {
 	if c := h.u.b.Card(c.ID); c.Agent != "api" {
 		t.Fatalf("picked api, card has %q", c.Agent)
 	}
-	h.create("Elsewhere", "Globex") // no agents there: none
-	if n := len(h.claudes); n != 2 || h.claudes[1].opts.Args != nil {
+	if a := h.claudes[0].opts.Args; !strings.Contains(a[1], `"desk-qa"`) || !strings.Contains(h.claudes[0].opts.System, "desk's company") {
+		t.Errorf("desk's roles join the organization's agents: %q", a[1][:min(len(a[1]), 80)])
+	}
+	h.create("Default company", "Globex") // no agents of its own: desk's roles, no --agent
+	if a := h.claudes[1].opts.Args; len(a) != 2 || a[0] != "--agents" || !strings.Contains(a[1], `"desk-tl"`) {
+		t.Errorf("Globex session started with %q", a)
+	}
+	writeAt(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte("[company]\noff = true\n"), 0o644)
+	h.create("Elsewhere", "Globex") // no agents there, and the company off: none
+	if n := len(h.claudes); n != 3 || h.claudes[2].opts.Args != nil || strings.Contains(h.claudes[2].opts.System, "desk's company") {
 		t.Fatalf("Globex session %d started with %q", n, h.claudes[n-1].opts.Args)
+	}
+	writeAt(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte("not toml ["), 0o644)
+	c = h.u.b.Card(c.ID)
+	c.Org, c.Agent = "Globex", "planner"
+	if _, err := h.u.agentArgs(c); err == nil {
+		t.Error("an agent picked, its desk.toml unreadable: an error")
 	}
 }
 

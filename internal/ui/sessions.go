@@ -279,7 +279,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 			u.showToast(c.Key()+": "+err.Error(), true)
 			return
 		}
-		o.System += cardLang(c)
+		o.System += cardLang(c) + u.companyPrompt(c)
 		if c.Alert != "" {
 			o.System += claude.AlertSnooze
 		}

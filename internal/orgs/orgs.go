@@ -195,9 +195,20 @@ type GitLab struct {
 	Secret
 }
 
+// Company is how desk's roles (internal/company) join the organization's
+// own agents: Roles maps a role (tl, architect…) to one of its agents
+// doing that job, so desk leaves its own out, as it does Skip's; Off
+// leaves them all out.
+type Company struct {
+	Off   bool              `toml:"off"`
+	Roles map[string]string `toml:"roles"`
+	Skip  []string          `toml:"skip"`
+}
+
 type Config struct {
 	Agent     string      `toml:"agent"`  // the Claude Code agent new cards run as, "" none
 	Agents    string      `toml:"agents"` // its folder of agent files, from the organization's ("" .claude/agents)
+	Company   Company     `toml:"company"`
 	GitHub    []GitHub    `toml:"github"`
 	Jira      []Jira      `toml:"jira"`
 	Bitbucket []Bitbucket `toml:"bitbucket"`

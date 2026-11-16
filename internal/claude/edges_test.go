@@ -33,7 +33,7 @@ func fakeClaude(t *testing.T, bwrap bool) string {
 
 // TestParseAgentUnclosed: frontmatter without its closing --- is no agent.
 func TestParseAgentUnclosed(t *testing.T) {
-	if _, ok := parseAgent("---\nname: x\n"); ok {
+	if _, ok := ParseAgent("---\nname: x\n"); ok {
 		t.Fatal("unclosed frontmatter read as an agent")
 	}
 }

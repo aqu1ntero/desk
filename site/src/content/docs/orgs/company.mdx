@@ -1,0 +1,56 @@
+---
+title: The company
+description: desk's own roles (a tech lead, specialists, an organization's CTO, CISO and CFO) that every card's Claude can hand work to, beside the organization's own agents, which come first.
+---
+
+desk works like a small tech company. Every card's Claude can hand work to desk's roles, Claude
+Code agents desk brings, through the `Agent` tool:
+
+| Role | Name | What it does | Can |
+|---|---|---|---|
+| Tech lead | `desk-tl` | plans work with several parts, briefs the specialists, checks what comes back | everything, and hand work on |
+| Architect | `desk-architect` | designs how a change fits before it's built, reviews designs | read |
+| Senior developer | `desk-senior-dev` | implements a part with its tests | read, edit, run |
+| QA | `desk-qa` | checks a change against what it had to do, independently | read, run |
+| DevOps | `desk-devops` | builds, CI, containers, infrastructure code, deploy preparation | read, edit, run |
+| Security | `desk-security` | looks for vulnerabilities | read, run checks |
+| CTO | `desk-cto` | decides technical direction that is hard to undo | read |
+| CISO | `desk-ciso` | approves, with conditions, or refuses changes to secrets, access, the network | read |
+| CFO | `desk-cfo` | says whether a cost is worth it, with the numbers | read |
+
+The executives are the organization's own: a card's Claude only reaches its own organization, so
+its CTO, CISO and CFO are that organization's. Only the tech lead hands work on; the others say in
+their result which skill is needed next.
+
+## How they work together
+
+A role gets a brief: the objective, where to look, the limits, and when it's done. It answers in a
+short result whose last line is a verdict: `VERDICT: READY`, `VERDICT: BLOCKED <why>` or
+`VERDICT: PARTIAL <what is missing>`. The card's Claude reads it before relying on it, and the
+subagents show in the session's rail and on the card's canvas like any other.
+
+Claude decides when a role helps: a part that needs a specialist, an independent check, work that
+can run in parallel. Small tasks it does itself. Executives decide or recommend; pushes, deploys,
+spending and access changes stay yours unless the organization's own workflow says otherwise.
+
+## The organization's own come first
+
+An organization's own `CLAUDE.md`, skills, agents and workflows always win: desk tells every
+Claude to use them when they cover the work, and its roles only fill what they don't. Claude says
+which it used.
+
+An agent of the organization's with a role's name (`tl` or `desk-tl`) takes that role's place.
+Its `desk.toml` can also map a role to one of its agents, skip roles, or turn desk's off:
+
+```toml
+[company]
+skip = ["cfo"]          # no desk-cfo for this organization
+# off = true            # none of desk's roles
+
+[company.roles]
+tl = "planner"          # our planner is the tech lead: no desk-tl
+devops = "ops"
+```
+
+Every card's session gets the roster: the organization's agents, then desk's roles it keeps,
+whether or not the card runs as an agent (its **Agent** row).

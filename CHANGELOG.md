@@ -6,6 +6,16 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The company.** Every card's Claude can hand work to desk's roles with the Agent tool: a tech
+  lead who plans and briefs the others, an architect, a senior developer, QA, DevOps, security,
+  and the organization's own CTO, CISO and CFO. Each gets a brief and answers with a short result
+  ending in a verdict (ready, blocked, partial). The organization's own CLAUDE.md, skills, agents
+  and workflows come first; one of its agents named like a role takes its place, and its
+  `desk.toml` can map, skip or turn off desk's roles (`[company]`). Cards get them whether or
+  not they run as an agent.
+
 ### Security
 
 - **One organization's Claudes stay in it.** A card's Claude could reach another organization

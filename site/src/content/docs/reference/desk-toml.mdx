@@ -23,6 +23,16 @@ These go before the first `[table]` (a TOML rule: after a table header, a key be
 | `record` | bool | `true` | `false` stops recording the infra workspace's panes. |
 | `clear_login` | bool | `true` | `false` keeps what a server prints at login (banner, message of the day) above a pane's first prompt, after the shell integration clears the screen. The organization's settings page has it as **Show the server's login message**. |
 
+## [company]
+
+How desk's roles join the organization's own agents (see [The company](/orgs/company/)).
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `off` | bool | `false` | `true` leaves all of desk's roles out of this organization's sessions. |
+| `skip` | list of strings | none | Roles to leave out, by name without `desk-`: `["cfo", "cto"]`. |
+| `roles` | table | none | A role mapped to one of the organization's agents that does that job: `tl = "planner"` leaves `desk-tl` out. An agent named like the role (`tl` or `desk-tl`) does the same without it. |
+
 ## Tokens
 
 Every account that needs a token (`[[github]]`, `[[jira]]`, `[[bitbucket]]`, `[[gitlab]]`, `[[nagios]]`, `[[metrics]]`) takes these keys, right in its table:
