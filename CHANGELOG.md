@@ -6,6 +6,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Ctrl+Backspace and Ctrl+Delete delete a word again in desk's text boxes (Linux and Windows).
+
 ### Changed
 
 - An image pasted in a session's message box goes in as `[Image 1]`, as in Claude Code, with its

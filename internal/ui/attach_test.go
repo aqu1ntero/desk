@@ -165,7 +165,7 @@ func TestImageBadge(t *testing.T) {
 	put()
 	ed.SetCaret(13, 13)
 	h.frame()
-	h.send(key.EditEvent{Range: key.Range{Start: 11, End: 13}, Text: ""}) // a word's delete: "1]"
+	h.send(press(key.NameDeleteBackward, key.ModShortcutAlt)) // a word's delete (third_party's Gio fix)
 	at("see  now", 4, 4)
 
 	put()
@@ -184,5 +184,28 @@ func TestImageBadge(t *testing.T) {
 	h.send(key.EditEvent{Range: key.Range{Start: 4, End: 15}, Text: "X"})
 	if strings.Contains(ed.Text(), "Image") || h.u.chatImgs != nil {
 		t.Fatalf("typed over: %q %v", ed.Text(), h.u.chatImgs)
+	}
+}
+
+// TestWordDelete: Ctrl+Backspace and Ctrl+Delete delete a word in the
+// message box (Gio took them for shortcuts where Ctrl is both).
+func TestWordDelete(t *testing.T) {
+	h := newHarness(t)
+	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme"})
+	h.u.openPanel(c.ID)
+	h.frame()
+	h.frame()
+	h.u.setBox("hello big world")
+	h.u.chatIn.SetCaret(15, 15)
+	h.frame()
+	h.send(press(key.NameDeleteBackward, key.ModShortcutAlt))
+	if h.u.chatIn.Text() != "hello big " {
+		t.Fatalf("Backspace: %q", h.u.chatIn.Text())
+	}
+	h.u.chatIn.SetCaret(0, 0)
+	h.frame()
+	h.send(press(key.NameDeleteForward, key.ModShortcutAlt))
+	if h.u.chatIn.Text() != " big " {
+		t.Fatalf("Delete: %q", h.u.chatIn.Text())
 	}
 }
