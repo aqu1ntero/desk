@@ -110,6 +110,23 @@ From source, with Go and the Xcode command line tools: `packaging/macos/build-ap
 notifications. Data lives where it does on Linux (`~/.config/desk`, `~/.local/share/desk`).
 Linux-only on macOS: the infra workspace's virtual camera (PipeWire / v4l2loopback).
 
+#### Require review from Mac users
+
+Each session is walled into its organization with macOS's own sandbox (`sandbox-exec`), and desk
+knows which of its Claudes calls it by the process (`LOCAL_PEERPID`). Both were built and tested
+on Linux only, and never ran on a Mac. On macOS, check:
+
+1. Sessions start: a card's session, its workspace, a drawing's Claude, the card's terminal, and
+   Improve with Claude in a new card.
+2. The walls hold: an Acme card's Claude can't read Globex's folder or `~/.local/share/desk`, and
+   still reads its own folder, a project added to the card and a pasted image.
+3. An organization with its own account (`~/Secure/Claudes/<Org>`) still finds its login and
+   settings.
+4. With Claude Code's own sandbox on (`sandbox.enabled`), its Bash commands still run: macOS may
+   refuse a sandbox inside desk's.
+5. From an Acme card's Claude, `desk peer tell Globex --text x` is refused and `desk peer list`
+   shows only Acme.
+
 ### Nix
 
 ```sh
