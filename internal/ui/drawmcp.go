@@ -117,6 +117,7 @@ func (u *ui) drawFind(w drawWho, name string) (string, bool) {
 	if name == "" {
 		return w.mine, w.mine != ""
 	}
+	name = filepath.Base(filepath.Clean("/" + name)) // a name, never a way out of the folder
 	var dirs []string
 	if w.card != "" {
 		dirs = append(dirs, u.cardDrawingsDir(w.org, w.card))

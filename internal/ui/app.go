@@ -176,12 +176,14 @@ type ui struct {
 	focusLater any       // a field to focus on the next frame
 	post       func()    // a click's action run once the frame is drawn (it changes the view)
 
-	ws      map[string]*wsState // cards' workspaces (workspace.go), by card
-	wsGen   int                 // bumps on any workspace change, for sig
-	wsPaths map[string]string   // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
-	unsaved []wsUnsaved         // tabs with changes not saved the last quit kept, until their workspace opens (workspace_unsaved.go)
-	wsEd    orgs.Editor         // the workspace's pane widths and wrap, as the settings keep them (workspace_panes.go)
-	wsGrips [2]wsGrip           // the tree's and the chat's edges, being dragged
+	ws      map[string]*wsState   // cards' workspaces (workspace.go), by card
+	leads   map[string]*leadState // organizations' department leads (leads.go), by leadKey
+	co      *coState              // the Company view's (company.go)
+	wsGen   int                   // bumps on any workspace change, for sig
+	wsPaths map[string]string     // the main sessions' Edit and Write uses, by tool use: the file, checked by its open tab when done
+	unsaved []wsUnsaved           // tabs with changes not saved the last quit kept, until their workspace opens (workspace_unsaved.go)
+	wsEd    orgs.Editor           // the workspace's pane widths and wrap, as the settings keep them (workspace_panes.go)
+	wsGrips [2]wsGrip             // the tree's and the chat's edges, being dragged
 
 	draws    map[string]*drawState // open drawings (drawview.go), by file
 	libs     map[string]*drawLib   // organizations' libraries (drawlib.go), read once
@@ -241,6 +243,7 @@ func (u *ui) startInfra() {
 		u.showToast("Card tools: "+err.Error(), true)
 	}
 	u.infra.SetCards(infra.Cards{Is: cardKey.MatchString,
+		OrgOf: u.cardOrgAsk,
 		Tell: func(key, text string) error {
 			_, err := onBoard(u, func() (string, error) { return "", u.cardTell(key, text) })
 			return err
@@ -248,13 +251,15 @@ func (u *ui) startInfra() {
 		New: func(org, title, notes string) (string, error) {
 			return onBoard(u, func() (string, error) { return u.cardNew(org, title, notes) })
 		},
-		Draw: func(who, name string, args []byte) (string, bool) { return u.drawTool(who, name, args) }})
+		Draw: func(who, name string, args []byte) (string, bool) { return u.drawTool(who, name, args) },
+		Note: u.logCompany})
 }
 
 // Run opens the window on board b and returns when it closes.
 func Run(b *kanban.Board, path string) error {
 	u := newUI(b, path)
 	u.loadKeys()
+	claude.Confine = u.walls
 	u.startInfra()
 	files := explorer.NewExplorer(u.w)
 	pickFile = func(exts ...string) (io.ReadCloser, error) {
@@ -501,6 +506,8 @@ func (u *ui) mainView() layout.Widget {
 	main := u.board
 	if u.view == viewArchive {
 		main = u.archive
+	} else if u.view == viewCompany {
+		main = u.companyView
 	} else if strings.HasPrefix(u.view, "tk:") {
 		main = u.ticketsView
 	} else if strings.HasPrefix(u.view, "al:") {

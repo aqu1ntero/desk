@@ -147,6 +147,20 @@ func (u *ui) cardOfKey(key string) *kanban.Card {
 	return nil
 }
 
+// cardOrg is card key's organization; "" when it isn't on the board.
+func (u *ui) cardOrg(key string) string {
+	if c := u.cardOfKey(key); c != nil {
+		return c.Org
+	}
+	return ""
+}
+
+// cardOrgAsk is cardOrg from another goroutine (an infra Claude's call).
+func (u *ui) cardOrgAsk(key string) string {
+	org, _ := onBoard(u, func() (string, error) { return u.cardOrg(key), nil })
+	return org
+}
+
 func (u *ui) cardTell(key, text string) error {
 	c := u.cardOfKey(key)
 	if c == nil {

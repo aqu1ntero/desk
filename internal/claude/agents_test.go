@@ -20,7 +20,7 @@ func TestAgentArgs(t *testing.T) {
 		!slices.Equal(as[1].Tools, []string{"Read", "Agent", "mcp__tracker__*"}) || as[1].Prompt != "# Planner\n\nYou orchestrate." || as[0].Description != "API work" {
 		t.Fatalf("%+v", as)
 	}
-	args, err := AgentArgs(dir, "planner")
+	args, err := AgentArgs(as, "planner")
 	if err != nil || len(args) != 4 || args[0] != "--agents" || args[2] != "--agent" || args[3] != "planner" {
 		t.Fatalf("%q %v", args, err)
 	}
@@ -28,7 +28,13 @@ func TestAgentArgs(t *testing.T) {
 	if err := json.Unmarshal([]byte(args[1]), &m); err != nil || m["api"]["prompt"] != "You implement." || m["planner"]["model"] != "opus" {
 		t.Fatalf("--agents %s: %v", args[1], err)
 	}
-	if _, err := AgentArgs(dir, "qa"); err == nil {
+	if _, err := AgentArgs(as, "qa"); err == nil {
 		t.Fatal("an agent that isn't there: no error")
+	}
+	if args, _ := AgentArgs(as, ""); len(args) != 2 {
+		t.Errorf("no agent picked: still defined: %q", args)
+	}
+	if args, err := AgentArgs(nil, ""); args != nil || err != nil {
+		t.Errorf("none: %q %v", args, err)
 	}
 }

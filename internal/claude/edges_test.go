@@ -33,7 +33,7 @@ func fakeClaude(t *testing.T, bwrap bool) string {
 
 // TestParseAgentUnclosed: frontmatter without its closing --- is no agent.
 func TestParseAgentUnclosed(t *testing.T) {
-	if _, ok := parseAgent("---\nname: x\n"); ok {
+	if _, ok := ParseAgent("---\nname: x\n"); ok {
 		t.Fatal("unclosed frontmatter read as an agent")
 	}
 }
@@ -79,6 +79,9 @@ func TestStart(t *testing.T) {
 	p, err := Start(Options{Home: t.TempDir(), Dir: t.TempDir(), System: "sys"}, func(e Event) { got <- e })
 	if err != nil || p == nil {
 		t.Fatalf("%v %v", p, err)
+	}
+	if p.Pid() != p.cmd.Process.Pid {
+		t.Error("Pid is the process desk started")
 	}
 	if !slices.Contains(p.cmd.Env, "CLAUDE_CODE_ARTIFACT=1") {
 		t.Fatal("a card's session should have the Artifact tools")

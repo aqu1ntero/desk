@@ -1329,7 +1329,7 @@ func TestSessionRowFromPanel(t *testing.T) {
 	c.Session.ID = "s1"
 	h.u.openPanel(c.ID)
 	h.frame()
-	for y := float32(110); y < 200 && h.u.view == ""; y += 4 { // the row under Agent Sessions
+	for y := float32(110); y < 260 && !strings.HasPrefix(h.u.view, "sess:"); y += 4 { // the row under Agent Sessions (Company's above it)
 		p := f32.Pt(100, y)
 		h.send(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Position: p, Buttons: pointer.ButtonPrimary},
 			pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: p})
@@ -2006,9 +2006,23 @@ func TestCardAgent(t *testing.T) {
 	if c := h.u.b.Card(c.ID); c.Agent != "api" {
 		t.Fatalf("picked api, card has %q", c.Agent)
 	}
-	h.create("Elsewhere", "Globex") // no agents there: none
-	if n := len(h.claudes); n != 2 || h.claudes[1].opts.Args != nil {
+	if a := h.claudes[0].opts.Args; !strings.Contains(a[1], `"desk-qa"`) || !strings.Contains(h.claudes[0].opts.System, "desk's company") {
+		t.Errorf("desk's roles join the organization's agents: %q", a[1][:min(len(a[1]), 80)])
+	}
+	h.create("Default company", "Globex") // no agents of its own: desk's roles, no --agent
+	if a := h.claudes[1].opts.Args; len(a) != 2 || a[0] != "--agents" || !strings.Contains(a[1], `"desk-tl"`) {
+		t.Errorf("Globex session started with %q", a)
+	}
+	writeAt(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte("[company]\noff = true\n"), 0o644)
+	h.create("Elsewhere", "Globex") // no agents there, and the company off: none
+	if n := len(h.claudes); n != 3 || h.claudes[2].opts.Args != nil || strings.Contains(h.claudes[2].opts.System, "desk's company") {
 		t.Fatalf("Globex session %d started with %q", n, h.claudes[n-1].opts.Args)
+	}
+	writeAt(filepath.Join(root, "Globex", ".desk", "desk.toml"), []byte("not toml ["), 0o644)
+	c = h.u.b.Card(c.ID)
+	c.Org, c.Agent = "Globex", "planner"
+	if _, err := h.u.agentArgs(c); err == nil {
+		t.Error("an agent picked, its desk.toml unreadable: an error")
 	}
 }
 

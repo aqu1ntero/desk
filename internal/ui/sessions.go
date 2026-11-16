@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/company"
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
@@ -223,8 +224,24 @@ func (u *ui) compact(id string) {
 	}
 }
 
+// cameIn is what desk sends a session when what other Claudes sent it
+// while busy (peerOut) can go in.
+const cameIn = "(desk) These came in while you were busy."
+
+// overBudget says why c's session is over its organization's budgets
+// (company.Over); "" when it isn't, or the organization has none.
+func (u *ui) overBudget(c *kanban.Card) string {
+	cfg, _ := orgs.Load(u.root, c.Org)
+	if cfg.Company.CardBudget <= 0 && cfg.Company.DayBudget <= 0 {
+		return ""
+	}
+	today := company.Spent(orgs.Dir(u.root, c.Org, ""), time.Now())
+	return company.Over(cfg.Company, c.Session.Cost, c.Allowed, today)
+}
+
 // deliver is send; quiet keeps text out of the chat (desk's own note, as
-// a command's end, which the chat shows its own way).
+// a command's end, which the chat shows its own way). A quiet one is
+// another Claude's or desk's, held while the session is over budget.
 func (u *ui) deliver(id, text string, quiet bool) {
 	c := u.b.Card(id)
 	text = strings.TrimSpace(text)
@@ -244,6 +261,16 @@ func (u *ui) deliver(id, text string, quiet bool) {
 		u.showTerm(id)
 		return
 	}
+	if !quiet { // the user's own message: the go-ahead past a budget
+		c.Allowed = c.Session.Cost
+	} else if why := u.overBudget(c); why != "" { // another Claude's: held for the user's go-ahead
+		if text != cameIn {
+			u.peerOut[id] += text + "\n\n"
+		}
+		c.Status, c.Note = kanban.StatusWaiting, "Paused: over "+why
+		u.save()
+		return
+	}
 	if a, p := u.asks[id], u.procs[id]; a != nil && p != nil { // typed instead of picking: Claude reads it as the reply
 		p.Respond(a.r.ID, false, nil, "The user answered in their own words instead: "+text)
 		delete(u.asks, id)
@@ -259,7 +286,9 @@ func (u *ui) deliver(id, text string, quiet bool) {
 	acct := orgs.Account(u.root, c.Org)
 	exists := claude.SessionExists(u.home, acct, c.Session.ID)
 	prompt := text
-	if !exists && !slices.ContainsFunc(u.chat(id), func(m kanban.ChatMsg) bool { return m.Who != "shell" && m.Who != "peer" && m.Who != "workspace" }) { // the user's "!" commands, the infra and workspace Claudes' notes aren't the conversation
+	if !exists && !slices.ContainsFunc(u.chat(id), func(m kanban.ChatMsg) bool {
+		return !slices.Contains([]string{"shell", "peer", "workspace", "lead"}, m.Who)
+	}) { // the user's "!" commands, the infra, workspace and lead Claudes' notes aren't the conversation
 		prompt = firstPrompt(c, text)
 	} else if imageRef.MatchString(text) {
 		prompt += "\n" + imageHint
@@ -279,7 +308,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 			u.showToast(c.Key()+": "+err.Error(), true)
 			return
 		}
-		o.System += cardLang(c)
+		o.System += cardLang(c) + u.companyPrompt(c)
 		if c.Alert != "" {
 			o.System += claude.AlertSnooze
 		}
@@ -305,6 +334,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 			u.showToast("Claude: "+err.Error(), true)
 			return
 		}
+		own(p, infra.Owner{Card: id, Peer: c.Key(), Org: c.Org})
 		u.procs[id] = p
 	}
 	if err := p.Send(prompt); err != nil {
@@ -438,11 +468,16 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 	case claude.KindResult:
 		delete(u.asks, id) // a request the turn left unanswered is void
 		if u.peerOut[id] != "" {
-			defer u.deliver(id, "(desk) These came in while you were busy.", true)
+			defer u.deliver(id, cameIn, true)
 		}
 		c.Session.Window = max(c.Session.Window, e.Window)
 		c.Session.Turns++
 		c.Session.Tokens += e.Tokens
+		if spent := base + e.Cost - c.Session.Cost; spent > 0 { // what this turn cost: the organization's day
+			if err := company.Spend(orgs.Dir(u.root, c.Org, ""), time.Now(), spent); err != nil {
+				u.showToast("Company spend: "+err.Error(), true)
+			}
+		}
 		c.Session.Cost = base + e.Cost
 		d := u.pending[id]
 		delete(u.pending, id)
@@ -476,6 +511,10 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			u.moveTo(id, "Review")
 		default:
 			c.Status, c.Note = kanban.StatusWaiting, ""
+		}
+		if why := u.overBudget(c); why != "" && c.Status != kanban.StatusFailed {
+			c.Status, c.Note = kanban.StatusWaiting, "Paused: over "+why
+			u.say(id, "error", "Paused: this session is over "+why+". What other Claudes send it waits; your next message continues it.")
 		}
 	case claude.KindExit:
 		u.stopTasks(id)

@@ -1,0 +1,159 @@
+---
+title: The company
+description: desk's own roles (a tech lead, specialists, an organization's CTO, CISO and CFO) that every card's Claude can hand work to, beside the organization's own agents, which come first.
+---
+
+![The Company view: the user as the sun, each organization a pastel sector with its executives, leads and cards' Claudes on three rings, hand-offs crossing the sky, and sticky notes for the cards that need the user](../../../assets/shots/orgs-company.png)
+
+desk works like a small tech company. Every card's Claude can hand work to desk's roles, Claude
+Code agents desk brings, through the `Agent` tool:
+
+| Role | Name | What it does | Can |
+|---|---|---|---|
+| Tech lead | `desk-tl` | plans work with several parts, briefs the specialists, checks what comes back | everything, and hand work on |
+| Architect | `desk-architect` | designs how a change fits before it's built, reviews designs | read |
+| Senior developer | `desk-senior-dev` | implements a part with its tests | read, edit, run |
+| QA | `desk-qa` | checks a change against what it had to do, independently | read, run |
+| DevOps | `desk-devops` | builds, CI, containers, infrastructure code, deploy preparation | read, edit, run |
+| Security | `desk-security` | looks for vulnerabilities | read, run checks |
+| CTO | `desk-cto` | decides technical direction that is hard to undo | read |
+| CISO | `desk-ciso` | approves, with conditions, or refuses changes to secrets, access, the network | read |
+| CFO | `desk-cfo` | says whether a cost is worth it, with the numbers | read |
+
+The executives are the organization's own: a card's Claude only reaches its own organization, so
+its CTO, CISO and CFO are that organization's. Only the tech lead hands work on; the others say in
+their result which skill is needed next.
+
+## How they work together
+
+A role gets a brief: the objective, where to look, the limits, and when it's done. It answers in a
+short result whose last line is a verdict: `VERDICT: READY`, `VERDICT: BLOCKED <why>` or
+`VERDICT: PARTIAL <what is missing>`. The card's Claude reads it before relying on it, and the
+subagents show in the session's rail and on the card's canvas like any other.
+
+Claude decides when a role helps: a part that needs a specialist, an independent check, work that
+can run in parallel. Small tasks it does itself. Executives decide or recommend; pushes, deploys,
+spending and access changes stay yours unless the organization's own workflow says otherwise.
+
+## Department leads
+
+Beside the roles a card's Claude runs for one task, every organization has department leads:
+long-running Claudes that keep the department's decisions from card to card.
+
+| Department | Lead | Keeps |
+|---|---|---|
+| `engineering` | Engineering lead | the architecture, the conventions, the decisions taken and why, the work in flight |
+| `security` | Security lead | secrets, access, exposure, dependencies, what was approved and on what conditions |
+| `finance` | Finance lead | what the work costs, and what was agreed to spend |
+| servers | the [infra Claude](/servers/infra-claude/) | the organization's servers; reached with `desk peer` |
+
+A card's Claude briefs one with its `ask_lead` tool: the department, the objective, and if it can,
+where to look, the limits, when the answer is complete and the decision it needs. The lead starts
+the first time it's briefed, in the organization's folder under its account, and only reads (it
+never edits or runs anything). Its answer comes into the card's conversation as a message from
+it, ending in a verdict line, and the card's Claude goes on with it.
+
+A lead is one Claude Code session per organization and department, resumed every time
+(`.desk/company/leads.json`), so it remembers what it answered before. It is the organization's
+own, like its executives: other organizations' cards never reach it.
+
+## The company log
+
+Every hand-off between an organization's Claudes goes to `<Org>/.desk/company/log.jsonl`, one JSON
+line each:
+
+- a subagent's brief and its result (desk's roles and the organization's own agents);
+- a brief to a department lead and its answer;
+- what a card tells or hands the infra Claude, and what comes back (messages, task results).
+
+```json
+{"at":"2026-11-16T10:42:07-03:00","kind":"brief","from":"DESK-12","to":"desk-qa","card":"DESK-12","text":"Verify the API split…"}
+{"at":"2026-11-16T10:51:30-03:00","kind":"result","from":"desk-qa","to":"DESK-12","card":"DESK-12","text":"…\nVERDICT: READY","verdict":"READY"}
+```
+
+`kind` is `brief` (work handed over), `result` (its answer) or `message`; `verdict` is read off a
+result's last `VERDICT:` line. It's a plain file, to read or grep.
+
+## The Company view
+
+**Company**, under **All cards** in the sidebar, shows the whole company at once, as a small solar
+system on paper:
+
+- **You** are the sun in the middle, with how many cards need you.
+- **Each organization** is a pastel slice of the sky with three rings: its executives (CTO, CISO,
+  CFO) closest to you, its department leads (and the Infra lead, when it has servers) next, and its
+  cards' Claudes outside, each with its key and title.
+- **A halo** around a planet means it's working: a card's session, a lead on a brief, an executive
+  consulted by a card right now.
+- **A sticker** says what a card wants: *needs you!* (a question, a permission, a paused budget),
+  *your turn*, *stuck* (blocked or failed) or *done* (up for review).
+- **Dots flying between planets** are the hand-offs of the last minute and a half, from the
+  [company log](#the-company-log).
+- **Notes for you**, on the right, lists the cards that need you or wait for your turn. Click a
+  note, or a card's planet, to open its session.
+
+The sidebar's count is the cards that need you; the header says how many are busy and what the
+organizations spent today. It only animates while something is busy, slower when desk isn't
+focused.
+
+## Who decides what
+
+Every card's Claude is told who takes which kind of decision in its organization, and to ask them
+before acting on it:
+
+| Decision | Who, unless the organization says otherwise |
+|---|---|
+| architecture | `desk-cto` |
+| security | `desk-ciso` |
+| spending | `desk-cfo` |
+| merge | `desk-tl` |
+| deploy | you |
+| access | you |
+
+A role recommends; what it can't grant still comes to you. The organization changes or adds rows
+in its `desk.toml`, naming a role, one of its agents, or `user`:
+
+```toml
+[company.decides]
+security = "sec-review"   # our own agent
+merge = "user"
+release = "desk-tl"
+```
+
+## Budgets
+
+An organization can cap what its sessions spend, in US dollars:
+
+```toml
+[company]
+card_budget = 5     # a card's session, between two of your messages
+day_budget = 40     # all the organization's sessions, in a day
+```
+
+desk adds each turn's cost to the organization's day (`.desk/company/spend.json`). When a turn
+ends over a budget, the card pauses: it waits for you with **Paused: over …**, and what other
+Claudes send it (a lead's answer, the infra Claude's result, the workspace Claude's) waits too.
+Your next message continues it, with what waited, and its budget counts again from there. A
+turn already running isn't cut short: the check comes when it ends.
+
+## The organization's own come first
+
+An organization's own `CLAUDE.md`, skills, agents and workflows always win: desk tells every
+Claude to use them when they cover the work, and its roles only fill what they don't. Claude says
+which it used.
+
+An agent of the organization's with a role's name (`tl` or `desk-tl`) takes that role's place.
+Its `desk.toml` can also map a role to one of its agents, skip roles, or turn desk's off:
+
+```toml
+[company]
+skip = ["cfo"]          # no desk-cfo for this organization
+# off = true            # none of desk's roles
+
+[company.roles]
+tl = "planner"          # our planner is the tech lead: no desk-tl
+devops = "ops"
+```
+
+Every card's session gets the roster: the organization's agents, then desk's roles it keeps,
+whether or not the card runs as an agent (its **Agent** row).

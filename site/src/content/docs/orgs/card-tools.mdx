@@ -26,6 +26,9 @@ CI. They only read, so they're allowed without asking.
 | `ci` | `url` (optional) | the CI of a pull or merge request or commit: GitHub Actions workflow runs or GitLab pipelines, with every job's status and id. Without `url`, the ones linked on the card |
 | `ci_log` | `url`, `job`, `bytes` (optional) | the end of a CI job's log (the job id from `ci`), to see why it failed: 20,000 bytes unless `bytes` says otherwise, at most 200,000 |
 
+A card's Claude also has `ask_lead`, to brief one of the organization's department leads: see
+[The company](/orgs/company/#department-leads).
+
 `url` takes anything desk reads as a link: a GitHub, GitLab or Bitbucket URL, a Jira URL, or a
 bare Jira key of one of the organization's projects.
 
@@ -33,6 +36,9 @@ These are the same data as the [Tickets](/orgs/tickets/), [CI](/orgs/ci/) and
 [Alerts](/orgs/alerts/) views. Nothing to set up: every card's session has them, in its
 panel and in its terminal, and each answers through the organization's accounts. `alerts` says so
 when the organization has no `[[nagios]]`.
+
+A card's tools answer for that card only, so for its own organization: see
+[One organization's Claudes stay in it](/orgs/organizations/#one-organizations-claudes-stay-in-it).
 
 ## Alongside the organization's own tools
 

@@ -26,6 +26,7 @@ import (
 	"golang.org/x/image/math/fixed"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/orgs"
 	"github.com/lfdominguez/desk/internal/term"
@@ -70,7 +71,7 @@ func (u *ui) terminal(id string) {
 	if c.Remote {
 		extra = append(extra, "--remote-control", c.Key()+" "+c.Title)
 	}
-	system := claude.System(c.Key(), c.Title, c.Org) + cardLang(c)
+	system := claude.System(c.Key(), c.Title, c.Org) + cardLang(c) + u.companyPrompt(c)
 	if u.cardSock != "" {
 		system += claude.CardTools
 	}
@@ -85,6 +86,7 @@ func (u *ui) terminal(id string) {
 		var started atomic.Pointer[term.Term]
 		if t, err = startTerm(cmd, 120, 40, func() { u.termNotify(id, started.Load()) }); err == nil {
 			started.Store(t)
+			infra.Own(pidOf(cmd), infra.Owner{Card: id, Peer: c.Key(), Org: c.Org})
 			u.terms[id] = &termTab{t: t}
 		}
 	}

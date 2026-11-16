@@ -86,9 +86,13 @@ func (o *out) wait(t *testing.T, s string) {
 }
 
 func TestEchoAndExit(t *testing.T) {
-	p, err := Start(helper("echo"), 80, 24)
+	cmd := helper("echo")
+	p, err := Start(cmd, 80, 24)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if p.Pid() != cmd.Process.Pid {
+		t.Errorf("Pid: %d, the program is %d", p.Pid(), cmd.Process.Pid)
 	}
 	o := read(p)
 	o.wait(t, "ready")

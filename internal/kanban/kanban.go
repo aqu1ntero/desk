@@ -56,6 +56,7 @@ type Card struct {
 	Last      string    `json:"last,omitempty"` // the latest message, either side
 	Links     []Link    `json:"links,omitempty"`
 	Session   Session   `json:"session,omitzero"`
+	Allowed   float64   `json:"allowed,omitempty"`    // Session.Cost when the user last wrote: its budget counts from there
 	Artifacts []string  `json:"artifacts,omitempty"`  // claude.ai artifacts the session published
 	Pushed    string    `json:"pushed,omitempty"`     // the column its tickets were last moved to match
 	Ticket    bool      `json:"ticket,omitempty"`     // its Claude creates its ticket before any work`

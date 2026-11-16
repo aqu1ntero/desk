@@ -28,7 +28,7 @@ func Agents(dir string) []Agent {
 		if err != nil {
 			continue
 		}
-		if a, ok := parseAgent(string(b)); ok {
+		if a, ok := ParseAgent(string(b)); ok {
 			out = append(out, a)
 		}
 	}
@@ -36,9 +36,9 @@ func Agents(dir string) []Agent {
 	return out
 }
 
-// parseAgent reads "---\nname: x\n…\n---\nprompt"; ok needs a name.
+// ParseAgent reads "---\nname: x\n…\n---\nprompt"; ok needs a name.
 // ponytail: one "key: value" per line, enough for agent files; a YAML parser if one needs lists or folding.
-func parseAgent(s string) (Agent, bool) {
+func ParseAgent(s string) (Agent, bool) {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	rest, ok := strings.CutPrefix(s, "---\n")
 	if !ok {
@@ -71,18 +71,24 @@ func parseAgent(s string) (Agent, bool) {
 	return a, a.Name != ""
 }
 
-// AgentArgs runs the session as agent name, with every agent in dir
-// defined (--agents) so it finds them wherever Claude starts, and the ones
-// it delegates to are there too.
-func AgentArgs(dir, name string) ([]string, error) {
-	as := Agents(dir)
-	if !slices.ContainsFunc(as, func(a Agent) bool { return a.Name == name }) {
-		return nil, fmt.Errorf("no agent %q in %s", name, dir)
+// AgentArgs defines every agent of as (--agents), so the session finds
+// them wherever Claude starts and can hand work to them, and runs it as
+// agent name, unless "". None when as is empty.
+func AgentArgs(as []Agent, name string) ([]string, error) {
+	if name != "" && !slices.ContainsFunc(as, func(a Agent) bool { return a.Name == name }) {
+		return nil, fmt.Errorf("no agent %q", name)
+	}
+	if len(as) == 0 {
+		return nil, nil
 	}
 	m := map[string]Agent{}
 	for _, a := range as {
 		m[a.Name] = a
 	}
 	j, _ := json.Marshal(m) // strings only: it can't fail
-	return []string{"--agents", string(j), "--agent", name}, nil
+	args := []string{"--agents", string(j)}
+	if name != "" {
+		args = append(args, "--agent", name)
+	}
+	return args, nil
 }

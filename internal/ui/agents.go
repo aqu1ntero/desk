@@ -9,6 +9,7 @@ import (
 	"gioui.org/layout"
 
 	"github.com/lfdominguez/desk/internal/claude"
+	"github.com/lfdominguez/desk/internal/company"
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/orgs"
@@ -43,15 +44,29 @@ func (u *ui) agentArgs(c *kanban.Card) ([]string, error) {
 	if len(allow) > 0 {
 		args = append(args, "--allowedTools", strings.Join(allow, ","))
 	}
-	if c.Agent == "" {
-		return args, nil
-	}
-	cfg, err := orgs.Load(u.root, c.Org)
-	if err != nil {
+	roster, err := u.roster(c)
+	if err != nil && c.Agent != "" { // its agent's file is unreadable; without one, desk's roles still come
 		return nil, err
 	}
-	a, err := claude.AgentArgs(u.agentsDir(c.Org, cfg), c.Agent)
+	a, err := claude.AgentArgs(roster, c.Agent)
 	return append(args, a...), err
+}
+
+// roster is what c's session can hand work to: its organization's agents
+// and desk's roles (internal/company); err when its desk.toml can't be read.
+func (u *ui) roster(c *kanban.Card) ([]claude.Agent, error) {
+	cfg, err := orgs.Load(u.root, c.Org)
+	return company.Roster(claude.Agents(u.agentsDir(c.Org, cfg)), cfg.Company), err
+}
+
+// companyPrompt is company.PromptFor its organization when c's session
+// has desk's roles.
+func (u *ui) companyPrompt(c *kanban.Card) string {
+	if r, _ := u.roster(c); company.HasRoles(r) {
+		cfg, _ := orgs.Load(u.root, c.Org)
+		return company.PromptFor(cfg.Company)
+	}
+	return ""
 }
 
 // sheetAgents reads the dialog's organization's agents when it changes; a

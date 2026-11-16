@@ -40,7 +40,8 @@ func Load(path string) (*Board, error) {
 
 // ChatMsg is one entry of a card's conversation.
 type ChatMsg struct {
-	Who    string    `json:"who"` // you, claude, tool, error
+	Who    string    `json:"who"`            // you, claude, tool, error
+	Name   string    `json:"name,omitempty"` // lead: the department lead's name
 	Text   string    `json:"text"`
 	At     time.Time `json:"at"`
 	Cmd    string    `json:"cmd,omitempty"`    // tool: a shell command, whole

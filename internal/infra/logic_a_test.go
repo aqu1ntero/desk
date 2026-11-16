@@ -643,7 +643,7 @@ func TestServeCardsMCPA(t *testing.T) {
 	for _, tl := range rs[2].Result.Tools {
 		names = append(names, tl.Name)
 	}
-	if strings.Join(names, ",") != "alerts,tickets,link,ci,ci_log,add_project,ask_workspace,drawings,drawing_read,drawing_edit,drawing_suggest" {
+	if strings.Join(names, ",") != "alerts,tickets,link,ci,ci_log,add_project,ask_workspace,ask_lead,drawings,drawing_read,drawing_edit,drawing_suggest" {
 		t.Errorf("a card gets only the card tools: %v", names)
 	}
 	if r := rs[3].Result; r.IsError || len(r.Content) != 1 || r.Content[0].Text != `DESK-4|alerts|{"x":1} TOKEN=[redacted]` {
@@ -696,7 +696,7 @@ func TestCardMCPA(t *testing.T) {
 	if d := c.MCPServers["desk"]; d.Type != "stdio" || strings.Join(d.Args, " ") != "mcp /run/x.sock card=DESK-2" {
 		t.Errorf("config: %s", cfg)
 	}
-	if strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,mcp__desk__add_project,mcp__desk__ask_workspace,"+
+	if strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,mcp__desk__add_project,mcp__desk__ask_workspace,mcp__desk__ask_lead,"+
 		"mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_edit,mcp__desk__drawing_suggest" {
 		t.Errorf("allowed: %v", allow)
 	}
@@ -1194,7 +1194,7 @@ func TestPeerOpsA(t *testing.T) {
 	term, _ := fakeTermA(t, "web1")
 	globex.panes, globex.term = []*Pane{{id: 1, term: term, name: "web1"}}, term
 	globex.chat = append(globex.chat, &chatEntry{who: "you", text: "disk?"}, &chatEntry{who: "claude", text: "fine"})
-	l := m.peerList()
+	l := m.peerList("")
 	if !strings.Contains(l, `tab 2 "Globex" · working · pane 1 on web1: idle prompt, the user's focus`) || !strings.Contains(l, `user's last question: "disk?"`) ||
 		!strings.Contains(l, `tab 1 "Acme" · idle · no panes`) || strings.Contains(l, "not open") {
 		t.Errorf("list:\n%s", l)

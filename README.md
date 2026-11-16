@@ -32,7 +32,8 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | | |
 |---|---|
 | 🗂️ **Board of sessions** | Backlog, To do, In progress, Blocked, Review, Done. Sessions move their own card: a message sends it to In progress, Claude reporting blocked to Blocked, done to Review. Only you move a card to Done. |
-| 🏢 **Organizations** | Each org is a folder with its own `desk.toml`: its accounts, its Claude profile (sandboxed with bwrap on Linux, `CLAUDE_CONFIG_DIR` on macOS and Windows), its skills, its agents. |
+| 🏢 **Organizations** | Each org is a folder with its own `desk.toml`: its accounts, its Claude profile (sandboxed with bwrap on Linux, `CLAUDE_CONFIG_DIR` on macOS and Windows), its skills, its agents. Its sessions are walled into it: other orgs' folders and desk's own data stay out of reach. |
+| 👥 **The company** | Every card's Claude can hand work to desk's roles: a tech lead, an architect, a senior developer, QA, DevOps, security, and the org's CTO, CISO and CFO, with briefs and verdicts; each org's Engineering, Security and Finance leads remember its decisions; budgets pause a session that spends too much. The org's own agents, skills and workflows come first. The **Company** view draws it all as a solar system around you. |
 | ✨ **Prompt optimization** | A new card's request is worked out by Haiku in the org's folder into a real brief: context, steps, acceptance criteria, labels, links and the skills to use. |
 | 🔗 **Live links** | GitHub, GitLab and Bitbucket PRs/MRs and Jira issues on each card, with their state and CI. Tickets follow their card's column. |
 | 🎫 **My tickets, CI, alerts** | Per org: tickets assigned to you, failing pipelines, and Nagios alerts. One click turns any of them into a card. |
@@ -109,6 +110,23 @@ From source, with Go and the Xcode command line tools: `packaging/macos/build-ap
 `dist/desk.app`. Run the app rather than a bare binary: macOS only shows an app bundle's
 notifications. Data lives where it does on Linux (`~/.config/desk`, `~/.local/share/desk`).
 Linux-only on macOS: the infra workspace's virtual camera (PipeWire / v4l2loopback).
+
+#### Require review from Mac users
+
+Each session is walled into its organization with macOS's own sandbox (`sandbox-exec`), and desk
+knows which of its Claudes calls it by the process (`LOCAL_PEERPID`). Both were built and tested
+on Linux only, and never ran on a Mac. On macOS, check:
+
+1. Sessions start: a card's session, its workspace, a drawing's Claude, the card's terminal, and
+   Improve with Claude in a new card.
+2. The walls hold: an Acme card's Claude can't read Globex's folder or `~/.local/share/desk`, and
+   still reads its own folder, a project added to the card and a pasted image.
+3. An organization with its own account (`~/Secure/Claudes/<Org>`) still finds its login and
+   settings.
+4. With Claude Code's own sandbox on (`sandbox.enabled`), its Bash commands still run: macOS may
+   refuse a sandbox inside desk's.
+5. From an Acme card's Claude, `desk peer tell Globex --text x` is refused and `desk peer list`
+   shows only Acme.
 
 ### Nix
 

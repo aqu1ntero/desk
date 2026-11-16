@@ -68,6 +68,9 @@ func (u *ui) drawStart(st *drawState) (session, error) {
 	path := st.path
 	var p session
 	p, err := startClaude(o, func(e claude.Event) { u.later(func() { u.drawEvent(path, p, e) }) })
+	if err == nil {
+		own(p, infra.Owner{Card: "draw:" + path, Org: st.org})
+	}
 	return p, err
 }
 

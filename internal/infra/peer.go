@@ -15,6 +15,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/lfdominguez/desk/internal/company"
 )
 
 // Peers are other Claudes on this machine, typically one developing a service
@@ -42,6 +44,20 @@ conversation (a task, a question it asked you), a tell starts its next turn by i
 type peerReq struct {
 	Op, Org, From, Text, Cmd, Why string
 	ID, Timeout                   int
+	only                          string // set by desk: a card's Claude sees only its organization
+}
+
+// as holds r to o, the card's Claude that sent it: its own name, its own
+// organization's Claude.
+func (o Owner) as(r *peerReq) error {
+	if o.Peer == "" {
+		return errors.New("only a card's Claude uses desk peer")
+	}
+	if r.Op != "list" && r.Op != "answer" && r.Op != "wait" && !strings.EqualFold(r.Org, o.Org) {
+		return fmt.Errorf("%s works with its own organization's Claude only: desk peer %s %s", o.Peer, r.Op, o.Org)
+	}
+	r.From, r.Org, r.only = o.Peer, o.Org, o.Org
+	return nil
 }
 
 type peerResp struct {
@@ -90,11 +106,28 @@ var hub = struct {
 // run desk peer wait, desk brings its events into the card's session, and
 // an infra Claude can write to a card or make one.
 type Cards struct {
-	Is   func(name string) bool                         // a card's key; any goroutine
-	Tell func(key, text string) error                   // into the card's session
-	New  func(org, title, notes string) (string, error) // a card in To do: its key
+	Is    func(name string) bool                         // a card's key; any goroutine
+	OrgOf func(key string) string                        // the card's organization; "" when there's no such card
+	Tell  func(key, text string) error                   // into the card's session
+	New   func(org, title, notes string) (string, error) // a card in To do: its key
 	// Draw answers a drawing tool for who ("infra:<org>"): text, or ImageResult's
 	Draw func(who, name string, args []byte) (string, bool)
+	// Note puts e in org's company log: what cards hand the infra Claude
+	// and what it sends back. Any goroutine.
+	Note func(org string, e company.Entry)
+}
+
+// infraLead is the infra Claude in the company log: the Infra lead.
+const infraLead = "Infra lead"
+
+// note logs e for org through desk's board (hub unlocked); none without it.
+func note(org string, e company.Entry) {
+	hub.Lock()
+	n := cards.Note
+	hub.Unlock()
+	if n != nil {
+		n(org, e)
+	}
 }
 
 var cards Cards
@@ -109,8 +142,15 @@ func (w *Workspace) SetCards(c Cards) {
 // post queues ev for peer to, or hands it to its card (hub locked).
 func post(to string, ev peerEvent) {
 	if cards.Tell != nil && cards.Is(to) {
-		tell, text := cards.Tell, formatEvent(to, ev)
+		tell, text, n := cards.Tell, formatEvent(to, ev), cards.Note
 		go func() { // not under the hub's lock: the board takes its own turn
+			if n != nil {
+				kind := "message"
+				if ev.Kind == "result" {
+					kind = "result"
+				}
+				n(ev.Org, company.Entry{Kind: kind, From: infraLead, To: to, Card: to, Text: ev.Text})
+			}
 			if err := tell(to, text); err != nil && ev.Kind == "question" {
 				hub.Lock()
 				if q := hub.questions[ev.ID]; q != nil {
@@ -185,9 +225,13 @@ func (t *Tab) tellCard(key, text string) toolResult {
 	if !c.Is(key) {
 		return toolResult{Text: key + " is not a card key (like DESK-12)", IsError: true}
 	}
+	if c.OrgOf != nil && !strings.EqualFold(c.OrgOf(key), t.org) {
+		return toolResult{Text: key + " is not one of " + t.org + "'s cards", IsError: true}
+	}
 	if err := c.Tell(key, formatEvent(key, peerEvent{Kind: "message", Org: t.org, Text: text})); err != nil {
 		return toolResult{Text: err.Error(), IsError: true}
 	}
+	note(t.org, company.Entry{Kind: "message", From: infraLead, To: key, Card: key, Text: text})
 	hub.Lock()
 	hub.last[t] = key
 	hub.Unlock()
@@ -237,6 +281,12 @@ func servePeers() (string, error) {
 					return
 				}
 				var resp peerResp
+				if o, ok, _ := whose(conn); ok { // one of desk's Claudes: only as itself
+					if err := o.as(&r); err != nil {
+						json.NewEncoder(conn).Encode(peerResp{Err: err.Error()})
+						return
+					}
+				}
 				if r.Op == "wait" {
 					evs := waitEvents(r.From, time.Duration(r.Timeout)*time.Second)
 					resp.Text = formatEvents(r.From, evs)
@@ -259,11 +309,16 @@ func servePeers() (string, error) {
 func (m *model) peer(r peerReq) peerResp {
 	switch r.Op {
 	case "list":
-		return peerResp{Text: m.peerList()}
+		return peerResp{Text: m.peerList(r.only)}
 	case "answer":
 		hub.Lock()
 		q := hub.questions[r.ID]
-		delete(hub.questions, r.ID)
+		if q != nil && r.only != "" && !strings.EqualFold(q.tab.org, r.only) {
+			q = nil // another organization's: as if there were none
+		}
+		if q != nil {
+			delete(hub.questions, r.ID)
+		}
 		hub.Unlock()
 		if q == nil {
 			return peerResp{Err: fmt.Sprintf("no open question %d (answered already or it timed out)", r.ID)}
@@ -278,12 +333,19 @@ func (m *model) peer(r peerReq) peerResp {
 	}
 	hub.Lock()
 	hub.last[t] = r.From
+	card := ""
+	if cards.Is != nil && cards.Is(r.From) {
+		card = r.From
+	}
 	hub.Unlock()
-	switch r.Op {
-	case "suggest":
+	if r.Op == "suggest" {
 		r.Text = strings.TrimSpace(fmt.Sprintf("Suggested command: %s\nWhy: %s\n%s", r.Cmd, r.Why, r.Text))
-		fallthrough
-	case "tell":
+	}
+	if kind, ok := map[string]string{"tell": "message", "suggest": "message", "do": "brief"}[r.Op]; ok {
+		note(t.org, company.Entry{Kind: kind, From: r.From, To: infraLead, Card: card, Text: r.Text})
+	}
+	switch r.Op {
+	case "suggest", "tell":
 		t.peerCtx = append(t.peerCtx, fmt.Sprintf("<peer from=%q>\n%s\n</peer>", r.From, r.Text))
 		e := &chatEntry{who: "peer", text: r.From + " · " + r.Op + "\n" + r.Text}
 		if !t.talking() { // no conversation yet: context for the task that follows
@@ -316,11 +378,12 @@ func (m *model) peer(r peerReq) peerResp {
 	return peerResp{Err: "unknown op " + r.Op}
 }
 
-func (m *model) peerList() string {
+// peerList lists the orgs' Claude tabs; only those of org only, if set.
+func (m *model) peerList(only string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "desk %d\n", os.Getpid())
 	for _, n := range m.tree {
-		if n.depth != 0 {
+		if n.depth != 0 || only != "" && !strings.EqualFold(n.org, only) {
 			continue
 		}
 		fmt.Fprintf(&b, "org %s\n", n.org)

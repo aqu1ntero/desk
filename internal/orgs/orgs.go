@@ -195,9 +195,27 @@ type GitLab struct {
 	Secret
 }
 
+// Company is how desk's roles (internal/company) join the organization's
+// own agents: Roles maps a role (tl, architect…) to one of its agents
+// doing that job, so desk leaves its own out, as it does Skip's; Off
+// leaves them all out.
+// Decides maps a kind of decision to who takes it (a role, an agent of
+// the organization's, or "user"), and the budgets are in US dollars:
+// CardBudget a card's session between two of the user's messages,
+// DayBudget all the organization's sessions in a day.
+type Company struct {
+	Off        bool              `toml:"off"`
+	Roles      map[string]string `toml:"roles"`
+	Skip       []string          `toml:"skip"`
+	Decides    map[string]string `toml:"decides"`
+	CardBudget float64           `toml:"card_budget"`
+	DayBudget  float64           `toml:"day_budget"`
+}
+
 type Config struct {
 	Agent     string      `toml:"agent"`  // the Claude Code agent new cards run as, "" none
 	Agents    string      `toml:"agents"` // its folder of agent files, from the organization's ("" .claude/agents)
+	Company   Company     `toml:"company"`
 	GitHub    []GitHub    `toml:"github"`
 	Jira      []Jira      `toml:"jira"`
 	Bitbucket []Bitbucket `toml:"bitbucket"`
@@ -598,4 +616,20 @@ func Load(root, org string) (Config, error) {
 		return Config{}, fmt.Errorf("%s: %w", path, err)
 	}
 	return c, nil
+}
+
+// Walls are the organizations' folders a session working in dir mustn't
+// see: every one but those dir lies in (its own, and an organization
+// around a nested one), so an organization nested in dir's is walled too.
+// ponytail: an organization around dir's stays seen, since dir is inside it.
+func Walls(root, dir string) []string {
+	var out []string
+	for _, n := range List(root) {
+		d := where(root, n)
+		if rel, err := filepath.Rel(d, dir); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue // dir is in it
+		}
+		out = append(out, d)
+	}
+	return out
 }

@@ -74,6 +74,13 @@ func TestNested(t *testing.T) {
 	if c, _ := Load(root, "Personal"); len(c.Jira) != 0 {
 		t.Fatal("the outer org got the nested one's accounts")
 	}
+	in := func(name string) string { return filepath.Join(root, name) }
+	if w := Walls(root, in("Personal/billing/api")); !slices.Equal(w, []string{in("Personal/notes")}) {
+		t.Errorf("a nested org sees the one around it, not its sibling: %v", w)
+	}
+	if w := Walls(root, in("Personal")); !slices.Equal(w, []string{in("Personal/billing"), in("Personal/notes")}) {
+		t.Errorf("the outer org doesn't see the ones nested in it: %v", w)
+	}
 }
 
 // TestFolders: desk's settings say where to search: a folder that is an

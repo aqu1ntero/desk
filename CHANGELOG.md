@@ -6,6 +6,52 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.16.2] - 2026-11-16
+
+### Added
+
+- **The company.** Every card's Claude can hand work to desk's roles with the Agent tool: a tech
+  lead who plans and briefs the others, an architect, a senior developer, QA, DevOps, security,
+  and the organization's own CTO, CISO and CFO. Each gets a brief and answers with a short result
+  ending in a verdict (ready, blocked, partial). The organization's own CLAUDE.md, skills, agents
+  and workflows come first; one of its agents named like a role takes its place, and its
+  `desk.toml` can map, skip or turn off desk's roles (`[company]`). Cards get them whether or
+  not they run as an agent.
+- **Department leads.** Each organization has an Engineering, a Security and a Finance lead:
+  long-running Claudes that only read and keep the department's decisions from card to card. A
+  card's Claude briefs one with `ask_lead` (objective, where to look, limits, done-when, the
+  decision needed); the answer comes back into its conversation. The infra Claude is the
+  organization's Infra lead.
+- **The Company view.** The sidebar's Company shows every organization's Claudes as a pastel
+  solar system around you: executives, department leads and cards on three rings, halos while
+  they work, stickers when a card needs you, hand-offs flying between them, and sticky notes for
+  the cards waiting on you. A click opens the card's session.
+- **Who decides what.** Every card's Claude is told the organization's decision rights
+  (architecture: CTO, security: CISO, spending: CFO, merge: tech lead, deploy and access: you),
+  which `[company.decides]` changes.
+- **Budgets.** `card_budget` and `day_budget` in `[company]` cap what an organization's sessions
+  spend; a card over one pauses, what other Claudes send it waits, and your next message
+  continues it.
+- **The company log.** Every hand-off between an organization's Claudes (subagents, leads, the
+  infra Claude) and what came back, verdict included, goes to `<Org>/.desk/company/log.jsonl`.
+
+### Security
+
+- **One organization's Claudes stay in it.** A card's Claude could reach another organization
+  through desk: its card tools took whatever card they were told to act as (another
+  organization's alerts, tickets, CI, drawings, workspace), `desk peer` could talk to any
+  organization's infra Claude under any name and list them all, an infra Claude's
+  `message_card` could write to another organization's card, the infra tabs' server tools
+  answered any caller, and a drawing's name could lead out of its folder. desk now knows each
+  call's Claude by its process (Linux, macOS, Windows) and holds it to its own card and
+  organization; your own programs outside desk's Claudes keep full reach.
+- **Each session walled into its organization (Linux with bubblewrap, and macOS).** A session's Claude,
+  and an infra tab's local panes, now find every other organization's folder empty, as well as
+  desk's board, chats and state and the other Claude accounts' profiles; its own folder, its added
+  projects and pasted images stay. On Linux what it starts stays in its own process namespace, so
+  a background process can't leave it; on macOS the system's sandbox (`sandbox-exec`) refuses
+  those folders to it and to everything it starts.
+
 ### Fixed
 
 - Hyprland (and other Wayland compositors) no longer reports desk as not responding at start, after
@@ -412,7 +458,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.1...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.2...HEAD
+[2026.11.16.2]: https://github.com/lfdominguez/desk/compare/2026.11.16.1...2026.11.16.2
 [2026.11.16.1]: https://github.com/lfdominguez/desk/compare/2026.11.16...2026.11.16.1
 [2026.11.16]: https://github.com/lfdominguez/desk/compare/2026.11.15.2...2026.11.16
 [2026.11.15.2]: https://github.com/lfdominguez/desk/compare/2026.11.15.1...2026.11.15.2

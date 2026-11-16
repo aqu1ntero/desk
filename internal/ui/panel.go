@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
 	"image"
 	"image/color"
@@ -608,9 +609,11 @@ func (u *ui) message(gtx layout.Context, card, id string, m kanban.ChatMsg, foll
 			}))
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
-	case "you", "prompt", "peer", "workspace", "main": // prompt: what the session asked a subagent; peer: what the infra Claude sent; workspace: the workspace Claude's to the card's; main: the card's to it
+	case "you", "prompt", "peer", "workspace", "main", "lead": // prompt: what the session asked a subagent; peer: what the infra Claude sent; workspace: the workspace Claude's to the card's; main: the card's to it; lead: a department lead's answer
 		who, wc := "You", kit.CAccText
 		switch m.Who {
+		case "lead":
+			who, wc = cmp.Or(m.Name, "Department lead"), kit.Accents[6]
 		case "prompt":
 			who, wc = "Prompt", kit.CPurple
 		case "peer":

@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/links"
 	"github.com/lfdominguez/desk/internal/orgs"
@@ -21,6 +23,22 @@ import (
 // answered by wsTool.
 
 // cardTool answers card id's tool call, off the UI goroutine.
+// own records the Claude s as o's for desk's sockets (infra.Own): its
+// calls act as o whatever they claim. Tests' fake sessions have no process.
+func own(s session, o infra.Owner) {
+	if p, ok := s.(interface{ Pid() int }); ok {
+		infra.Own(p.Pid(), o)
+	}
+}
+
+// pidOf is cmd's process; 0 before it starts (tests' fake terminals).
+func pidOf(cmd *exec.Cmd) int {
+	if cmd.Process == nil {
+		return 0
+	}
+	return cmd.Process.Pid
+}
+
 func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
 	if strings.HasPrefix(name, "drawing") {
 		return u.drawTool(id, name, raw)
@@ -28,6 +46,12 @@ func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
 	id, ws := strings.CutPrefix(id, "ws:") // the card's workspace Claude's call
 	if text, ok, done := u.wsTool(id, ws, name, raw); done {
 		return text, ok
+	}
+	if name == "ask_lead" {
+		if ws {
+			return "no tool ask_lead", false
+		}
+		return u.leadTool(id, raw)
 	}
 	var a struct {
 		URL   string `json:"url"`
