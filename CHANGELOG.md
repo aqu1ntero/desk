@@ -6,6 +6,17 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- **One organization's Claudes stay in it.** A card's Claude could reach another organization
+  through desk: its card tools took whatever card they were told to act as (another
+  organization's alerts, tickets, CI, drawings, workspace), `desk peer` could talk to any
+  organization's infra Claude under any name and list them all, an infra Claude's
+  `message_card` could write to another organization's card, the infra tabs' server tools
+  answered any caller, and a drawing's name could lead out of its folder. desk now knows each
+  call's Claude by its process (on Linux) and holds it to its own card and organization; your own
+  programs outside desk's Claudes keep full reach.
+
 ### Fixed
 
 - Hyprland (and other Wayland compositors) no longer reports desk as not responding at start, after

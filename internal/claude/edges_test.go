@@ -80,6 +80,9 @@ func TestStart(t *testing.T) {
 	if err != nil || p == nil {
 		t.Fatalf("%v %v", p, err)
 	}
+	if p.Pid() != p.cmd.Process.Pid {
+		t.Error("Pid is the process desk started")
+	}
 	if !slices.Contains(p.cmd.Env, "CLAUDE_CODE_ARTIFACT=1") {
 		t.Fatal("a card's session should have the Artifact tools")
 	}

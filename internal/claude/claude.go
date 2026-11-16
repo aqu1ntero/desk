@@ -362,6 +362,9 @@ type Proc struct {
 	cmd   *exec.Cmd
 }
 
+// Pid is the process desk started (bwrap's, when it wraps Claude).
+func (p *Proc) Pid() int { return p.cmd.Process.Pid }
+
 // Start runs Claude for o; on gets every event, from another goroutine,
 // last a KindExit.
 func Start(o Options, on func(Event)) (*Proc, error) {

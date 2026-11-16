@@ -1014,7 +1014,7 @@ func TestPeer(t *testing.T) {
 		t.Fatal(r.Err)
 	}
 	tab := m.tab()
-	if !tab.orgOnly || len(tab.peerCtx) != 1 || !strings.Contains(m.peerList(), "tab 1") {
+	if !tab.orgOnly || len(tab.peerCtx) != 1 || !strings.Contains(m.peerList(""), "tab 1") {
 		t.Fatalf("tell must open the org tab and queue context: %v", tab.peerCtx)
 	}
 	got := make(chan toolResult)

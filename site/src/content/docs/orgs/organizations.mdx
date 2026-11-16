@@ -119,6 +119,23 @@ The organization's `desk.toml` (`<Org>/.desk/desk.toml`, see [Files](/reference/
 
 The [desk.toml reference](/reference/desk-toml/) lists every key.
 
+## One organization's Claudes stay in it
+
+Whatever desk itself hands a Claude stays inside that Claude's organization:
+
+- a card's [tools](/orgs/card-tools/) (alerts, tickets, links, CI, its workspace, drawings) answer
+  for its own card, so for its organization's accounts and folders;
+- through [`desk peer`](/reference/cli/#desk-peer), a card's Claude talks only to its own
+  organization's infra Claude, as its own card, and sees only that organization in `list`;
+- an infra Claude writes only to its organization's cards (`message_card`), and its server tools
+  answer that tab's Claude alone.
+
+desk knows who is calling by the process: every Claude it starts is recorded, and a call counts as
+the Claude whose process made it (or started the one that did), whatever name the call gives. A
+program you run yourself, outside desk's Claudes (your shell, your own Claude Code session with
+the desk plugin), keeps full reach. This holds on Linux; on macOS and Windows, desk goes on the
+names the calls give.
+
 ## Reload
 
 **Reload**, in the sidebar's Organizations header, looks for organizations again and rechecks

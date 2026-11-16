@@ -42,6 +42,20 @@ conversation (a task, a question it asked you), a tell starts its next turn by i
 type peerReq struct {
 	Op, Org, From, Text, Cmd, Why string
 	ID, Timeout                   int
+	only                          string // set by desk: a card's Claude sees only its organization
+}
+
+// as holds r to o, the card's Claude that sent it: its own name, its own
+// organization's Claude.
+func (o Owner) as(r *peerReq) error {
+	if o.Peer == "" {
+		return errors.New("only a card's Claude uses desk peer")
+	}
+	if r.Op != "list" && r.Op != "answer" && r.Op != "wait" && !strings.EqualFold(r.Org, o.Org) {
+		return fmt.Errorf("%s works with its own organization's Claude only: desk peer %s %s", o.Peer, r.Op, o.Org)
+	}
+	r.From, r.Org, r.only = o.Peer, o.Org, o.Org
+	return nil
 }
 
 type peerResp struct {
@@ -90,9 +104,10 @@ var hub = struct {
 // run desk peer wait, desk brings its events into the card's session, and
 // an infra Claude can write to a card or make one.
 type Cards struct {
-	Is   func(name string) bool                         // a card's key; any goroutine
-	Tell func(key, text string) error                   // into the card's session
-	New  func(org, title, notes string) (string, error) // a card in To do: its key
+	Is    func(name string) bool                         // a card's key; any goroutine
+	OrgOf func(key string) string                        // the card's organization; "" when there's no such card
+	Tell  func(key, text string) error                   // into the card's session
+	New   func(org, title, notes string) (string, error) // a card in To do: its key
 	// Draw answers a drawing tool for who ("infra:<org>"): text, or ImageResult's
 	Draw func(who, name string, args []byte) (string, bool)
 }
@@ -185,6 +200,9 @@ func (t *Tab) tellCard(key, text string) toolResult {
 	if !c.Is(key) {
 		return toolResult{Text: key + " is not a card key (like DESK-12)", IsError: true}
 	}
+	if c.OrgOf != nil && !strings.EqualFold(c.OrgOf(key), t.org) {
+		return toolResult{Text: key + " is not one of " + t.org + "'s cards", IsError: true}
+	}
 	if err := c.Tell(key, formatEvent(key, peerEvent{Kind: "message", Org: t.org, Text: text})); err != nil {
 		return toolResult{Text: err.Error(), IsError: true}
 	}
@@ -237,6 +255,12 @@ func servePeers() (string, error) {
 					return
 				}
 				var resp peerResp
+				if o, ok, _ := whose(conn); ok { // one of desk's Claudes: only as itself
+					if err := o.as(&r); err != nil {
+						json.NewEncoder(conn).Encode(peerResp{Err: err.Error()})
+						return
+					}
+				}
 				if r.Op == "wait" {
 					evs := waitEvents(r.From, time.Duration(r.Timeout)*time.Second)
 					resp.Text = formatEvents(r.From, evs)
@@ -259,11 +283,16 @@ func servePeers() (string, error) {
 func (m *model) peer(r peerReq) peerResp {
 	switch r.Op {
 	case "list":
-		return peerResp{Text: m.peerList()}
+		return peerResp{Text: m.peerList(r.only)}
 	case "answer":
 		hub.Lock()
 		q := hub.questions[r.ID]
-		delete(hub.questions, r.ID)
+		if q != nil && r.only != "" && !strings.EqualFold(q.tab.org, r.only) {
+			q = nil // another organization's: as if there were none
+		}
+		if q != nil {
+			delete(hub.questions, r.ID)
+		}
 		hub.Unlock()
 		if q == nil {
 			return peerResp{Err: fmt.Sprintf("no open question %d (answered already or it timed out)", r.ID)}
@@ -316,11 +345,12 @@ func (m *model) peer(r peerReq) peerResp {
 	return peerResp{Err: "unknown op " + r.Op}
 }
 
-func (m *model) peerList() string {
+// peerList lists the orgs' Claude tabs; only those of org only, if set.
+func (m *model) peerList(only string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "desk %d\n", os.Getpid())
 	for _, n := range m.tree {
-		if n.depth != 0 {
+		if n.depth != 0 || only != "" && !strings.EqualFold(n.org, only) {
 			continue
 		}
 		fmt.Fprintf(&b, "org %s\n", n.org)

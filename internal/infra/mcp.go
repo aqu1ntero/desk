@@ -409,9 +409,17 @@ func ServeCards(handle func(card, name string, args json.RawMessage) (text strin
 			go func() {
 				defer conn.Close()
 				var c toolCall
-				if json.NewDecoder(conn).Decode(&c) == nil {
-					json.NewEncoder(conn).Encode(resultOf(handle(c.Card, c.Name, c.Args)))
+				if json.NewDecoder(conn).Decode(&c) != nil {
+					return
 				}
+				if o, ok, _ := whose(conn); ok { // one of desk's Claudes acts only as itself
+					if o.Card == "" {
+						json.NewEncoder(conn).Encode(toolResult{Text: "desk: these tools are for card sessions", IsError: true})
+						return
+					}
+					c.Card = o.Card
+				}
+				json.NewEncoder(conn).Encode(resultOf(handle(c.Card, c.Name, c.Args)))
 			}()
 		}
 	}()
@@ -484,6 +492,10 @@ func serveTools(t *Tab) (string, net.Listener, error) {
 			go func() {
 				defer conn.Close()
 				var c toolCall
+				if o, ok, _ := whose(conn); ok && o.Tab != t { // another of desk's Claudes
+					json.NewEncoder(conn).Encode(toolResult{Text: "desk: these are another tab's tools", IsError: true})
+					return
+				}
 				if json.NewDecoder(conn).Decode(&c) == nil {
 					r := t.callTool(c)
 					if c.Name != "secret_get" { // the one the user approved handing over

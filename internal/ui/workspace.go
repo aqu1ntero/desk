@@ -233,6 +233,9 @@ func (u *ui) wsStart(id string) (session, error) {
 	}
 	var p session
 	p, err := startClaude(o, func(e claude.Event) { u.later(func() { u.wsEvent(id, p, e) }) })
+	if err == nil {
+		own(p, infra.Owner{Card: "ws:" + id, Org: c.Org})
+	}
 	return p, err
 }
 

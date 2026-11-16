@@ -217,6 +217,7 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 	if err := cmd.Start(); err != nil {
 		return fail(err)
 	}
+	Own(cmd.Process.Pid, Owner{Org: tab.org, Tab: tab})
 	c := &Claude{stdin: in, proc: cmd.Process, tools: ln}
 	go func() {
 		sc := bufio.NewScanner(out)

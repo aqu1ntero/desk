@@ -305,6 +305,7 @@ func (u *ui) deliver(id, text string, quiet bool) {
 			u.showToast("Claude: "+err.Error(), true)
 			return
 		}
+		own(p, infra.Owner{Card: id, Peer: c.Key(), Org: c.Org})
 		u.procs[id] = p
 	}
 	if err := p.Send(prompt); err != nil {

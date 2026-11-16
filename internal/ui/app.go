@@ -241,6 +241,7 @@ func (u *ui) startInfra() {
 		u.showToast("Card tools: "+err.Error(), true)
 	}
 	u.infra.SetCards(infra.Cards{Is: cardKey.MatchString,
+		OrgOf: u.cardOrgAsk,
 		Tell: func(key, text string) error {
 			_, err := onBoard(u, func() (string, error) { return "", u.cardTell(key, text) })
 			return err

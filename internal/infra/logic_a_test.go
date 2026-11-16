@@ -1194,7 +1194,7 @@ func TestPeerOpsA(t *testing.T) {
 	term, _ := fakeTermA(t, "web1")
 	globex.panes, globex.term = []*Pane{{id: 1, term: term, name: "web1"}}, term
 	globex.chat = append(globex.chat, &chatEntry{who: "you", text: "disk?"}, &chatEntry{who: "claude", text: "fine"})
-	l := m.peerList()
+	l := m.peerList("")
 	if !strings.Contains(l, `tab 2 "Globex" · working · pane 1 on web1: idle prompt, the user's focus`) || !strings.Contains(l, `user's last question: "disk?"`) ||
 		!strings.Contains(l, `tab 1 "Acme" · idle · no panes`) || strings.Contains(l, "not open") {
 		t.Errorf("list:\n%s", l)
