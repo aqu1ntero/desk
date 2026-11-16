@@ -6,13 +6,14 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.16] - 2026-11-16
+
 ### Fixed
 
 - A card's Claude replying to the infra Claude (`desk peer tell`: the answer to its question, the
   go-ahead it waited for) no longer sits in the infra chat until you type something: once that
   session has a conversation, the message starts its next turn by itself, right away or when its
   current turn ends.
-
 - With two cards' sessions in their own windows (or one there and one in the main window), each
   with its servers beside it, the servers no longer stay stuck in the first window: they move to
   the window you work in, on that card's own infra tab, and opening a server from the main window
@@ -394,7 +395,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.15.2...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16...HEAD
+[2026.11.16]: https://github.com/lfdominguez/desk/compare/2026.11.15.2...2026.11.16
 [2026.11.15.2]: https://github.com/lfdominguez/desk/compare/2026.11.15.1...2026.11.15.2
 [2026.11.15.1]: https://github.com/lfdominguez/desk/compare/2026.11.15...2026.11.15.1
 [2026.11.15]: https://github.com/lfdominguez/desk/compare/2026.11.12.1...2026.11.15
