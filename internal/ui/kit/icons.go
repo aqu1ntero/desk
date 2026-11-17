@@ -200,6 +200,45 @@ var (
 		p.LineTo(f32.Pt(s*.67, s*.85))
 		p.LineTo(f32.Pt(s*.72, s*.28))
 	}
+	IcoGear IconPath = func(p *clip.Path, s float32) { // a cog: settings
+		c := f32.Pt(s*.5, s*.5)
+		p.MoveTo(f32.Pt(s*.64, s*.5))
+		p.ArcTo(c, c, 2*math.Pi)
+		for k := range 8 {
+			a := float64(k) * math.Pi / 4
+			cs, sn := float32(math.Cos(a)), float32(math.Sin(a))
+			p.MoveTo(f32.Pt(s*(.5+.27*cs), s*(.5+.27*sn)))
+			p.LineTo(f32.Pt(s*(.5+.4*cs), s*(.5+.4*sn)))
+		}
+	}
+	IcoReload IconPath = func(p *clip.Path, s float32) { // a circling arrow: read it again
+		c := f32.Pt(s*.5, s*.5)
+		p.MoveTo(f32.Pt(s*.5, s*.18))
+		p.ArcTo(c, c, 1.6*math.Pi)
+		p.MoveTo(f32.Pt(s*.36, s*.06))
+		p.LineTo(f32.Pt(s*.5, s*.18))
+		p.LineTo(f32.Pt(s*.38, s*.32))
+	}
+	IcoEye IconPath = func(p *clip.Path, s float32) { // an eye: to review
+		p.MoveTo(f32.Pt(s*.1, s*.5))
+		p.QuadTo(f32.Pt(s*.5, s*.1), f32.Pt(s*.9, s*.5))
+		p.QuadTo(f32.Pt(s*.5, s*.9), f32.Pt(s*.1, s*.5))
+		c := f32.Pt(s*.5, s*.5)
+		p.MoveTo(f32.Pt(s*.62, s*.5))
+		p.ArcTo(c, c, 2*math.Pi)
+	}
+	IcoBlocked IconPath = func(p *clip.Path, s float32) { // a circle struck through: can't go on
+		c := f32.Pt(s*.5, s*.5)
+		p.MoveTo(f32.Pt(s*.88, s*.5))
+		p.ArcTo(c, c, 2*math.Pi)
+		p.MoveTo(f32.Pt(s*.23, s*.23))
+		p.LineTo(f32.Pt(s*.77, s*.77))
+	}
+	IcoRing IconPath = func(p *clip.Path, s float32) { // an empty circle: nothing going on
+		c := f32.Pt(s*.5, s*.5)
+		p.MoveTo(f32.Pt(s*.8, s*.5))
+		p.ArcTo(c, c, 2*math.Pi)
+	}
 	IcoCode IconPath = func(p *clip.Path, s float32) { // </>: the workspace
 		p.MoveTo(f32.Pt(s*.32, s*.3))
 		p.LineTo(f32.Pt(s*.12, s*.5))

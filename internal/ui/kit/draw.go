@@ -225,6 +225,20 @@ func Dot(c color.NRGBA) layout.Widget {
 // for frames while drawn.
 func Spinner(sz unit.Dp, c color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
+		d := Spin(sz, c)(gtx)
+		gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(SpinEvery)}) // 20 a second: each redraws the whole window
+		return d
+	}
+}
+
+// SpinEvery is how often a spinner turns: 20 a second, each a whole window.
+const SpinEvery = 50 * time.Millisecond
+
+// Spin draws a spinner at gtx.Now without asking for the next frame: the
+// caller asks once its frame is done (a command executed mid-frame holds
+// back the events widgets after it read).
+func Spin(sz unit.Dp, c color.NRGBA) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
 		s, w := gtx.Dp(sz), float32(gtx.Dp(2))
 		ctr := f32.Pt(float32(s)/2, float32(s)/2)
 		r := ctr.X - w/2
@@ -234,7 +248,6 @@ func Spinner(sz unit.Dp, c color.NRGBA) layout.Widget {
 		p.MoveTo(ctr.Add(f32.Pt(r*float32(math.Cos(a)), r*float32(math.Sin(a)))))
 		p.ArcTo(ctr, ctr, 1.5*math.Pi)
 		paint.FillShape(gtx.Ops, c, clip.Stroke{Path: p.End(), Width: w}.Op())
-		gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(50 * time.Millisecond)}) // 20 a second: each redraws the whole window
 		return layout.Dimensions{Size: image.Pt(s, s)}
 	}
 }

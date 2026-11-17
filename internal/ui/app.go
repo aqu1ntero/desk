@@ -463,8 +463,11 @@ func (u *ui) frame(gtx layout.Context) {
 	defer func() {    // also when work, terminal output or a new infra snapshot arrived meanwhile: its Invalidate, sent mid-frame, is lost
 		if u.sig() != before || len(u.events) > 0 || u.termGen.Load() != tg || u.infraGen() != ig {
 			gtx.Execute(op.InvalidateCmd{})
+		} else if u.spin {
+			gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(kit.SpinEvery)})
 		}
 	}()
+	u.spin = false
 	u.keys(gtx)
 	if u.blur {
 		gtx.Execute(key.FocusCmd{})

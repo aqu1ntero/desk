@@ -136,6 +136,13 @@ var statusColor = map[string]color.NRGBA{
 	kanban.StatusFailed: kit.CRed, kanban.StatusReview: kit.Accents[5], kanban.StatusDone: kit.CGreen,
 }
 
+// statusIcon tells a session's status by its shape, not only its color;
+// working spins instead (spinning).
+var statusIcon = map[string]kit.IconPath{
+	kanban.StatusWorking: kit.IcoSpark, kanban.StatusWaiting: kit.IcoChat, kanban.StatusBlocked: kit.IcoBlocked,
+	kanban.StatusFailed: kit.IcoX, kanban.StatusReview: kit.IcoEye, kanban.StatusDone: kit.IcoCheck,
+}
+
 var statusName = map[string]string{
 	kanban.StatusWorking: "Working", kanban.StatusWaiting: "Your turn", kanban.StatusBlocked: "Blocked",
 	kanban.StatusFailed: "Failed", kanban.StatusReview: "Review", kanban.StatusDone: "Done",
@@ -198,7 +205,7 @@ func (u *ui) sections() []struct {
 	}
 	var st []sideItem
 	for _, s := range []string{kanban.StatusWorking, kanban.StatusWaiting, kanban.StatusBlocked, kanban.StatusFailed, kanban.StatusReview} {
-		st = append(st, sideItem{"st:" + s, statusName[s], nil, statusColor[s]})
+		st = append(st, sideItem{"st:" + s, statusName[s], statusIcon[s], statusColor[s]})
 	}
 	byOrg := map[string][]sideItem{} // every card with a session but the Done ones, by org, board order: its status dot, or the terminal when open
 	doneIDs := map[string]bool{}
@@ -211,7 +218,10 @@ func (u *ui) sections() []struct {
 		if doneIDs[c.ID] && u.terms[c.ID] == nil && u.asks[c.ID] == nil && u.view != "sess:"+c.ID && u.view != "ws:"+c.ID { // finished: the archive has it
 			continue
 		}
-		it := sideItem{"sess:" + c.ID, c.Key() + " " + c.Title, nil, cmp.Or(statusColor[c.Status], kit.CText3)}
+		it := sideItem{"sess:" + c.ID, c.Key() + " " + c.Title, kit.IcoRing, cmp.Or(statusColor[c.Status], kit.CText3)}
+		if ico := statusIcon[c.Status]; ico != nil {
+			it.ico = ico
+		}
 		switch {
 		case u.terms[c.ID] != nil:
 			it.ico, it.c = kit.IcoTerminal, kit.CGreen
@@ -390,14 +400,16 @@ func (u *ui) sidebar(gtx layout.Context) layout.Dimensions {
 					layout.Rigid(title),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						d, ok := k.Button(gtx, "sideOrgReload", color.NRGBA{}, kit.CHover, kit.RCtl, layout.Inset{Top: 3, Bottom: 3, Left: 6, Right: 6}, k.Lbl("Reload", 11, kit.CAccText, kit.Medium(kit.Sans)))
+						d, ok := k.IconBtn(gtx, "sideOrgReload", kit.IcoReload, false)
+						k.Tip(gtx, "sideOrgReload", d, "Reload the organizations", true)
 						if ok {
 							u.reloadConfig()
 						}
 						return d
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						d, ok := k.Button(gtx, "sideOrgCfg", color.NRGBA{}, kit.CHover, kit.RCtl, layout.Inset{Top: 3, Bottom: 3, Left: 6, Right: 6}, k.Lbl("Settings", 11, kit.CAccText, kit.Medium(kit.Sans)))
+						d, ok := k.IconBtn(gtx, "sideOrgCfg", kit.IcoGear, false)
+						k.Tip(gtx, "sideOrgCfg", d, "Settings", true)
 						if ok {
 							u.openConfig(u.configOrg())
 						}
@@ -412,6 +424,17 @@ func (u *ui) sidebar(gtx layout.Context) layout.Dimensions {
 	return layout.UniformInset(8).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return u.sideList.Layout(gtx, len(rows), func(gtx layout.Context, i int) layout.Dimensions { return rows[i](gtx) })
 	})
+}
+
+// spinning says a sidebar row's mark spins: a session on a turn (not in
+// its terminal or asking), or the Working filter while any card is.
+func (u *ui) spinning(view string, n int) bool {
+	if view == "st:"+kanban.StatusWorking {
+		return n > 0
+	}
+	id, ok := strings.CutPrefix(view, "sess:")
+	c := u.b.Card(id)
+	return ok && c != nil && c.Status == kanban.StatusWorking && u.terms[id] == nil && u.asks[id] == nil
 }
 
 func (u *ui) sideRow(gtx layout.Context, it sideItem) layout.Dimensions {
@@ -439,6 +462,9 @@ func (u *ui) sideRow(gtx layout.Context, it sideItem) layout.Dimensions {
 		mark := kit.Dot(it.c)
 		if it.ico != nil {
 			mark = kit.Icon(14, it.c, it.ico)
+		}
+		if u.spinning(it.view, n) {
+			mark, u.spin = kit.Spin(12, it.c), true
 		}
 		if org, ok := strings.CutPrefix(it.view, "org:"); ok && u.loading[org] > 0 {
 			mark = kit.Spinner(10, kit.CAccText)

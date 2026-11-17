@@ -37,12 +37,14 @@ list: the Done archive has them. Cards in Review stay until you move them to Don
 
 <figure class="cut">
 
-![Agent Sessions: under Acme DESK-6, under Globex DESK-5, under Initech DESK-7, each with its status dot](../../../assets/shots/board-sidebar-agents.png)
+![Agent Sessions: under Acme DESK-6, under Globex DESK-5, under Initech DESK-7, each with its status icon](../../../assets/shots/board-sidebar-agents.png)
 
 <figcaption>One row per session, under its organization.</figcaption>
 </figure>
 
-- The dot is the session's status color (blue for your turn, orange for blocked…).
+- The icon is the session's status, by its shape: a spinning circle while Claude is working,
+  a speech bubble when it's your turn, a struck-through circle when blocked, a cross when it
+  failed, an eye when it's ready for review, an empty circle when nothing is going on.
 - A green terminal icon means the card's [Claude Code terminal](/sessions/terminal/) is open.
 - An orange warning icon means Claude is [asking you something](/sessions/questions/).
 
@@ -52,7 +54,8 @@ its terminal when one is open. These rows have no count.
 ## Sessions
 
 The cards whose session is in a given state: **Working**, **Your turn**, **Blocked**,
-**Failed** and **Review** (ready for review). Each count is the number of cards in that state.
+**Failed** and **Review** (ready for review), each with the same icon as its sessions (Working's
+spins while any card is working). Each count is the number of cards in that state.
 
 <figure class="cut">
 
@@ -67,7 +70,8 @@ The cards whose session is in a given state: **Working**, **Your turn**, **Block
 
 ## Organizations
 
-Each organization the board uses, by name, with a count of its cards. Click one
+The header's two icons: the circling arrow is [Reload](/orgs/organizations/#reload), the gear
+opens the [settings](/orgs/settings/). Each organization the board uses, by name, with a count of its cards. Click one
 to show only its cards. A new card made from that view starts in that organization.
 
 <figure class="cut">

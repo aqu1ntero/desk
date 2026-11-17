@@ -6,6 +6,16 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.16.4] - 2026-11-16
+
+### Changed
+
+- The sidebar's sessions show their status as an icon instead of a colored dot: a spinner while
+  Claude is working, a speech bubble on your turn, a struck-through circle when blocked, a cross
+  when failed, an eye for review.
+- Reload and Settings in the sidebar's Organizations header are icons (a circling arrow, a gear),
+  named on hover.
+
 ## [2026.11.16.3] - 2026-11-16
 
 ### Changed
@@ -473,7 +483,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.3...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.4...HEAD
+[2026.11.16.4]: https://github.com/lfdominguez/desk/compare/2026.11.16.3...2026.11.16.4
 [2026.11.16.3]: https://github.com/lfdominguez/desk/compare/2026.11.16.2...2026.11.16.3
 [2026.11.16.2]: https://github.com/lfdominguez/desk/compare/2026.11.16.1...2026.11.16.2
 [2026.11.16.1]: https://github.com/lfdominguez/desk/compare/2026.11.16...2026.11.16.1
