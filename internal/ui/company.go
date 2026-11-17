@@ -61,23 +61,29 @@ const (
 )
 
 var (
-	coPaper   = kit.RGB(0xfff8ee)
-	coInk     = kit.RGB(0x2f2a3a)
-	coInkSoft = kit.RGB(0x5d5470)
-	coDots    = kit.RGB(0xd9c7ae)
-	coSticky  = kit.RGB(0xffe58f)
-	// coOrgs are the sectors' pastels and inks, an organization's by its order.
+	// The sky is dark paper in the app's dark: pastels muted to deep tints
+	// for fills, and as soft light inks for what's written on them.
+	coPaper   = kit.RGB(0x15151c)
+	coInk     = kit.RGB(0xe6e1f2)
+	coInkSoft = kit.RGB(0xa39bb8)
+	coDots    = kit.RGB(0x34313f)
+	coRim     = kit.RGB(0x2e2c3a) // round planets, stickers and the sun
+	coShadow  = kit.RGB(0x0a0a0e)
+	coNoteInk = kit.RGB(0xd2cae6)
+	coSticky  = kit.RGB(0x4d4224)
+	coNoteBg  = kit.RGB(0x25344a) // a sticky note that isn't "needs you"
+	// coOrgs are the sectors' tints and inks, an organization's by its order.
 	coOrgs = [][2]color.NRGBA{
-		{kit.RGB(0xffe3d4), kit.RGB(0xc2603a)}, {kit.RGB(0xece0ff), kit.RGB(0x7a52c7)}, {kit.RGB(0xd9f7e7), kit.RGB(0x2f9a68)},
-		{kit.RGB(0xdcefff), kit.RGB(0x2c6aa0)}, {kit.RGB(0xfff3c4), kit.RGB(0x9a7a10)},
+		{kit.RGB(0x2e2220), kit.RGB(0xe8a98f)}, {kit.RGB(0x262236), kit.RGB(0xbfa9ee)}, {kit.RGB(0x1d2b25), kit.RGB(0x93d4b3)},
+		{kit.RGB(0x1d2633), kit.RGB(0x9fc3e8)}, {kit.RGB(0x2d2a1c), kit.RGB(0xe0ca85)},
 	}
-	// coFams are the planets' pastels and inks: executives, engineering,
+	// coFams are the planets' tints and inks: executives, engineering,
 	// infra, security, finance.
 	coFams = [][2]color.NRGBA{
-		{kit.RGB(0xfff1b8), kit.RGB(0x8a5c00)}, {kit.RGB(0xd6ecff), kit.RGB(0x2c5f93)}, {kit.RGB(0xd2fff1), kit.RGB(0x1f7a62)},
-		{kit.RGB(0xffd9e8), kit.RGB(0xa33a68)}, {kit.RGB(0xe3ffd6), kit.RGB(0x3f7a1f)},
+		{kit.RGB(0x4a4028), kit.RGB(0xf0d68e)}, {kit.RGB(0x2a3b50), kit.RGB(0xa7cbf0)}, {kit.RGB(0x24443c), kit.RGB(0x95dcc6)},
+		{kit.RGB(0x4a2a3a), kit.RGB(0xf0a9c6)}, {kit.RGB(0x33452a), kit.RGB(0xbadf9f)},
 	}
-	coStickers = map[string][2]string{"you": {"needs you!", "ffc36b"}, "turn": {"your turn", "d6ecff"}, "stuck": {"stuck", "ffb8b8"}, "done": {"done", "bff0c8"}}
+	coStickers = map[string][2]string{"you": {"needs you!", "6e5226"}, "turn": {"your turn", "2a4566"}, "stuck": {"stuck", "662d33"}, "done": {"done", "2a5538"}}
 	coExecs    = []struct{ role, ini, label string }{{"desk-cto", "CT", "CTO"}, {"desk-ciso", "CI", "CISO"}, {"desk-cfo", "CF", "CFO"}}
 )
 
@@ -270,7 +276,7 @@ func (u *ui) companyView(gtx layout.Context) layout.Dimensions {
 	for i, l := range links {
 		coChordLine(cg.Ops, ps[l.from], ps[l.to], coFams[ps[l.from].fam][1])
 		x, y := coChord(ps[l.from], ps[l.to], float32(math.Mod(float64(t)+float64(i)*0.31, 1)))
-		coDisc(cg.Ops, x, y, 5, kit.CWhite)
+		coDisc(cg.Ops, x, y, 5, coRim)
 		coDisc(cg.Ops, x, y, 3, coFams[ps[l.from].fam][1])
 	}
 	needs := 0
@@ -279,12 +285,12 @@ func (u *ui) companyView(gtx layout.Context) layout.Dimensions {
 			needs++
 		}
 	}
-	coDisc(cg.Ops, 0, 0, 62, kit.CWhite)
-	coDisc(cg.Ops, 0, 0, 57, kit.RGB(0xffd27a))
-	coDisc(cg.Ops, -8, -8, 44, kit.RGB(0xffe9a8))
-	u.cvText(cg, image.Pt(-60, -30), "PRESIDENT", 9, kit.RGB(0x6b3d0c), kit.Bold(kit.Sans), 120, text.Middle)
-	u.cvText(cg, image.Pt(-60, -16), "You", 20, kit.RGB(0x6b3d0c), kit.Bold(kit.Sans), 120, text.Middle)
-	u.cvText(cg, image.Pt(-60, 10), fmt.Sprintf("%d need you", needs), 15, kit.RGB(0x8a4b12), kit.Hand, 120, text.Middle)
+	coDisc(cg.Ops, 0, 0, 62, coRim)
+	coDisc(cg.Ops, 0, 0, 57, kit.RGB(0x5a4322))
+	coDisc(cg.Ops, -8, -8, 44, kit.RGB(0x6b5129))
+	u.cvText(cg, image.Pt(-60, -30), "PRESIDENT", 9, kit.RGB(0xf3d9a4), kit.Bold(kit.Sans), 120, text.Middle)
+	u.cvText(cg, image.Pt(-60, -16), "You", 20, kit.RGB(0xffe8bd), kit.Bold(kit.Sans), 120, text.Middle)
+	u.cvText(cg, image.Pt(-60, 10), fmt.Sprintf("%d need you", needs), 15, kit.RGB(0xe9c48a), kit.Hand, 120, text.Middle)
 	busy := len(links) > 0
 	for _, p := range ps {
 		u.coPlanet(cg, p, gtx.Now)
@@ -341,7 +347,7 @@ func (u *ui) coPointer(gtx layout.Context) {
 	}
 }
 
-// coPlanet draws p: its halo while busy, its disc with a white rim, its
+// coPlanet draws p: its halo while busy, its disc with a rim, its
 // name and note on paper, and its sticker.
 func (u *ui) coPlanet(gtx layout.Context, p coPlanet, now time.Time) {
 	fam := coFams[p.fam]
@@ -352,8 +358,8 @@ func (u *ui) coPlanet(gtx layout.Context, p coPlanet, now time.Time) {
 		c.A = uint8(180 * (1 - ph))
 		coRing(gtx.Ops, p.x, p.y, r+4+ph*14, 2.5, c)
 	}
-	coDisc(gtx.Ops, p.x, p.y+4, r+4, kit.Mix(fam[1], coPaper, .75)) // its soft shadow
-	coDisc(gtx.Ops, p.x, p.y, r+4, kit.CWhite)
+	coDisc(gtx.Ops, p.x, p.y+4, r+4, coShadow) // its soft shadow
+	coDisc(gtx.Ops, p.x, p.y, r+4, coRim)
 	coDisc(gtx.Ops, p.x, p.y, r, fam[0])
 	u.cvText(gtx, image.Pt(int(p.x-r), int(p.y)-8), p.ini, 13, fam[1], kit.Bold(kit.Sans), int(2*r), text.Middle)
 	y := int(p.y + r + 8)
@@ -383,7 +389,7 @@ func (u *ui) coPlanet(gtx layout.Context, p coPlanet, now time.Time) {
 		w := u.cvText(gtx, image.Pt(int(at.X)+6, int(at.Y)-7), s[0], 10, coInk, kit.Bold(kit.Sans), 120, text.Start)
 		call := m.Stop()
 		box := image.Rect(int(at.X), int(at.Y)-9, int(at.X)+w+12, int(at.Y)+9)
-		kit.FillRRect(gtx.Ops, box.Inset(-2), 11, kit.CWhite)
+		kit.FillRRect(gtx.Ops, box.Inset(-2), 11, coRim)
 		kit.FillRRect(gtx.Ops, box, 9, kit.RGB(h))
 		call.Add(gtx.Ops)
 		rot.Pop()
@@ -397,7 +403,7 @@ func (u *ui) coPaperText(gtx layout.Context, at image.Point, s string, sp unit.S
 	w := u.cvText(gtx, image.Pt(at.X-120, at.Y), s, sp, c, f, 240, text.Middle)
 	call := m.Stop()
 	h := int(sp) + 6
-	kit.FillRRect(gtx.Ops, image.Rect(at.X-w/2-6, at.Y-1, at.X+w/2+6, at.Y+h-1), h/2, kit.Mix(coPaper, kit.CWhite, .3))
+	kit.FillRRect(gtx.Ops, image.Rect(at.X-w/2-6, at.Y-1, at.X+w/2+6, at.Y+h-1), h/2, kit.Mix(coPaper, coRim, .6))
 	call.Add(gtx.Ops)
 }
 
@@ -407,7 +413,7 @@ func (u *ui) coPanel(gtx layout.Context, r image.Rectangle, ps []coPlanet) {
 	u.co.notes = u.co.notes[:0]
 	y := r.Min.Y + gtx.Dp(24)
 	x, w := r.Min.X+gtx.Dp(16), r.Dx()-gtx.Dp(36)
-	u.cvText(gtx, image.Pt(x, y), "Notes for you", unit.Sp(26), kit.RGB(0x3b2f5c), kit.Bold(kit.Hand), w, text.Start)
+	u.cvText(gtx, image.Pt(x, y), "Notes for you", unit.Sp(26), coInk, kit.Bold(kit.Hand), w, text.Start)
 	y += gtx.Dp(44)
 	for i, p := range ps {
 		id, ok := strings.CutPrefix(p.id, "card:")
@@ -421,14 +427,14 @@ func (u *ui) coPanel(gtx layout.Context, r image.Rectangle, ps []coPlanet) {
 		box := image.Rect(x, y, x+w, y+gtx.Dp(78))
 		tilt := float32([]float64{-0.025, 0.02}[i%2])
 		rot := op.Affine(f32.Affine2D{}.Rotate(f32.Pt(float32(box.Min.X+box.Dx()/2), float32(box.Min.Y)), tilt)).Push(gtx.Ops)
-		kit.FillRRect(gtx.Ops, box.Add(image.Pt(0, gtx.Dp(4))), gtx.Dp(4), kit.Mix(coSticky, coInk, .25))
-		kit.FillRRect(gtx.Ops, box, gtx.Dp(4), map[bool]color.NRGBA{true: coSticky, false: kit.RGB(0xd6ecff)}[p.state == "you"])
+		kit.FillRRect(gtx.Ops, box.Add(image.Pt(0, gtx.Dp(4))), gtx.Dp(4), coShadow)
+		kit.FillRRect(gtx.Ops, box, gtx.Dp(4), map[bool]color.NRGBA{true: coSticky, false: coNoteBg}[p.state == "you"])
 		u.cvText(gtx, image.Pt(x+gtx.Dp(12), y+gtx.Dp(8)), c.Key()+" · "+coShort(c.Title, 26), unit.Sp(13), coInk, kit.Bold(kit.Sans), w-gtx.Dp(24), text.Start)
 		why := cmp.Or(c.Note, "your turn")
 		if a := u.asks[id]; a != nil {
 			why = "asks: " + a.r.Line
 		}
-		u.cvText(gtx, image.Pt(x+gtx.Dp(12), y+gtx.Dp(30)), coShort(why, 40), unit.Sp(17), kit.RGB(0x3d3550), kit.Hand, w-gtx.Dp(24), text.Start)
+		u.cvText(gtx, image.Pt(x+gtx.Dp(12), y+gtx.Dp(30)), coShort(why, 40), unit.Sp(17), coNoteInk, kit.Hand, w-gtx.Dp(24), text.Start)
 		u.cvText(gtx, image.Pt(x+gtx.Dp(12), y+gtx.Dp(54)), "open its session →", unit.Sp(11), coInkSoft, kit.Bold(kit.Sans), w-gtx.Dp(24), text.Start)
 		rot.Pop()
 		u.co.notes = append(u.co.notes, coNote{id, box})
@@ -446,7 +452,7 @@ func (u *ui) coPanel(gtx layout.Context, r image.Rectangle, ps []coPlanet) {
 		"A halo is busy; a sticker wants you.",
 		"Dots on the move: hand-offs.",
 	} {
-		u.cvText(gtx, image.Pt(x, y), l, unit.Sp(17), kit.RGB(0x3d3550), kit.Hand, w, text.Start)
+		u.cvText(gtx, image.Pt(x, y), l, unit.Sp(17), coNoteInk, kit.Hand, w, text.Start)
 		y += gtx.Dp(26)
 	}
 }

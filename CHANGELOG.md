@@ -6,6 +6,10 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The Company view is dark: dark paper and muted pastels in place of its bright cream sky.
+
 ## [2026.11.16.4] - 2026-11-16
 
 ### Changed
