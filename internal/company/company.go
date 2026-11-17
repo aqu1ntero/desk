@@ -62,7 +62,8 @@ func Roles() []claude.Agent {
 // Roster is what a session of an organization with own agents and
 // settings c can hand work to: its own agents, then desk's roles it
 // doesn't replace (one of its agents by the role's name, with or without
-// Prefix, or mapped in c.Roles), skip, or turn off.
+// Prefix, or mapped in c.Roles), skip, or turn off; each on c.Models' model
+// for it, else its own.
 func Roster(own []claude.Agent, c orgs.Company) []claude.Agent {
 	out := slices.Clone(own)
 	if c.Off {
@@ -73,6 +74,9 @@ func Roster(own []claude.Agent, c orgs.Company) []claude.Agent {
 		if c.Roles[role] != "" || slices.Contains(c.Skip, role) ||
 			slices.ContainsFunc(own, func(a claude.Agent) bool { return a.Name == role || a.Name == r.Name }) {
 			continue
+		}
+		if m := c.Models[role]; m != "" {
+			r.Model = m
 		}
 		out = append(out, r)
 	}

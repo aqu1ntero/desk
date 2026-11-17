@@ -78,10 +78,15 @@ func (u *ui) terminal(id string) {
 	if c.Alert != "" {
 		system += claude.AlertSnooze
 	}
+	var env []string
+	if err == nil {
+		env, u.via[id], err = u.modelEnv(c.Org, "card")
+	}
 	if err == nil {
 		cmd, err = claude.Interactive(u.home, orgs.Account(u.root, c.Org), orgs.Dir(u.root, c.Org, c.Dir), orgs.Dir(u.root, c.Org, ""), c.Session.ID, system, extra...)
 	}
 	if err == nil {
+		cmd.Env = append(cmd.Env, env...)
 		var t *term.Term
 		var started atomic.Pointer[term.Term]
 		if t, err = startTerm(cmd, 120, 40, func() { u.termNotify(id, started.Load()) }); err == nil {

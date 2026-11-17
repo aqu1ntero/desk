@@ -42,6 +42,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
 | 🧭 **Workspace** | Each card's editor view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
 | ✏️ **Drawings** | Excalidraw diagrams per organization and per card, in desk's own editor. Every Claude can read and draw in them: edits show live and undo, and what you didn't ask for comes as a suggestion to approve. |
+| 🔀 **Model providers** | Per org, any of desk's Claudes (card sessions, Improve, Explain, workspace, leads, drawings, infra) can run on OpenRouter or another Anthropic-compatible endpoint instead of your Claude subscription, each tier mapped to a near model or your own, and each company role on the model you pick. |
 | 🔐 **Vaults** | Tokens from Bitwarden/Vaultwarden, Passbolt, env vars or a command. Unlocked keys stay in memory only. |
 | 🪶 **No CLIs needed** | Every provider and vault is spoken to in Go. No `gh`, `glab`, `bw` or `wl-paste`. |
 

@@ -53,3 +53,14 @@ func TestRoster(t *testing.T) {
 		t.Error("HasRoles")
 	}
 }
+
+// TestRosterModels: [company.models] puts a role on another model; the
+// rest keep their own.
+func TestRosterModels(t *testing.T) {
+	for _, a := range Roster(nil, orgs.Company{Models: map[string]string{"tl": "haiku", "qa": "inherit"}}) {
+		switch want := map[string]string{"desk-tl": "haiku", "desk-qa": "inherit", "desk-cfo": "sonnet"}[a.Name]; {
+		case want != "" && a.Model != want:
+			t.Errorf("%s: %s, want %s", a.Name, a.Model, want)
+		}
+	}
+}

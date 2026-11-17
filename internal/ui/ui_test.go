@@ -69,7 +69,7 @@ func newHarness(t *testing.T) *harness {
 	optimize = func(_ context.Context, a claude.Ask, _ func(claude.Progress)) (claude.Draft, error) {
 		return claude.Draft{Title: a.Request}, nil
 	} // the request, as is
-	explainCmd = func(context.Context, string, string, string, string) (string, error) {
+	explainCmd = func(context.Context, string, string, string, string, ...string) (string, error) {
 		return "", errors.New("no Haiku in tests")
 	}
 	h := &harness{t: t, u: newUI(kanban.Default(), filepath.Join(t.TempDir(), "board.json"))}
@@ -1680,7 +1680,7 @@ func TestChatPasteText(t *testing.T) {
 func TestExplain(t *testing.T) {
 	h := newHarness(t)
 	asked := 0
-	explainCmd = func(_ context.Context, _, _, dir, cmd string) (string, error) {
+	explainCmd = func(_ context.Context, _, _, dir, cmd string, _ ...string) (string, error) {
 		asked++
 		if asked == 1 {
 			return "", errors.New("overloaded")

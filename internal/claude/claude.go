@@ -356,6 +356,7 @@ type Options struct {
 	New    string   // the id a new session takes (--session-id), so the card knows it from the start
 	System string   // appended to Claude's system prompt
 	Args   []string // more flags: AgentArgs
+	Env    []string // more environment: ProviderEnv
 }
 
 // Proc is a running session.
@@ -389,7 +390,7 @@ func Start(o Options, on func(Event)) (*Proc, error) {
 	cmd = Jail(cmd, o.Home, o.Dir)
 	// CLAUDE_CODE_ARTIFACT: stream-json makes Claude Code an SDK session
 	// (entrypoint sdk-cli), whose claude.ai Artifact tools are off unless asked for.
-	cmd.Env = append(cmd.Env, "CLAUDE_CODE_ARTIFACT=1")
+	cmd.Env = append(append(cmd.Env, o.Env...), "CLAUDE_CODE_ARTIFACT=1")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

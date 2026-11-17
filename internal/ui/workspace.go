@@ -231,8 +231,12 @@ func (u *ui) wsStart(id string) (session, error) {
 	} else {
 		o.New = c.WSSession
 	}
+	var err error
+	if o.Env, _, err = u.modelEnv(c.Org, "workspace"); err != nil {
+		return nil, err
+	}
 	var p session
-	p, err := startClaude(o, func(e claude.Event) { u.later(func() { u.wsEvent(id, p, e) }) })
+	p, err = startClaude(o, func(e claude.Event) { u.later(func() { u.wsEvent(id, p, e) }) })
 	if err == nil {
 		own(p, infra.Owner{Card: "ws:" + id, Org: c.Org})
 	}

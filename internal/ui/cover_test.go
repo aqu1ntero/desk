@@ -2271,7 +2271,7 @@ func (*respondFails) Respond(string, bool, json.RawMessage, string) error {
 func TestCoverExplain(t *testing.T) {
 	h := newHarness(t)
 	calls := 0
-	explainCmd = func(context.Context, string, string, string, string) (string, error) {
+	explainCmd = func(context.Context, string, string, string, string, ...string) (string, error) {
 		calls++
 		if calls == 1 {
 			return "", errors.New("overloaded")

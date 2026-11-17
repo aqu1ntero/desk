@@ -35,6 +35,27 @@ How desk's roles join the organization's own agents (see [The company](/orgs/com
 | `decides` | table | see [Who decides what](/orgs/company/#who-decides-what) | A kind of decision mapped to who takes it: a role, one of the organization's agents, or `"user"`: `security = "sec-review"`. |
 | `card_budget` | number | none | US dollars a card's session may spend between two of your messages; over it, the card pauses. |
 | `day_budget` | number | none | US dollars all the organization's sessions may spend in a day; over it, its cards pause. |
+| `models` | table | none | A role mapped to the model it runs on: `opus`, `sonnet`, `haiku`, or `inherit` (the session's): `qa = "haiku"`. Unset, the role's own. See [Model providers](/orgs/models/#the-roles-models). |
+
+## [models]
+
+Which of desk's Claudes run on a [model provider](/orgs/models/), by name; one not set runs on
+the Claude subscription. Keys: `card` (a card's session and terminal), `improve`, `explain`,
+`workspace`, `lead`, `drawing`, `infra`: `explain = "openrouter"`. Naming a provider the file
+doesn't have stops that Claude from starting, with why.
+
+## [[provider]]
+
+An Anthropic-compatible endpoint desk's Claudes can run on (see [Model providers](/orgs/models/)).
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `name` | string | | What `[models]` calls it. |
+| `base_url` | string | | The endpoint, speaking Anthropic's Messages API: `https://openrouter.ai/api`. |
+| `opus` | string | Claude's own | The model it answers for Opus: `openai/gpt-6.1-sol`. |
+| `sonnet` | string | Claude's own | The model it answers for Sonnet. |
+| `haiku` | string | Claude's own | The model it answers for Haiku. |
+| token keys | | | Its API key. See [Tokens](#tokens). |
 
 ## Tokens
 

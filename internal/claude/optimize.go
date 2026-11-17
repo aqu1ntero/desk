@@ -45,7 +45,8 @@ type Ask struct {
 	Labels        []string // labels already on the board, to reuse
 	Linked        []string // what the tickets and PRs the request names say, read by desk
 	Today         string
-	Lang          string // what the title and prompt are written in, "" the request's
+	Lang          string   // what the title and prompt are written in, "" the request's
+	Env           []string // more environment: ProviderEnv
 }
 
 const draftSchema = `{"type":"object","additionalProperties":false,
@@ -101,7 +102,7 @@ func Optimize(ctx context.Context, a Ask, on func(Progress)) (Draft, error) {
 	}
 	c = Jail(c, a.Home, a.Dir)
 	cmd := exec.CommandContext(ctx, c.Path, c.Args[1:]...)
-	cmd.Dir = a.Dir
+	cmd.Dir, cmd.Env = a.Dir, append(c.Env, a.Env...) // Command's environment: the profile's, without a parent Claude Code's markers
 	var stderr tail
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()

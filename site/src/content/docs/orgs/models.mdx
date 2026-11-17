@@ -1,0 +1,111 @@
+---
+title: Model providers
+description: Run some of desk's Claudes on OpenRouter or another Anthropic-compatible endpoint instead of your Claude subscription, and pick the model each role runs on.
+---
+
+Every Claude desk starts is Claude Code, and by default it runs on your Claude subscription (the
+organization's account, see [Organizations](/orgs/organizations/)). Claude Code can talk to any
+endpoint that speaks Anthropic's Messages API instead: OpenRouter has one, and proxies such as
+LiteLLM or claude-code-router put one in front of OpenAI-style APIs (OpenAI, Azure, Ollama, vLLM).
+A **model provider** is such an endpoint, set up per organization. Each of desk's Claudes can
+run on it or stay on the subscription: Explain on OpenRouter while the card's own work stays on
+Claude, for example.
+
+:::caution
+desk's prompts, tools and status lines are written for Claude. Another model may not call tools,
+skip the `DESK-STATUS` lines (so its card doesn't move or say what it needs), loop, or answer in
+the wrong shape (Improve with Claude and Explain then fail). Expect worse work than Claude's, and
+pick models that support tool calling.
+:::
+
+## Adding a provider
+
+In [Settings](/orgs/settings/), an organization's page has **+ Model provider** among the account
+buttons. Its card has:
+
+- **Name**: what the Models part calls it, for example `openrouter`.
+- **Base URL**: the endpoint, `https://openrouter.ai/api` for OpenRouter. It must speak
+  Anthropic's API, not OpenAI's (OpenRouter's `/api/v1` is its OpenAI one).
+- **API key**: where its key comes from, like any account's token: a vault item, an environment
+  variable, a command, or the file itself (see [Tokens](/reference/desk-toml/#tokens)). Claude Code
+  sends it in place of your login.
+- **In place of Opus**, **In place of Sonnet**, **In place of Haiku**: the model the provider
+  answers when Claude Code asks for each of Claude's. Each says what that Claude is for:
+
+| Claude | What it does in desk |
+|---|---|
+| **Opus** | The deepest thinker: plans, architecture, reviews and hard bugs. Slow and costly; the tech lead, architect, security, CTO and CISO roles run on it. |
+| **Sonnet** | The everyday workhorse: writes and edits code, runs tools, keeps a long task going. The senior developer, QA, DevOps and CFO roles run on it. |
+| **Haiku** | A simple but intelligent model for simple tasks, fast and cheap: Improve with Claude, Explain, and Claude Code's own small chores (titles, summaries). |
+
+For each, pick one of the models that come close to it (OpenRouter's names: Claude itself, paid
+per token, then OpenAI's, Google's, Moonshot's, Z.ai's, DeepSeek's, Alibaba's, xAI's…), **Not
+replaced** (Claude Code asks for Claude's own model by its name, which only works where the
+endpoint has Claude), or **Custom**, a field for any model id. A model that isn't Claude says
+what it may get wrong; Custom says it louder, since desk knows nothing of it. Another endpoint
+may name the suggested models differently: the card says so when the base URL isn't
+OpenRouter's.
+
+Save refuses a provider without a name or a base URL, and two with the same name.
+
+## Which Claude runs where
+
+Under the organization's servers, **Models** has a row per Claude desk starts, each with
+**Claude subscription** and the organization's providers to pick from:
+
+| Row | The Claude |
+|---|---|
+| **Card sessions** | The one that works a card: its conversation and its [terminal](/sessions/terminal/). |
+| **Improve with Claude** | [Improve with Claude](/cards/optimize/) in the new-card dialog. |
+| **Explain** | The breakdown of a shell command in a session. |
+| **Workspace** | The [workspace](/sessions/workspace/)'s read-only Claude. |
+| **Department leads** | The leads cards ask (see [The company](/orgs/company/)). |
+| **Drawings** | A [drawing's Claude](/drawings/claude/). |
+| **Infra** | The [infra Claude](/servers/infra-claude/) in the servers' terminals. |
+
+A change counts from the next time that Claude starts. A running card session keeps its provider
+until it ends; the session's foot shows **Model via \<provider\>** in place of the plan's limits,
+which aren't the provider's.
+
+Save refuses a row on a provider the organization no longer has.
+
+## The roles' models
+
+**Company roles**, under it, sets the model each of desk's roles runs on as a card session's
+subagent: **Its own** (the one its file says, shown beside it), **Opus**, **Sonnet**, **Haiku**,
+or **The session's** (whatever the card's session runs on). On a provider, Opus, Sonnet and Haiku
+are what it puts in their place, so the tech lead can think on one model while QA runs on a
+cheaper one.
+
+## What changes on a provider
+
+- **Plan limits** aren't shown: they are your subscription's.
+- **Cost** is what Claude Code reports, priced at Claude's rates: on another model it's an
+  estimate, and so are the [budgets](/orgs/company/#budgets) that count it.
+- Claude's server-side tools (web search and fetch) and the claude.ai Artifact tools (a drawing's
+  **Share**) need Anthropic's servers and your login: on a provider they fail or are missing.
+- A provider's key in a locked vault asks to unlock it, as a link's does; a key that doesn't
+  resolve stops the start with why.
+
+## In desk.toml
+
+The settings write `[[provider]]`, `[models]` and `[company.models]`:
+
+```toml
+[[provider]]
+name = "openrouter"
+base_url = "https://openrouter.ai/api"
+token_env = "OPENROUTER_API_KEY"
+opus = "openai/gpt-6.1-sol"
+sonnet = "z-ai/glm-5.3"
+haiku = "deepseek/deepseek-v4.1-flash"
+
+[models]
+explain = "openrouter"
+improve = "openrouter"
+
+[company.models]
+qa = "haiku"
+```
+
+See [desk.toml](/reference/desk-toml/#provider) for every key.

@@ -34,10 +34,14 @@ func (u *ui) explain(card, cmd string) {
 	e := &explained{busy: true}
 	u.explains[cmd] = e // ponytail: never pruned; one short text per command asked about
 	u.exGen++
-	acct, dir := orgs.Account(u.root, c.Org), orgs.Dir(u.root, c.Org, c.Dir)
+	org, acct, dir := c.Org, orgs.Account(u.root, c.Org), orgs.Dir(u.root, c.Org, c.Dir)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		s, err := explainCmd(ctx, u.home, acct, dir, cmd)
+		env, err := u.goEnv(org, "explain")
+		s := ""
+		if err == nil {
+			s, err = explainCmd(ctx, u.home, acct, dir, cmd, env...)
+		}
 		cancel()
 		u.later(func() {
 			e.busy, e.text = false, s

@@ -150,10 +150,14 @@ What each kind's fields mean, and where tokens come from, is in [Accounts](/orgs
 and [Vaults](/orgs/vaults/). Under the buttons, **Servers** has the **Show the server's login
 message** switch (`clear_login = false`: the banner and message of the day stay above a pane's
 first prompt, see [Command blocks](/servers/panes/#command-blocks)), the organization's servers
-file and **Import from Ásbrú** ([Import from Ásbrú](/servers/asbru/)).
+file and **Import from Ásbrú** ([Import from Ásbrú](/servers/asbru/)). Under it, **Models** picks
+which of desk's Claudes run on a **Model provider** (an account kind of its own) instead of your
+Claude subscription, and the model each company role runs on: see
+[Model providers](/orgs/models/).
 
 Save refuses a vault without a name, two vaults with the same name, and a token from a vault the
-organization doesn't have.
+organization doesn't have; a model provider without a name or a base URL, two with the same name,
+and a Claude on a provider the organization doesn't have.
 
 When the `desk.toml` doesn't read, its page says why in the bar ("… — fix it by hand") and has
 no Save: fix the file by hand, then open the settings again.

@@ -308,7 +308,10 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 		base := c.Session.Cost // the process reports its own total; the card adds earlier ones
 		o := claude.Options{Home: u.home, Org: acct, Dir: orgs.Dir(u.root, c.Org, c.Dir), Root: orgs.Dir(u.root, c.Org, ""), System: claude.System(c.Key(), c.Title, c.Org)}
 		var err error
-		if o.Args, err = u.agentArgs(c); err != nil {
+		if o.Args, err = u.agentArgs(c); err == nil {
+			o.Env, u.via[id], err = u.modelEnv(c.Org, "card")
+		}
+		if err != nil {
 			u.showToast(c.Key()+": "+err.Error(), true)
 			return
 		}

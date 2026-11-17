@@ -210,6 +210,41 @@ type Company struct {
 	Decides    map[string]string `toml:"decides"`
 	CardBudget float64           `toml:"card_budget"`
 	DayBudget  float64           `toml:"day_budget"`
+	// Models is the model each role runs on, by role (tl, qa…, as Roles):
+	// opus, sonnet, haiku or inherit (the session's); unset, the role's own.
+	Models map[string]string `toml:"models"`
+}
+
+// Provider is an Anthropic-compatible endpoint desk Claudes can run on in
+// place of the Claude subscription (OpenRouter, a proxy in front of an
+// OpenAI-style API): its token, and the models it answers for Opus, Sonnet
+// and Haiku ("" keeps Claude's own name).
+type Provider struct {
+	Name    string `toml:"name"`
+	BaseURL string `toml:"base_url"`
+	Secret
+	Opus   string `toml:"opus"`
+	Sonnet string `toml:"sonnet"`
+	Haiku  string `toml:"haiku"`
+}
+
+// Tasks are the desk Claudes [models] picks a provider for, in the
+// settings' order.
+var Tasks = []string{"card", "improve", "explain", "workspace", "lead", "drawing", "infra"}
+
+// ProviderFor is the provider task runs on: nil on the Claude subscription;
+// an error when [models] names one desk.toml doesn't have.
+func (c Config) ProviderFor(task string) (*Provider, error) {
+	name := c.Models[task]
+	if name == "" {
+		return nil, nil
+	}
+	for i := range c.Providers {
+		if c.Providers[i].Name == name {
+			return &c.Providers[i], nil
+		}
+	}
+	return nil, fmt.Errorf("[models] %s = %q: no [[provider]] of that name", task, name)
 }
 
 type Config struct {
@@ -222,6 +257,10 @@ type Config struct {
 	GitLab    []GitLab    `toml:"gitlab"`
 	Nagios    []Nagios    `toml:"nagios"`
 	Vaults    []Vault     `toml:"vault"`
+	Providers []Provider  `toml:"provider"`
+	// Models maps a desk Claude (Tasks) to the provider it runs on, by name;
+	// unset, the Claude subscription.
+	Models map[string]string `toml:"models"`
 	// The infra workspace's (internal/infra).
 	Servers Servers `toml:"servers"`
 	Record  *bool   `toml:"record"` // false: don't record its terminals as asciicasts (on by default)
