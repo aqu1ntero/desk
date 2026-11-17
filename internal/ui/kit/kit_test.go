@@ -62,7 +62,7 @@ func TestIconsDistinct(t *testing.T) {
 	icons := map[string]IconPath{"plus": IcoPlus, "x": IcoX, "search": IcoSearch, "clock": IcoClock, "chat": IcoChat,
 		"warn": IcoWarn, "check": IcoCheck, "spark": IcoSpark, "terminal": IcoTerminal, "archive": IcoArchive, "edit": IcoEdit,
 		"link": IcoLink, "send": IcoSend, "stop": IcoStop, "side": IcoSide, "popout": IcoPopOut, "star": IcoStar, "board": IcoBoard, "code": IcoCode,
-		"lock": IcoLock, "down": IcoDown, "trash": IcoTrash,
+		"lock": IcoLock, "down": IcoDown, "trash": IcoTrash, "gear": IcoGear, "reload": IcoReload, "eye": IcoEye, "blocked": IcoBlocked, "ring": IcoRing,
 		"pointer": IcoPointer, "hand": IcoHand, "square": IcoSquare, "diamond": IcoDiamond, "circle": IcoCircle, "arrow": IcoArrow,
 		"line": IcoLine, "pencil": IcoPencil, "letter": IcoLetter, "eraser": IcoEraser, "undo": IcoUndo, "redo": IcoRedo, "moon": IcoMoon,
 		"copy": IcoCopy, "front": IcoFront, "forward": IcoForward, "backward": IcoBackward, "back": IcoBack, "fit": IcoFit, "minus": IcoMinus, "shapes": IcoShapes, "image": IcoImage, "frame": IcoFrame, "library": IcoLibrary}

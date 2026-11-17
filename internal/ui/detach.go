@@ -46,6 +46,7 @@ type pane struct {
 	histList  layout.List
 	focused   bool      // the window has the keyboard: notifications skip the card in view
 	blur      bool      // drop the key focus on the next frame
+	spin      bool      // this frame drew a spinner: frame asks for the next one at its end
 	win       *detached // the detached window this is, nil for the main one
 }
 
