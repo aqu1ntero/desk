@@ -67,7 +67,10 @@ func Jail(cmd *exec.Cmd, home, dir string) *exec.Cmd {
 	if bwrap == "" {
 		return cmd
 	}
-	c := exec.Command(bwrap, slices.Concat([]string{"--dev-bind", "/", "/"}, args, []string{"--", cmd.Path}, cmd.Args[1:])...)
+	// its own bwrap is a user namespace too: the default account's ssh
+	// config needs the copy a profile's gets, kept in its ~/.claude
+	ssh := sshBinds(home, filepath.Join(home, ".claude"))
+	c := exec.Command(bwrap, slices.Concat([]string{"--dev-bind", "/", "/"}, ssh, args, []string{"--", cmd.Path}, cmd.Args[1:])...)
 	c.Env, c.Dir = cmd.Env, cmd.Dir
 	return c
 }

@@ -64,6 +64,32 @@ func TestJail(t *testing.T) {
 	}
 }
 
+// TestJailSSHConfig: the default account's own bwrap binds a copy of a
+// symlinked ~/.ssh/config, kept in its ~/.claude, over the file: in the
+// namespace a store's root-owned file is nobody's, and ssh refuses it.
+func TestJailSSHConfig(t *testing.T) {
+	home, dir, bin := t.TempDir(), t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(bin, "bwrap"), []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", bin)
+	t.Setenv("CLAUDE_PROFILE", "")
+	os.MkdirAll(filepath.Join(home, ".ssh"), 0o700)
+	os.MkdirAll(filepath.Join(home, ".claude"), 0o700)
+	store := filepath.Join(home, "store-config")
+	os.WriteFile(store, []byte("Host *\n"), 0o444)
+	if err := os.Symlink(store, filepath.Join(home, ".ssh", "config")); err != nil {
+		t.Skip("no symlinks here:", err)
+	}
+	confine(t, func(string) (hide, keep []string) { return nil, nil })
+	c := Jail(exec.Command("/opt/claude", "-p"), home, dir)
+	cp := filepath.Join(home, ".claude", ".ssh-config-0")
+	if !slices.Equal(c.Args[1:7], []string{"--dev-bind", "/", "/", "--ro-bind", cp, store}) {
+		t.Fatalf("%q", c.Args)
+	}
+	if b, _ := os.ReadFile(cp); string(b) != "Host *\n" {
+		t.Fatalf("copy %q", b)
+	}
+}
+
 // TestJailSeatbelt: on macOS a session runs under sandbox-exec, the walls
 // denied and, after them, what it keeps allowed (its profile's config
 // folder too).

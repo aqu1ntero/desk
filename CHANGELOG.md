@@ -19,6 +19,9 @@ day). A release's section here is its notes on GitHub. The format follows
 ### Fixed
 
 - Improve with Claude runs under the organization's own Claude profile on macOS and Windows.
+- git and ssh in sessions of an organization on the default Claude account work again when
+  `~/.ssh/config` or `/etc/ssh/ssh_config` is a symlink (NixOS, home-manager): the sandbox showed
+  them as nobody's and ssh refused them ("Bad owner or permissions"). Profiles already had the fix.
 
 ## [2026.11.16.5] - 2026-11-16
 

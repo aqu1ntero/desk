@@ -645,11 +645,7 @@ func command(home, org string, args ...string) (*exec.Cmd, error) {
 	binds := []string{"--dev-bind", "/", "/",
 		"--bind", cfg, filepath.Join(home, ".claude"),
 		"--bind", js, filepath.Join(home, ".claude.json")}
-	for i, src := range []string{filepath.Join(home, ".ssh", "config"), "/etc/ssh/ssh_config"} {
-		if real, c, err := sshConfig(src, filepath.Join(cfg, fmt.Sprintf(".ssh-config-%d", i))); err == nil {
-			binds = append(binds, "--ro-bind", c, real)
-		}
-	}
+	binds = append(binds, sshBinds(home, cfg)...)
 	return exec.Command(bwrap, append(append(binds,
 		"--unsetenv", "CLAUDE_CONFIG_DIR", "--setenv", "CLAUDE_PROFILE", org,
 		"--", bin), args...)...), nil
@@ -673,6 +669,18 @@ func bwrapBin() string {
 		return m[len(m)-1]
 	}
 	return ""
+}
+
+// sshBinds are bwrap's binds of a copy, kept in dir, over each ssh config
+// that is a symlink (sshConfig), for every bwrap desk starts: a profile's,
+// and Jail's own around the default account.
+func sshBinds(home, dir string) (binds []string) {
+	for i, src := range []string{filepath.Join(home, ".ssh", "config"), "/etc/ssh/ssh_config"} {
+		if real, c, err := sshConfig(src, filepath.Join(dir, fmt.Sprintf(".ssh-config-%d", i))); err == nil {
+			binds = append(binds, "--ro-bind", c, real)
+		}
+	}
+	return binds
 }
 
 // sshConfig copies ssh config src to dst, its Includes inlined, when src
