@@ -299,7 +299,7 @@ func demoFakes() {
 		now := time.Now()
 		return []claude.Limit{{Name: "5h", Percent: 34, Resets: now.Add(2*time.Hour + 10*time.Minute)}, {Name: "7d", Percent: 61, Resets: now.Add(3 * 24 * time.Hour)}}, nil
 	}
-	explainCmd = func(_ context.Context, _, _, _, cmd string) (string, error) {
+	explainCmd = func(_ context.Context, _, _, _, cmd string, _ ...string) (string, error) {
 		return "`" + cmd + "` runs the package's tests verbosely, only those whose name matches the pattern.", nil
 	}
 	desktopNotify = func(string, string) {}

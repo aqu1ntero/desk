@@ -6,6 +6,20 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Model providers.** An organization's settings take a Model provider: OpenRouter or any other
+  Anthropic-compatible endpoint, its API key, and the models it puts in place of Opus, Sonnet and
+  Haiku. Each tier says what it is for, with the models that come close to it, or a custom one with
+  a warning about what desk may get wrong on a model it doesn't know. **Models** picks which of
+  desk's Claudes run on it (card sessions, Improve with Claude, Explain, workspace, leads, drawings,
+  infra) and which stay on the Claude subscription, and the model each company role runs on. A
+  session on a provider shows it in place of the plan's limits.
+
+### Fixed
+
+- Improve with Claude runs under the organization's own Claude profile on macOS and Windows.
+
 ## [2026.11.16.5] - 2026-11-16
 
 ### Changed

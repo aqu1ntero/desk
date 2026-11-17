@@ -2,6 +2,7 @@ package infra
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -395,10 +396,33 @@ var ClaudeCmd func(args ...string) *exec.Cmd
 // claudeCmd runs claude under the account that owns dir: the default account
 // as-is, any other through bwrap with its config bound over ~/.claude (on
 // macOS and Windows, claude.NoBwrap, with CLAUDE_CONFIG_DIR at it).
+// It runs on the provider the organization's [models] infra names, if any.
 func claudeCmd(dir string, args ...string) (*exec.Cmd, error) {
 	if ClaudeCmd != nil {
 		return ClaudeCmd(args...), nil
 	}
+	cmd, err := profileCmd(dir, args...)
+	if err != nil {
+		return nil, err
+	}
+	work := orgOfInfra(dir)
+	c, err := deskorgs.Load(filepath.Dir(work), filepath.Base(work))
+	if err != nil { // a desk.toml that doesn't read: the subscription, as before providers
+		return cmd, nil
+	}
+	env, _, err := claude.ProviderEnv(context.Background(), c, "infra")
+	if err != nil {
+		return nil, err
+	}
+	if env != nil && cmd.Env == nil { // nil inherits; set, it must carry the rest itself
+		cmd.Env = os.Environ()
+	}
+	cmd.Env = append(cmd.Env, env...)
+	return cmd, nil
+}
+
+// profileCmd is claudeCmd under dir's account, before its provider.
+func profileCmd(dir string, args ...string) (*exec.Cmd, error) {
 	home, _ := os.UserHomeDir()
 	bin, err := claude.Bin(home)
 	if err != nil {

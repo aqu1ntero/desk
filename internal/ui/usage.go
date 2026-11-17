@@ -90,6 +90,10 @@ func (u *ui) usageStrip(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 			item("Context", -1, tokens(s.Context))
 		}
 	}
+	if via := u.via[c.ID]; via != "" { // the plan's limits aren't this provider's, and its cost is Claude's prices
+		item("Model", -1, "via "+via+" · cost estimated at Claude's prices")
+		return u.strip(gtx, items)
+	}
 	p := u.limitsFor(orgs.Account(u.root, c.Org))
 	for _, l := range p.l {
 		item(l.Name, l.Percent, fmt.Sprintf("%.0f%% · resets %s", l.Percent, resets(l.Resets)))
@@ -97,6 +101,11 @@ func (u *ui) usageStrip(gtx layout.Context, c *kanban.Card) layout.Dimensions {
 	if len(p.l) == 0 && p.err != "" {
 		item("Limits", -1, p.err)
 	}
+	return u.strip(gtx, items)
+}
+
+// strip lays usageStrip's items out in a row, nothing without any.
+func (u *ui) strip(gtx layout.Context, items []layout.FlexChild) layout.Dimensions {
 	if len(items) == 0 {
 		return layout.Dimensions{}
 	}

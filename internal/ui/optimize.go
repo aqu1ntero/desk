@@ -107,14 +107,18 @@ func (u *ui) optimizeCard() {
 			}
 		}
 		progress(func() { s.optStep, s.optStage = "Starting Haiku in "+org, 1 })
-		d, err := optimize(ctx, ask, func(p claude.Progress) {
-			progress(func() {
-				s.optStep = p.Step
-				if p.Step == "Writing" {
-					s.optStage, s.optLive = 2, p.Draft
-				}
+		var d claude.Draft
+		var err error
+		if ask.Env, err = u.goEnv(org, "improve"); err == nil {
+			d, err = optimize(ctx, ask, func(p claude.Progress) {
+				progress(func() {
+					s.optStep = p.Step
+					if p.Step == "Writing" {
+						s.optStage, s.optLive = 2, p.Draft
+					}
+				})
 			})
-		})
+		}
 		stopped := ctx.Err() == context.Canceled // the user's Stop: read before our own cancel
 		cancel()
 		u.later(func() {

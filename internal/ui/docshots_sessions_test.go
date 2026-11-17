@@ -63,7 +63,7 @@ var sessTop = scaled(image.Pt(0, 45)).Y
 
 // sessExplain is Haiku's take on the commands the scenes ask about, in
 // the shape claude.Explain asks it for (steps numbered, code in ticks).
-func sessExplain(_ context.Context, _, _, _, cmd string) (string, error) {
+func sessExplain(_ context.Context, _, _, _, cmd string, _ ...string) (string, error) {
 	switch cmd {
 	case "go test ./internal/auth/...":
 		return "1. `go test` builds the packages named and runs their tests.\n2. `./internal/auth/...` is the `internal/auth` package and every package under it.", nil

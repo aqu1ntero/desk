@@ -82,15 +82,16 @@ func tick(s string) string {
 }
 
 // Explain asks Haiku (in dir, under account's login, no tools) what shell
-// command cmd does, part by part, as markdown.
-func Explain(ctx context.Context, home, account, dir, cmd string) (string, error) {
+// command cmd does, part by part, as markdown; env is more environment
+// (ProviderEnv).
+func Explain(ctx context.Context, home, account, dir, cmd string, env ...string) (string, error) {
 	c, err := Command(home, account, "-p", "--model", "haiku", "--output-format", "json", "--json-schema", explainSchema,
 		"--no-session-persistence", "--permission-mode", "dontAsk", explainBrief+cmd)
 	if err != nil {
 		return "", err
 	}
 	cc := exec.CommandContext(ctx, c.Path, c.Args[1:]...) // the same, ended by ctx
-	cc.Dir, cc.Env = dir, c.Env
+	cc.Dir, cc.Env = dir, append(c.Env, env...)
 	out, err := cc.Output()
 	if e, perr := parseExplanation(out); perr == nil {
 		return e.Markdown(), nil

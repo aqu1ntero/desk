@@ -24,6 +24,7 @@ import (
 type cfgField struct {
 	key, label, hint string
 	list, toggle     bool
+	tier             bool   // a provider's model in place of Claude's key (config_models.go)
 	secret           string // "." the account's own token (keys at its top), else the sub-table's key
 	only             string // a vault's: shown for this kind only
 }
@@ -77,10 +78,18 @@ var cfgKinds = []cfgKind{
 		{key: "user", label: "User", hint: "the CGIs' login; empty: none"},
 		{key: "token", label: "Password", secret: "."},
 	}},
+	{"provider", "Model provider", []cfgField{
+		{key: "name", label: "Name", hint: "what Models below call it, e.g. openrouter"},
+		{key: "base_url", label: "Base URL", hint: "https://openrouter.ai/api, or your proxy's: Anthropic's API, not OpenAI's"},
+		{key: "token", label: "API key", secret: "."},
+		{key: "opus", label: "In place of Opus", tier: true},
+		{key: "sonnet", label: "In place of Sonnet", tier: true},
+		{key: "haiku", label: "In place of Haiku", tier: true},
+	}},
 }
 
 // cfgAbbr is each kind's tile on its card.
-var cfgAbbr = map[string]string{"bitwarden": "BW", "passbolt": "PB", "github": "GH", "jira": "JI", "bitbucket": "BB", "gitlab": "GL", "nagios": "NG"}
+var cfgAbbr = map[string]string{"bitwarden": "BW", "passbolt": "PB", "github": "GH", "jira": "JI", "bitbucket": "BB", "gitlab": "GL", "nagios": "NG", "provider": "AI"}
 
 var vaultKinds = []string{"bitwarden", "passbolt"}
 
@@ -112,6 +121,7 @@ type cfgDialog struct {
 	entries []*cfgEntry
 	langs   *cfgEntry // cfgFolders only: the languages ("card", "chat"), saved with the folders
 	opts    *cfgEntry // an org page only: its top-level switches (on["keep_login"]: clear_login = false)
+	models  *cfgEntry // an org page only: its Models part (config_models.go)
 	list    layout.List
 	err     string
 	broken  bool   // the file didn't parse: saving would lose it
@@ -154,14 +164,15 @@ type cfgSet struct {
 // per field (secret parts as "<secret>.<key>"), each secret's source, a
 // vault's kind; old and base are whether it was read and how it was then.
 type cfgEntry struct {
-	kind  string
-	raw   map[string]any
-	eds   map[string]*widget.Editor
-	src   map[string]int
-	on    map[string]bool // toggles
-	vkind int
-	old   bool
-	base  string
+	kind   string
+	raw    map[string]any
+	eds    map[string]*widget.Editor
+	src    map[string]int
+	on     map[string]bool // toggles
+	custom map[string]bool // a provider's model picked as Custom, by tier: how it is shown, not what is saved
+	vkind  int
+	old    bool
+	base   string
 }
 
 func (e *cfgEntry) ed(key string) *widget.Editor {
@@ -197,6 +208,9 @@ func (d *cfgDialog) changes() int {
 		n++
 	}
 	if d.opts != nil && d.opts.edited() {
+		n++
+	}
+	if d.models != nil && d.models.edited() {
 		n++
 	}
 	for _, e := range d.entries {
@@ -302,7 +316,7 @@ func (u *ui) openConfig(org string) {
 	s := &cfgSet{pages: map[string]*cfgDialog{}, state: map[string]int{}, parent: map[string]string{}, nav: layout.List{Axis: layout.Vertical}}
 	for _, o := range u.orgList {
 		c, err := orgs.Load(u.root, o)
-		accounts := len(c.Vaults) + len(c.GitHub) + len(c.Jira) + len(c.Bitbucket) + len(c.GitLab) + len(c.Nagios)
+		accounts := len(c.Vaults) + len(c.GitHub) + len(c.Jira) + len(c.Bitbucket) + len(c.GitLab) + len(c.Nagios) + len(c.Providers)
 		switch {
 		case err != nil:
 			s.state[o] = orgBroken
@@ -347,6 +361,7 @@ func (u *ui) loadOrg(d *cfgDialog) {
 	d.opts = &cfgEntry{kind: "opts", eds: map[string]*widget.Editor{}, src: map[string]int{}, on: map[string]bool{}}
 	d.opts.on["keep_login"] = raw["clear_login"] == false
 	d.opts.old, d.opts.base = true, d.opts.snap()
+	d.models = loadModels(raw)
 	for _, k := range cfgKinds {
 		tables, _ := raw[k.key].([]map[string]any)
 		for _, t := range tables {
@@ -449,6 +464,9 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 	delete(out, "clear_login") // the switch's: written only when it keeps the login output
 	if d.opts.on["keep_login"] {
 		out["clear_login"] = false
+	}
+	if !d.saveModels(out) {
+		return false
 	}
 	for _, e := range d.entries {
 		t := e.raw
@@ -810,9 +828,9 @@ func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: 8, Bottom: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			kids := []layout.FlexChild{}
 			if n == 0 {
-				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Bitbucket, GitLab or Nagios.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
+				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Bitbucket, GitLab, Nagios or a model provider.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
 			}
-			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers))
+			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers), layout.Rigid(u.cfgModels))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
 		})
 	})
@@ -831,7 +849,7 @@ func (e *cfgEntry) summary() string {
 		case f.secret == "." || f.secret == "password": // the main one: an API key's secret is detail
 			parts = append(parts, e.source(f))
 		case f.secret != "":
-		case v == "" || !slices.Contains([]string{"host", "url", "email", "workspace", "user", "owners", "projects", "groups"}, f.key):
+		case v == "" || !slices.Contains([]string{"host", "url", "base_url", "email", "workspace", "user", "owners", "projects", "groups"}, f.key):
 		case f.list:
 			parts = append(parts, strings.ToLower(f.label)+" "+v)
 		default:
@@ -942,7 +960,7 @@ func (e *cfgEntry) formRows() [][]cfgField {
 	vk := vaultKinds[e.vkind]
 	pair := false // the last row has one text field, room for another
 	for _, f := range fields(e.kind) {
-		wide := f.key == "kind" || f.secret != ""
+		wide := f.key == "kind" || f.secret != "" || f.tier
 		switch {
 		case f.only != "" && f.only != vk:
 		case pair && !wide:
@@ -984,6 +1002,8 @@ func (u *ui) cfgFields(gtx layout.Context, id string, e *cfgEntry) layout.Dimens
 			})
 		case f.secret != "":
 			return labeled(f.label, func(gtx layout.Context) layout.Dimensions { return u.cfgSecret(gtx, id, e, f) })
+		case f.tier:
+			return labeled(f.label, func(gtx layout.Context) layout.Dimensions { return u.cfgTier(gtx, id, e, f) })
 		}
 		return labeled(f.label, k.Field(e.ed(f.key), f.hint, 0))
 	}

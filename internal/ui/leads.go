@@ -94,8 +94,12 @@ func (u *ui) leadStart(st *leadState, key string) (session, error) {
 	} else {
 		o.New = sid
 	}
+	var err error
+	if o.Env, _, err = u.modelEnv(st.org, "lead"); err != nil {
+		return nil, err
+	}
 	var p session
-	p, err := startClaude(o, func(e claude.Event) { u.later(func() { u.leadEvent(key, p, e) }) })
+	p, err = startClaude(o, func(e claude.Event) { u.later(func() { u.leadEvent(key, p, e) }) })
 	if err == nil {
 		own(p, infra.Owner{Org: st.org}) // no card's tools, no desk peer
 	}
