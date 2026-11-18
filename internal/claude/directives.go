@@ -33,6 +33,7 @@ Servers: you never touch the %[2]s organization's servers yourself (no ssh, scp,
 - desk peer: lists the orgs and their infra sessions.
 - desk peer tell %[2]s --from %[1]s <<'END' … END: context it can't see from the servers (what the service does, schema, crons, ports, logs).
 - desk peer do %[2]s --from %[1]s <<'END' … END: a full task (what, where, steps in order, how to check it worked, how to roll back).
+- desk peer file %[2]s --from %[1]s --host HOST --path /abs/path [--mode 644] --why "…" ./file: a file for a server (a config, a unit, a script), which you write yourself with your own tools and agents (you know the code and its context; the infra Claude knows the server). It places it after the user approves the diff. To change a file already on the server, ask the infra Claude for its current content first (desk peer do), and start from that.
 - No need to wait for it: desk brings the infra Claude's questions, task results and messages into this conversation. Answer a question promptly (it waits) with desk peer answer N --from %[1]s, text on stdin; never run desk peer wait.
 Never send secrets.`, key, org)
 }

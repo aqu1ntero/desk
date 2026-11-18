@@ -89,8 +89,14 @@ func sshAsk(o *sshc.Options, host, dir string, asked func()) {
 }
 
 // sshClient is host's shared connection (dialed when there is none) and its
-// release, for one-off work: files, the changes tool, forwards.
+// release, for one-off work: files, the changes tool, forwards. A host
+// reached from another (route) is that one's connection: its callers run
+// the hops on it (runSh, portFwd.run).
 func sshClient(ctx context.Context, host, dir string) (*sshc.Client, func(), error) {
+	host, _, err := route(dir, host)
+	if err != nil {
+		return nil, nil, err
+	}
 	o := sshOpts(host, dir)
 	sshAsk(&o, host, dir, func() {})
 	return sshPool.Get(ctx, host, o)
@@ -192,11 +198,16 @@ func (p *sshProc) start(s *sshc.Session, release func()) {
 // for the connection box (Err).
 func (t *Term) connect(p *sshProc, host, dir string) {
 	defer close(p.ready)
-	o := sshOpts(host, dir)
-	sshAsk(&o, host, dir, func() { t.markReached() })
-	o.Logf = func(f string, a ...any) { t.print(fmt.Sprintf(f, a...)) }
-	o.Step = t.step // heard only when the pool dials for this pane
-	c, release, err := sshPool.Get(p.ctx, host, o)
+	host, via, err := route(dir, host) // reached from another server: its shell runs the hops
+	var c *sshc.Client
+	release := func() {}
+	if err == nil {
+		o := sshOpts(host, dir)
+		sshAsk(&o, host, dir, func() { t.markReached() })
+		o.Logf = func(f string, a ...any) { t.print(fmt.Sprintf(f, a...)) }
+		o.Step = t.step // heard only when the pool dials for this pane
+		c, release, err = sshPool.Get(p.ctx, host, o)
+	}
 	var s *sshc.Session
 	if err == nil {
 		if t.dialed() {
@@ -205,7 +216,12 @@ func (t *Term) connect(p *sshProc, host, dir string) {
 		p.mu.Lock()
 		w, h := p.w, p.h
 		p.mu.Unlock()
-		if s, err = c.Shell("xterm-256color", w, h, nil); err != nil {
+		if len(via) > 0 {
+			s, err = c.ShellCmd("xterm-256color", w, h, nil, wrap(via, "", "-t"))
+		} else {
+			s, err = c.Shell("xterm-256color", w, h, nil)
+		}
+		if err != nil {
 			release()
 		}
 	}

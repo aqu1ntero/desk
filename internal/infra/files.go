@@ -59,24 +59,38 @@ func (e *exitError) Error() string {
 // the script ends (Client.Run buffers it); stream it through a session of
 // our own if the fallback's big transfers need it.
 func remoteSh(ctx context.Context, host, dir, script string, stdin io.Reader, stdout io.Writer) error {
+	return runSh(ctx, host, dir, script, false, stdin, stdout)
+}
+
+// runSh is remoteSh, as root through sudo -n when sudo: a password sudo
+// fails rather than wait for one. A host reached from another runs it
+// through its route's commands.
+func runSh(ctx context.Context, host, dir, script string, sudo bool, stdin io.Reader, stdout io.Writer) error {
+	conn, via, err := route(dir, host)
+	if err != nil {
+		return err
+	}
+	if sudo {
+		via = append(via, "sudo -n")
+	}
+	cmd := wrap(via, "sh -c "+shQuote(script), "-o BatchMode=yes")
 	var stderr bytes.Buffer
 	code := 0
-	var err error
-	if host == "local" {
-		cmd := exec.CommandContext(ctx, "sh", "-c", script)
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, &stderr
-		err = cmd.Run()
+	if conn == "local" {
+		c := exec.CommandContext(ctx, "sh", "-c", cmd)
+		c.Stdin, c.Stdout, c.Stderr = stdin, stdout, &stderr
+		err = c.Run()
 		if ee, ok := err.(*exec.ExitError); ok {
 			code, err = ee.ExitCode(), nil
 		}
 	} else {
-		c, release, derr := sshClient(ctx, host, dir)
+		c, release, derr := sshClient(ctx, conn, dir)
 		if derr != nil {
 			return derr
 		}
 		defer release()
 		var out, eout []byte
-		out, eout, code, err = c.Run(ctx, "sh -c "+shQuote(script), stdin)
+		out, eout, code, err = c.Run(ctx, cmd, stdin)
 		stderr.Write(eout)
 		if stdout != nil && err == nil {
 			_, err = stdout.Write(out)
@@ -96,7 +110,7 @@ func remoteSh(ctx context.Context, host, dir, script string, stdin io.Reader, st
 // ponytail: one sftp session per operation; keep one per connection if
 // opening them shows.
 func sftpFor(ctx context.Context, host, dir string) (*sftp.Client, func(), error) {
-	if host == "local" {
+	if _, via, _ := route(dir, host); host == "local" || len(via) > 0 { // reached from another server: its scripts run there
 		return nil, nil, nil
 	}
 	c, release, err := sshClient(ctx, host, dir)

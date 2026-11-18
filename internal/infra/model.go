@@ -98,6 +98,9 @@ type Tab struct {
 	health                   bool            // the running turn is the daily health check: notify when done
 	ctxTokens, ctxWindow     int             // Claude's context: tokens in it now, the model's window (0: not known yet)
 	compacting               bool            // a /compact runs (busy is set too)
+
+	fileSeen map[string]string // host:path → sha256 of what file_read gave Claude (remotefs.go; guarded by mu)
+	staged   []stagedFile      // files cards' Claudes wrote for its servers, #1 first (guarded by mu)
 }
 
 // claudeModels are the palette's model choices.
@@ -1181,13 +1184,13 @@ func (m *model) answer(t *Tab, msg tea.KeyPressMsg) tea.Cmd {
 	case "y", "enter":
 		res = approvalResult{ok: true, cmd: a.cmd}
 	case "a":
-		if a.secret {
+		if a.fixed() {
 			return nil
 		}
 		res = approvalResult{ok: true, cmd: a.cmd}
 		always.add(t.org, allowKey(a.cmd, a.keys))
 	case "e":
-		if a.secret {
+		if a.fixed() {
 			return nil
 		}
 		a.edit, a.editing = a.cmd, true

@@ -13,6 +13,7 @@ import (
 	"gioui.org/op/paint"
 	"golang.org/x/image/math/fixed"
 
+	"github.com/lfdominguez/desk/internal/diff"
 	"github.com/lfdominguez/desk/internal/kanban"
 	"github.com/lfdominguez/desk/internal/ui/kit"
 )
@@ -23,67 +24,17 @@ type diffLine struct {
 	text string
 }
 
-// lineDiff is old turned into new, line by line: the common start and end
-// kept, the middle by longest common subsequence. ponytail: O(n·m); past a
-// million cells the middle is shown as all removed then all added.
+// lineDiff is old turned into new, line by line (internal/diff's Lines).
 func lineDiff(old, new string) []diffLine {
-	a, b := splitLines(old), splitLines(new)
-	var head, tail []diffLine
-	for len(a) > 0 && len(b) > 0 && a[0] == b[0] {
-		head = append(head, diffLine{' ', a[0]})
-		a, b = a[1:], b[1:]
+	ls := diff.Lines(old, new)
+	out := make([]diffLine, len(ls))
+	for i, l := range ls {
+		out[i] = diffLine{l.Op, l.Text}
 	}
-	for len(a) > 0 && len(b) > 0 && a[len(a)-1] == b[len(b)-1] {
-		tail = append([]diffLine{{' ', a[len(a)-1]}}, tail...)
-		a, b = a[:len(a)-1], b[:len(b)-1]
-	}
-	mid := make([]diffLine, 0, len(a)+len(b))
-	if len(a)*len(b) > 1_000_000 {
-		for _, l := range a {
-			mid = append(mid, diffLine{'-', l})
-		}
-		for _, l := range b {
-			mid = append(mid, diffLine{'+', l})
-		}
-		return append(append(head, mid...), tail...)
-	}
-	n, m := len(a), len(b)
-	lcs := make([][]int, n+1) // lcs[i][j]: of a[i:] and b[j:]
-	for i := range lcs {
-		lcs[i] = make([]int, m+1)
-	}
-	for i := n - 1; i >= 0; i-- {
-		for j := m - 1; j >= 0; j-- {
-			if a[i] == b[j] {
-				lcs[i][j] = lcs[i+1][j+1] + 1
-			} else {
-				lcs[i][j] = max(lcs[i+1][j], lcs[i][j+1])
-			}
-		}
-	}
-	i, j := 0, 0
-	for i < n || j < m {
-		switch {
-		case i < n && j < m && a[i] == b[j]:
-			mid = append(mid, diffLine{' ', a[i]})
-			i, j = i+1, j+1
-		case i < n && (j == m || lcs[i+1][j] >= lcs[i][j+1]): // removals first, as diffs read
-			mid = append(mid, diffLine{'-', a[i]})
-			i++
-		default:
-			mid = append(mid, diffLine{'+', b[j]})
-			j++
-		}
-	}
-	return append(append(head, mid...), tail...)
+	return out
 }
 
-func splitLines(s string) []string {
-	if s == "" {
-		return nil
-	}
-	return strings.Split(strings.TrimSuffix(s, "\n"), "\n")
-}
+func splitLines(s string) []string { return diff.Split(s) }
 
 // seg is a piece of a line in a word diff: kept (' '), or words it lost
 // ('-') or gained ('+').

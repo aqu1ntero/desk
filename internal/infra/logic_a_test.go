@@ -189,6 +189,10 @@ func TestToolLineA(t *testing.T) {
 		{"mcp__desk__metrics", "", "", "", "", 0, "metrics"},
 		{"mcp__desk__secrets_search", "", "", "", "", 0, "searching secrets"},
 		{"mcp__desk__secret_get", "", "", "", "", 0, "asking for a secret"},
+		{"mcp__desk__file_read", "", "/etc/x", "", "", 2, "pane 2 · reading /etc/x"},
+		{"mcp__desk__file_edit", "", "/etc/x", "", "ha", 2, "editing ha:/etc/x"},
+		{"mcp__desk__file_write", "", "/etc/x", "", "", 0, "writing /etc/x"},
+		{"mcp__desk__add_host", "", "", "", "ha", 0, "adding server ha"},
 		{"mcp__other__x", "", "", "", "", 0, ""},
 	} {
 		if got := toolLine(c.name, c.effect, c.cmd, c.keys, c.host, c.pane); got != c.want {
@@ -1665,6 +1669,17 @@ func TestKeyAnswerA(t *testing.T) {
 	press("n")
 	if res := <-a3.done; res.ok || lastChatA(tab) != "✗ denied: pb · db" || always.has("AnsOrg", "run:pb · db") {
 		t.Errorf("denied: %+v", res)
+	}
+	af := &approval{cmd: "@@ -1 +1 @@\n-a\n+b\n", file: "web1:/etc/x", done: make(chan approvalResult, 1)}
+	tab.pending = []*approval{af}
+	press("a")
+	press("e")
+	if len(tab.pending) != 1 || af.editing {
+		t.Fatal("a file's diff has no always and no edit")
+	}
+	press("y")
+	if res := <-af.done; !res.ok || always.has("AnsOrg", "run:"+af.cmd) {
+		t.Errorf("file approved: %+v", res)
 	}
 	a4 := &approval{cmd: "rm x", blocked: true, done: make(chan approvalResult, 1)}
 	tab.pending = []*approval{a4}

@@ -492,6 +492,10 @@ Host bastion
 Host lab-pi
     # the password itself, no vault: your call (keep the file chmod 600)
     #@ password-raw "s3cret"
+Host ha
+    # reached from web1, with a key that lives there
+    #@ on web1
+    #@ via ssh -i /root/.ssh/ha_key admin@192.0.2.158
 
 # Your own defaults last: ssh keeps the first value it finds.
 Match all
@@ -507,6 +511,10 @@ Match all
   no longer holds that key for that host.
 - **Old algorithms**: a server offering only ones modern SSH turns off gets **Fix algorithms** (F),
   which writes `KexAlgorithms +…` (or `HostKeyAlgorithms`, `Ciphers`, `MACs`) into its Host block.
+- **Servers reached from another one**: `#@ on` names the server and `#@ via` the command run
+  there (`ssh -i /root/.ssh/key admin@host`), so a key that lives on that server stays there.
+  Panes, the files panel and the infra Claude's file tools go through it. The infra Claude adds
+  these with `add_host`, once you approve.
 - **Includes** resolving inside the org folder count; ones outside it (like `~/.ssh/config`) are
   read when connecting but never listed, so your personal hosts never show as the org's servers.
 - **Relative paths** (`IdentityFile`, `UserKnownHostsFile`, `Include`…) are from the folder of

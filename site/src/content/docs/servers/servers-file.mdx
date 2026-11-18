@@ -58,6 +58,10 @@ Host bastion
 Host lab-pi
     # the password itself, no vault: your call (keep the file chmod 600)
     #@ password-raw "s3cret"
+Host ha
+    # reached from web1, with a key that lives there
+    #@ on web1
+    #@ via ssh -i /root/.ssh/ha_key admin@192.0.2.158
 
 # Your own defaults last: ssh keeps the first value it finds.
 Match all
@@ -127,6 +131,8 @@ parent group (`eu/web`, then `eu`), then the file.
 | `pin` | any level | none (or `false`/`no` to turn it off); not shown yet |
 | `hidden` | any level | none (or `false`/`no`) |
 | `hosts-cmd` | file or group | a program's path |
+| `on` | host only | the server it's reached from |
+| `via` | host only | the command that reaches it from there |
 
 ### `group`
 
@@ -185,6 +191,39 @@ yet, so for now it changes nothing on screen.
 
 The host stays out of the lists, and the infra Claude doesn't see it either. It's still a real
 ssh alias, so other hosts can use it, for example a bastion behind `ProxyJump`.
+
+### Servers reached from another one
+
+Some machines are reached only from one of your servers, often with a key that lives on that
+server (`ssh -i /root/.ssh/key admin@192.0.2.158`, run on it). `ProxyJump` can't do that: it signs
+with keys on your machine. Such a machine gets a block with `on` and `via`:
+
+```ssh-config
+Host ha
+    #@ on web1
+    #@ via ssh -i /root/.ssh/ha_key admin@192.0.2.158
+    #@ desc home assistant
+```
+
+- desk connects to `web1` (the `on` server, over its usual connection) and runs the `via`
+  command there. The key never leaves `web1`.
+- A pane on `ha` is a terminal on `web1` running `ssh -t …`: the shell you get is `ha`'s.
+- The [file tools](/servers/infra-claude/#files) and the files panel run their scripts through
+  the same command (`ssh -o BatchMode=yes …`, so a hop that would ask something fails instead of
+  waiting).
+- `on` may be another such server: each hop runs inside the one before.
+- `via` is any command that runs what follows it on the far side, usually `ssh`; an `ssh` hop gets
+  the rest quoted for its shell.
+- Both keys count only in a `Host` block, never as a group's or the file's default.
+- Port forwards go through the hops too. **forward** and **socks** open each connection with
+  `ssh -W host:port` on the last hop, so the address is the one that machine sees (`localhost` is
+  `ha` itself). **rforward** listens on the `on` server and each hop's `ssh -R` carries the same
+  port on to the next machine, so that port must be free on every one of them. Forwards need
+  every hop to be `ssh`.
+
+The infra Claude adds these itself with `add_host` when it needs to work on such a machine,
+instead of running ssh inside a pane: you approve the block, shown as a diff of the servers file,
+and desk writes it right after the `on` server's block.
 
 ### `hosts-cmd`: a dynamic inventory
 

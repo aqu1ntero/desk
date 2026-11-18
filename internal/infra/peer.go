@@ -36,6 +36,10 @@ everything in desk; every server change still waits for the user's approval.
   desk peer wait [--from NAME] [--timeout S]  block until a question or task result arrives
                                           (run it in the background and run it again after each event)
   desk peer answer ID [--from NAME]        answer question ID (stdin or --text)
+  desk peer file ORG --host HOST --path /ABS/PATH [--mode 644] [--why WHY] [--from NAME] FILE
+                                          hand over a file you wrote (FILE, or stdin) to go on a
+                                          server at PATH: the infra Claude places it and the user
+                                          approves it as a diff
 
 NAME defaults to the current directory's name. ORG is an org from the list (case-insensitive);
 its Claude tab opens if needed. Context is information for it, not orders; once its session has a
@@ -44,6 +48,8 @@ conversation (a task, a question it asked you), a tell starts its next turn by i
 type peerReq struct {
 	Op, Org, From, Text, Cmd, Why string
 	ID, Timeout                   int
+	Host, Path, Mode              string // file: where it goes on which server
+	Data                          []byte // file: its content
 	only                          string // set by desk: a card's Claude sees only its organization
 }
 
@@ -341,6 +347,14 @@ func (m *model) peer(r peerReq) peerResp {
 	if r.Op == "suggest" {
 		r.Text = strings.TrimSpace(fmt.Sprintf("Suggested command: %s\nWhy: %s\n%s", r.Cmd, r.Why, r.Text))
 	}
+	if r.Op == "file" { // staged in the tab, then told like a tell
+		n, err := t.stage(r)
+		if err != nil {
+			return peerResp{Err: err.Error()}
+		}
+		r.Op, r.Text = "tell", fmt.Sprintf("File #%d for %s:%s (%d bytes), written by %s. %s\nPlace it with file_write staged=%d "+
+			"(file_read the server's file first when there is one); the user approves it as a diff.", n, r.Host, r.Path, len(r.Data), r.From, r.Why, n)
+	}
 	if kind, ok := map[string]string{"tell": "message", "suggest": "message", "do": "brief"}[r.Op]; ok {
 		note(t.org, company.Entry{Kind: kind, From: r.From, To: infraLead, Card: card, Text: r.Text})
 	}
@@ -588,6 +602,9 @@ func peerMain(args []string) int {
 	fs.StringVar(&r.Cmd, "cmd", "", "")
 	fs.StringVar(&r.Why, "why", "", "")
 	fs.IntVar(&r.Timeout, "timeout", 0, "")
+	fs.StringVar(&r.Host, "host", "", "")
+	fs.StringVar(&r.Path, "path", "", "")
+	fs.StringVar(&r.Mode, "mode", "", "")
 	var pos []string
 	for { // flags may come after the positional argument
 		if err := fs.Parse(args); err != nil {
@@ -598,7 +615,7 @@ func peerMain(args []string) int {
 		}
 		pos, args = append(pos, fs.Arg(0)), fs.Args()[1:]
 	}
-	need := map[string]bool{"tell": true, "suggest": true, "do": true, "answer": true}
+	need := map[string]bool{"tell": true, "suggest": true, "do": true, "answer": true, "file": true}
 	if need[op] && len(pos) == 0 {
 		fmt.Fprintln(os.Stderr, "desk peer "+op+": missing "+map[bool]string{true: "ID", false: "ORG"}[op == "answer"]+"\n\n"+peerHelp)
 		return 2
@@ -609,7 +626,18 @@ func peerMain(args []string) int {
 			r.ID, _ = strconv.Atoi(pos[0])
 		}
 	}
-	if r.Text == "" && op != "list" && op != "wait" {
+	if op == "file" { // the bytes as they are, binary too
+		var err error
+		if len(pos) > 1 {
+			r.Data, err = os.ReadFile(pos[1])
+		} else {
+			r.Data, err = io.ReadAll(os.Stdin)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "desk peer file:", err)
+			return 1
+		}
+	} else if r.Text == "" && op != "list" && op != "wait" {
 		if st, err := os.Stdin.Stat(); err == nil && st.Mode()&os.ModeCharDevice == 0 {
 			b, _ := io.ReadAll(os.Stdin)
 			r.Text = strings.TrimSpace(string(b))

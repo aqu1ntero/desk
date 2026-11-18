@@ -44,6 +44,27 @@ their Claude session:
 
 </Steps>
 
+## Files the card writes
+
+A config, a systemd unit or a script for a server is better written by the card's Claude: it has
+the code, its context, and its agents and specialists. So it writes the file itself and hands it
+over:
+
+```sh
+desk peer file Globex --from DESK-5 --host web-01 --path /etc/billing/api.yaml \
+  --why "pool size for the new index" ./api.yaml
+```
+
+- desk keeps the file in the card's infra session as **File #1** and tells the infra Claude.
+- The infra Claude reads what's on the server now, then places it with
+  [`file_write`](/servers/infra-claude/#files) `staged=1`. You approve it as a diff, which names
+  the card whose Claude wrote it. If the file is wrong for the server, the infra Claude tells the
+  card instead of rewriting it.
+- `--mode` sets a new file's mode; an existing one keeps its owner and mode. Binary files work too,
+  and without a file name the bytes come from stdin.
+- To change a file already on the server, the card's Claude first asks the infra Claude for its
+  current content (`desk peer do`) and starts from it.
+
 ## On the card
 
 While a card has a task open with the infra Claude, it shows an orange **⇄ _org_ infra** pill:
@@ -135,6 +156,8 @@ desk peer suggest ORG --cmd CMD --why WHY   # propose one command
 desk peer do ORG [--from NAME]              # hand over a task
 desk peer wait [--from NAME] [--timeout S]  # wait for a question or result
 desk peer answer ID [--from NAME]           # answer question ID
+desk peer file ORG --host HOST --path /ABS [--mode 644] [--why WHY] [--from NAME] FILE
+                                            # a file for a server: see Files the card writes
 ```
 
 - `tell`, `do` and `answer` take their text on stdin or with `--text`.
