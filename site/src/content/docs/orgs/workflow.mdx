@@ -1,0 +1,72 @@
+---
+title: Ticket workflow
+description: Teach desk how an organization's tickets move, as its people use them - what each status means, who moves tickets where - so cards, tickets and the card's Claude follow it.
+---
+
+By default desk moves a card's ticket by the column's status category (see
+[Tickets follow their card](/cards/links/#tickets-follow-their-card)), and moves back any ticket
+that drifted. That works until an organization's statuses mean something of their own: its
+**Test** may mean *deployed to the testing environment*, not *someone is testing it*, and only
+QA moves a ticket to **Done**. The **ticket workflow** tells desk how that organization works.
+
+## Learning it
+
+In [Settings](/orgs/settings/), an organization's page has **Ticket workflow** under its servers.
+
+1. In **Instructions**, write how its tickets move, or where to read it: *Read ./docs/process.
+   "Test" means deployed to the testing environment; only QA moves a ticket to Done.* Paths start
+   at the organization's folder.
+2. **Learn** has Haiku read it, and every file it points at (read-only), next to the statuses of
+   the organization's Jira projects, which desk fetches. It runs on the provider set for **Learn
+   workflow** in [Models](/orgs/models/). **Stop** ends it.
+3. What it understood fills the fields below, for you to check and change:
+   - **What Haiku understood**: its summary, and what was unclear or missing.
+   - **Card in \<column\>**: the status its ticket goes to when a card moves there. Empty: the
+     status category's guess, as without a workflow. An account's own `[jira.status]` still wins.
+   - **Statuses others move tickets to**: one `Status → Column` per line. When someone puts a
+     ticket in one of them, the card follows to that column.
+   - **Rules for the card's Claude**: what each status means here, when Claude moves a ticket
+     itself, and what it must never do.
+4. **Save**. Nothing applies before.
+
+Save refuses a line of the statuses others move to that doesn't name a column of the board.
+
+## What changes
+
+- **Every card's Claude** of the organization is told the rules, and gets a `ticket_status` tool to
+  move a ticket of its card by the status's name when the rules say so (after it deploys to
+  testing, say). A status it can't reach comes back with the ones it can. Only your own tickets
+  move, never through an account with `sync = false`, nor out of a status its `ignore` leaves to
+  others.
+- **The card follows its ticket.** When someone moves a ticket to a status the workflow gives a
+  column (the statuses others move to, or a column's status read backwards), its card moves
+  there, with a toast: *ABC-131 is Test: DESK-12 follows to Review*. The same when the card's
+  Claude moves it. When several columns share that status, a card already in one of them stays;
+  otherwise it goes to the first of them on the board. A GitHub issue closed takes its card to
+  Done, and reopened, out of Done to In progress.
+- **No ticket is moved back.** The check at start and every 3 minutes leaves a ticket someone
+  moved where it is: either its card follows it, or both stay.
+- **Moving a card yourself** still moves its ticket, to the column's status. When it can't (the
+  ticket is someone else's, or the move isn't allowed there), the card stays where you put it:
+  a card follows only a status that changed since the last check, and the first check of a
+  ticket only notes where it is.
+
+## In desk.toml
+
+```toml
+[workflow]
+instructions = "Read ./docs/process"
+summary = "Test means deployed to the testing environment; QA closes tickets."
+rules = "Move a ticket to Test after you deploy it to the testing environment. Never move one to Done."
+learned = "2026-11-17"
+
+[workflow.status]          # a column → its ticket's status
+"In progress" = "In Progress"
+Review = "Code Review"
+
+[workflow.follow]          # a status others move to → the card's column
+Test = "Review"
+Deployed = "Done"
+```
+
+See [desk.toml](/reference/desk-toml/#workflow).

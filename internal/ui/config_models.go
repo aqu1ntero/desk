@@ -68,6 +68,7 @@ var taskInfo = map[string][2]string{
 	"lead":      {"Department leads", "The engineering, security and finance leads cards ask."},
 	"drawing":   {"Drawings", "A drawing's own Claude, beside the canvas."},
 	"infra":     {"Infra", "The infra Claude in the servers' shared terminals."},
+	"workflow":  {"Learn workflow", "Reads how the organization's tickets move, for its Ticket workflow (Haiku)."},
 }
 
 // roleModels are the choices of a role's model, and what each writes ("" none).

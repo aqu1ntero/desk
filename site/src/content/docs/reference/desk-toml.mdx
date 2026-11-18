@@ -37,11 +37,28 @@ How desk's roles join the organization's own agents (see [The company](/orgs/com
 | `day_budget` | number | none | US dollars all the organization's sessions may spend in a day; over it, its cards pause. |
 | `models` | table | none | A role mapped to the model it runs on: `opus`, `sonnet`, `haiku`, or `inherit` (the session's): `qa = "haiku"`. Unset, the role's own. See [Model providers](/orgs/models/#the-roles-models). |
 
+## [workflow]
+
+How the organization's tickets move (see [Ticket workflow](/orgs/workflow/)); the settings' Learn
+writes it, from `instructions`.
+
+| Key | Type | What it does |
+|---|---|---|
+| `instructions` | string | Yours: how tickets move here, or where to read it. |
+| `summary` | string | What Learn understood. |
+| `rules` | string | Told to every card's Claude, with the `ticket_status` tool to follow them. |
+| `learned` | string | The day Learn ran. |
+| `[workflow.status]` | table | A column → the status its ticket goes to there, under an account's own `[jira.status]`. |
+| `[workflow.follow]` | table | A status others move tickets to → the column the card follows to. |
+
+With a workflow, the check every 3 minutes never moves a ticket back: a ticket in a status these
+tables give a column takes its card there, any other stays.
+
 ## [models]
 
 Which of desk's Claudes run on a [model provider](/orgs/models/), by name; one not set runs on
 the Claude subscription. Keys: `card` (a card's session and terminal), `improve`, `explain`,
-`workspace`, `lead`, `drawing`, `infra`: `explain = "openrouter"`. Naming a provider the file
+`workspace`, `lead`, `drawing`, `infra`, `workflow` (Learn): `explain = "openrouter"`. Naming a provider the file
 doesn't have stops that Claude from starting, with why.
 
 ## [[provider]]

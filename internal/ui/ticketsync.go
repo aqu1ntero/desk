@@ -32,26 +32,40 @@ func (u *ui) syncTickets(all bool) {
 			}
 			if slices.ContainsFunc(c.Links, ticket) && (all || c.Pushed != col) && !u.pushing[c.ID] {
 				u.pushing[c.ID] = true
-				go u.push(c.ID, c.Key(), c.Org, col, slices.Clone(c.Links))
+				go u.push(c.ID, c.Key(), c.Org, col, slices.Clone(c.Links), c.Pushed == col) // in step as far as desk knows: the check's
 			}
 		}
 	}
 }
 
 // push moves card id's tickets ls to match column col, each through its
-// organization's account, and says what each one is now.
-func (u *ui) push(id, key, org, col string, ls []kanban.Link) {
+// organization's account, and says what each one is now. check is the
+// background check's (syncTicket): an organization's workflow then has the
+// card follow a ticket someone moved instead.
+func (u *ui) push(id, key, org, col string, ls []kanban.Link, check bool) {
 	defer u.busy(org)()
 	cfg, err := orgs.Load(u.root, org)
 	retry := false // a locked vault: the next save tries again, once it is unlocked
 	failed := err != nil
+	followed := false           // the card follows a ticket: followTicket keeps Pushed
+	seen := map[string]string{} // each ticket's status as read, by url: the next check's Seen
 	for _, l := range ls {
 		if err != nil || !ticket(l) {
 			continue
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		now, perr := pushTicket(ctx, l, col, cfg)
+		var s links.Synced
+		var perr error
+		if check {
+			s, perr = syncTicket(ctx, l, col, cfg)
+		} else {
+			s.Now, perr = pushTicket(ctx, l, col, cfg)
+		}
 		cancel()
+		now := s.Now
+		if s.Seen != "" {
+			seen[l.URL] = s.Seen
+		}
 		var locked *vault.LockedError
 		var na *links.NoAccountError
 		switch {
@@ -62,6 +76,9 @@ func (u *ui) push(id, key, org, col string, ls []kanban.Link) {
 		case perr != nil:
 			failed = true
 			u.later(func() { u.pushFailed(id, key+": couldn't move "+l.Ref+": "+firstLine(perr.Error())) })
+		case s.Moved && !followed:
+			followed = true
+			u.later(func() { u.followTicket(id, l.Ref, l.URL, s.Seen, col, u.followColumn(cfg.Workflow, l, s.Seen, col)) })
 		case now != "":
 			u.later(func() { u.showToast(l.Ref+" → "+now, false) })
 		}
@@ -75,13 +92,20 @@ func (u *ui) push(id, key, org, col string, ls []kanban.Link) {
 			delete(u.pushErr, id) // in step again: a new failure is news
 		}
 		c := u.b.Card(id)
+		if c != nil {
+			for i, l := range c.Links {
+				if st, ok := seen[l.URL]; ok {
+					c.Links[i].Seen = st
+				}
+			}
+		}
 		if retry { // no save here: it would try again at once, still locked
 			if c != nil {
 				c.Pushed = "" // out of step: the first save after unlocking tries again
 			}
 			return
 		}
-		if c != nil {
+		if c != nil && !followed {
 			c.Pushed = col // given up on a failure too: a toast said so, and the next move tries again
 		}
 		u.save()

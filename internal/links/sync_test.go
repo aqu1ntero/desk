@@ -148,4 +148,18 @@ func TestPushGitHub(t *testing.T) {
 	if got, _ := Push(ctx, kanban.Link{URL: "https://github.com/someone/else/issues/1", Kind: KindGitHubIssue}, "Done", cfg); got != "" {
 		t.Fatalf("no account for it: %q", got)
 	}
+	assignees = `[{"login":"Me"}]`
+	if got, err := Transition(ctx, l, "Closed", cfg); got != "closed" || err != nil || state != "closed" {
+		t.Fatalf("transition: %q %v %s", got, err, state)
+	}
+	if _, err := Transition(ctx, l, "Test", cfg); err == nil {
+		t.Fatal("a GitHub issue is open or closed only")
+	}
+	if _, err := Transition(ctx, kanban.Link{URL: "https://github.com/someone/else/issues/1", Kind: KindGitHubIssue}, "open", cfg); err == nil {
+		t.Fatal("no account for it")
+	}
+	githubAPI = "http://127.0.0.1:1"
+	if _, err := Transition(ctx, l, "open", cfg); err == nil {
+		t.Fatal("GitHub not answering")
+	}
 }

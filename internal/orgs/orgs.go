@@ -230,7 +230,49 @@ type Provider struct {
 
 // Tasks are the desk Claudes [models] picks a provider for, in the
 // settings' order.
-var Tasks = []string{"card", "improve", "explain", "workspace", "lead", "drawing", "infra"}
+var Tasks = []string{"card", "improve", "explain", "workspace", "lead", "drawing", "infra", "workflow"}
+
+// Workflow is how the organization's tickets move, as its people use
+// them, which may differ from what desk's columns would guess: written by
+// the user (Instructions) and learned from them by Haiku (the rest), then
+// checked in the settings.
+type Workflow struct {
+	Instructions string `toml:"instructions"` // the user's: how tickets move here, or where to read it
+	Summary      string `toml:"summary"`      // what was understood, for the user
+	Rules        string `toml:"rules"`        // told to every card's Claude
+	Learned      string `toml:"learned"`      // the day it was learned
+	// Status is the status a ticket goes to when its card moves to a
+	// column, by column title, over the account's guess.
+	Status map[string]string `toml:"status"`
+	// Follow is the column a card goes to when someone else puts its
+	// ticket in a status, by status name.
+	Follow map[string]string `toml:"follow"`
+}
+
+// On says the organization has a workflow: tickets then lead their cards
+// in the background check instead of being moved back, since its people
+// (and the card's Claude, by its rules) move them on purpose.
+func (w Workflow) On() bool { return w.Rules != "" || len(w.Status)+len(w.Follow) > 0 }
+
+// ColumnOf is the column a ticket in status puts its card, in column cur,
+// in: Follow's; else, of the columns Status sends to it (several can
+// share one status), cur when it is one, else the first in the board's
+// order cols; "" none.
+func (w Workflow) ColumnOf(status, cur string, cols []string) string {
+	for s, col := range w.Follow {
+		if strings.EqualFold(s, status) {
+			return col
+		}
+	}
+	to := func(col string) bool { return strings.EqualFold(w.Status[col], status) }
+	if to(cur) {
+		return cur
+	}
+	if i := slices.IndexFunc(cols, to); i >= 0 {
+		return cols[i]
+	}
+	return ""
+}
 
 // ProviderFor is the provider task runs on: nil on the Claude subscription;
 // an error when [models] names one desk.toml doesn't have.
@@ -258,6 +300,7 @@ type Config struct {
 	Nagios    []Nagios    `toml:"nagios"`
 	Vaults    []Vault     `toml:"vault"`
 	Providers []Provider  `toml:"provider"`
+	Workflow  Workflow    `toml:"workflow"`
 	// Models maps a desk Claude (Tasks) to the provider it runs on, by name;
 	// unset, the Claude subscription.
 	Models map[string]string `toml:"models"`
