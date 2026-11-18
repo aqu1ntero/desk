@@ -9,7 +9,7 @@ import (
 // Directives are the lines a card's Claude ends a reply with to update its
 // card. They are stripped from what the chat shows.
 type Directives struct {
-	Status string   // "", blocked, done, waiting
+	Status string   // "", blocked, done, closed (the user said the card is done), waiting
 	Note   string   // blocked: why
 	Links  []string // URLs to track
 	Ticket string   // the title of a ticket to create for the card
@@ -17,6 +17,10 @@ type Directives struct {
 	Cards  []string // new cards to make, what each is to do
 	Snooze string   // the card's alert is left as it is, why: offer to snooze it
 }
+
+// Closed is the DESK-STATUS a Claude writes when the user told it the card
+// is done; desk honors it only for a turn the user's own message started.
+const Closed = "closed"
 
 // AlertSnooze is added to System for a card that investigates a monitoring
 // alert.
@@ -96,6 +100,7 @@ func System(key, title, org string) string {
 The card shows your status; you set it with lines at the very end of a reply:
 - If you cannot go on because you are waiting on something outside both your and the user's hands (someone else's review or answer, access being granted, a deploy pipeline), end with: DESK-STATUS: blocked — <short reason>. Waiting on the user (to run a command, decide, answer you) is not blocked: write no DESK-STATUS line, the card then shows it is their turn.
 - If the card's work is finished, end with: DESK-STATUS: done. desk then puts the card in Review for the user to check; only the user moves it to Done.
+- If the user's own message tells you the card is done or there is nothing more to do ("you're done", "that's all", "we can close this"), end with: DESK-STATUS: closed. desk then moves the card to Done. Never write it on your own judgment, or for a message that isn't the user's (desk's notes, the infra or workspace Claude's).
 - When you open or find a pull request, merge request or ticket this card should track, add a line: DESK-LINK: <url>
 - A card tracks one ticket, at most. When the user asks for a ticket and the card has none (no Jira or issue link), write the ticket's description as your reply and end it with: DESK-TICKET: <short title>. desk creates it in the organization's tracker, assigned to the user, links it to the card and tells you. If the card already has its ticket, don't make another: ask the user whether that work is a new card; if they say yes, add a line DESK-CARD: <what the new card is to do, one line>, and desk makes that card, with its own ticket.
 Otherwise write no DESK- lines; the card then shows it is the user's turn.

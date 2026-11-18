@@ -210,6 +210,18 @@ func (u *ui) newCards(id string, todo []string) {
 // text with "!" in front is the user's own command (shell.go).
 func (u *ui) send(id, text string) { u.deliver(id, text, false) }
 
+// heard notes what card id's Claude just got: the user's own words from
+// the message box (sendBox sets fromBox) or anything else. Only a turn the
+// user's words started may close the card (DESK-STATUS: closed), never
+// desk's own sends or a turn Claude takes by itself.
+func (u *ui) heard(id string) {
+	if u.fromBox {
+		u.said[id] = true
+	} else {
+		delete(u.said, id)
+	}
+}
+
 // compactingNote is the card's note while Claude Code compacts its conversation.
 const compactingNote = "Compacting the conversation…"
 
@@ -280,6 +292,7 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 		delete(u.asks, id)
 		u.say(id, "you", text)
 		c.Status, c.Note, c.Last, c.Updated = kanban.StatusWorking, "", text, time.Now()
+		u.heard(id)
 		u.moveTo(id, "In progress")
 		u.save()
 		return
@@ -348,6 +361,7 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 		u.showToast("Claude: "+err.Error(), true)
 		return
 	}
+	u.heard(id)
 	delete(u.shellOut, id)
 	delete(u.peerOut, id)
 	u.shellSent(id)
@@ -510,10 +524,13 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			u.moveTo(id, "Blocked")
 		case u.backgrounded(id) != "": // the turn ended, the work didn't: Claude takes a turn of its own when they finish
 			c.Status, c.Note = kanban.StatusWorking, u.backgrounded(id)
-			if d.Status == kanban.StatusDone { // never up for review while work runs: held for the turn that ends idle, unless it says otherwise
+			if d.Status == kanban.StatusDone || d.Status == claude.Closed { // never up for review while work runs: held for the turn that ends idle, unless it says otherwise
 				u.pending[id] = claude.Directives{Status: d.Status, Note: d.Note}
 			}
-		case d.Status == kanban.StatusDone: // Claude's done is a review: only the user moves a card to Done
+		case d.Status == claude.Closed && u.said[id]: // the user said it's done, in their own words
+			c.Status, c.Note = kanban.StatusDone, ""
+			u.moveTo(id, "Done")
+		case d.Status == kanban.StatusDone || d.Status == claude.Closed: // Claude's done is a review: only the user moves a card to Done
 			c.Status, c.Note = kanban.StatusReview, d.Note
 			u.moveTo(id, "Review")
 		default:
@@ -522,6 +539,9 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 		if why := u.overBudget(c); why != "" && c.Status != kanban.StatusFailed {
 			c.Status, c.Note = kanban.StatusWaiting, "Paused: over "+why
 			u.say(id, "error", "Paused: this session is over "+why+". What other Claudes send it waits; your next message continues it.")
+		}
+		if c.Status != kanban.StatusWorking { // the user's word holds through the turns Claude takes while its work runs, no longer
+			delete(u.said, id)
 		}
 	case claude.KindExit:
 		u.stopTasks(id)
