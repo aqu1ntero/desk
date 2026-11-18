@@ -1908,6 +1908,44 @@ func TestDoneWhileBackground(t *testing.T) {
 	check(kanban.StatusBlocked, "Blocked")
 }
 
+// TestClosedByUser: DESK-STATUS: closed moves the card to Done only for a
+// turn the user's typed message started; after desk's own message, or a
+// plain done, it goes to Review.
+func TestClosedByUser(t *testing.T) {
+	h := newHarness(t)
+	h.create("A card", "Acme")
+	id := h.only().ID
+	end := func(text string) {
+		h.u.onEvent(id, 0, claude.Event{Kind: claude.KindText, Text: text})
+		h.u.onEvent(id, 0, claude.Event{Kind: claude.KindResult})
+	}
+	check := func(what, status, col string) {
+		t.Helper()
+		c := h.u.b.Card(id)
+		if got, _ := h.u.b.Find(id); c.Status != status || got != h.u.b.Column(col) {
+			t.Fatalf("%s: status %q note %q, want %q in %s", what, c.Status, c.Note, status, col)
+		}
+	}
+	end("Finished.\nDESK-STATUS: closed") // the first turn: the card's own start, not the user's words
+	check("desk's start", kanban.StatusReview, "Review")
+	h.u.send(id, "No ticket created: …") // desk's own message
+	end("OK.\nDESK-STATUS: closed")
+	check("desk's message", kanban.StatusReview, "Review")
+	typed := func(s string) { h.u.setBox(s); h.u.sendBox(id) } // the message box, as the user sends it
+	typed("looks good")
+	end("Thanks.\nDESK-STATUS: done")
+	check("a plain done", kanban.StatusReview, "Review")
+	typed("you're done")
+	end("Closing it.\nDESK-STATUS: closed")
+	check("the user's word", kanban.StatusDone, "Done")
+	if h.u.b.Card(id).Finished.IsZero() {
+		t.Error("closed without a finish time")
+	}
+	h.u.onEvent(id, 0, claude.Event{Kind: claude.KindInit}) // a turn of Claude's own after that
+	end("One more thing.\nDESK-STATUS: closed")
+	check("Claude's own turn", kanban.StatusReview, "Review")
+}
+
 // TestStartsWorking: a created card starts at once (its title and notes
 // go with the first message); one with no conversation has Start working.
 func TestStartsWorking(t *testing.T) {

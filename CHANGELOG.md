@@ -45,6 +45,9 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Fixed
 
+- Telling a card's Claude it's done ("you're done", "that's all") moves the card to **Done**; it
+  stayed in Review. Claude finishing by itself, or after desk's own messages, still only puts it in
+  Review.
 - Improve with Claude runs under the organization's own Claude profile on macOS and Windows.
 - git and ssh in sessions of an organization on the default Claude account work again when
   `~/.ssh/config` or `/etc/ssh/ssh_config` is a symlink (NixOS, home-manager): the sandbox showed

@@ -95,7 +95,9 @@ func (u *ui) sendBox(id string) {
 	text, files := outgoing(u.chatIn.Text(), u.chatImgs)
 	u.setBox("")
 	u.chatImgs = nil
+	u.fromBox = true // the user's own words: they may close the card (heard)
 	u.deliver(id, text, false, files...)
+	u.fromBox = false
 }
 
 // thumb is a pasted image's picture, decoded once.

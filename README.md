@@ -31,7 +31,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 
 | | |
 |---|---|
-| 🗂️ **Board of sessions** | Backlog, To do, In progress, Blocked, Review, Done. Sessions move their own card: a message sends it to In progress, Claude reporting blocked to Blocked, done to Review. Only you move a card to Done. |
+| 🗂️ **Board of sessions** | Backlog, To do, In progress, Blocked, Review, Done. Sessions move their own card: a message sends it to In progress, Claude reporting blocked to Blocked, done to Review. Only you move a card to Done: yourself, or by telling its Claude it's done. |
 | 🏢 **Organizations** | Each org is a folder with its own `desk.toml`: its accounts, its Claude profile (sandboxed with bwrap on Linux, `CLAUDE_CONFIG_DIR` on macOS and Windows), its skills, its agents. Its sessions are walled into it: other orgs' folders and desk's own data stay out of reach. |
 | 👥 **The company** | Every card's Claude can hand work to desk's roles: a tech lead, an architect, a senior developer, QA, DevOps, security, and the org's CTO, CISO and CFO, with briefs and verdicts; each org's Engineering, Security and Finance leads remember its decisions; budgets pause a session that spends too much. The org's own agents, skills and workflows come first. The **Company** view draws it all as a solar system around you. |
 | ✨ **Prompt optimization** | A new card's request is worked out by Haiku in the org's folder into a real brief: context, steps, acceptance criteria, labels, links and the skills to use. |
@@ -213,7 +213,7 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   approved — merge", "ABC-1317 · In Review"); the last message; labels, due date, and the
   session's turns, tokens and cost.
 - **Review and Done**: a card Claude finishes waits in **Review** ("Ready for review") until you
-  move it to Done; nothing else does. No view shows the Done column; Done cards show in
+  move it to Done, or tell its Claude it's done ("you're done", "that's all"); nothing else does. No view shows the Done column; Done cards show in
   **Done archive** with the archived ones: in sections by date or organization, filtered by chips
   (Done, Archived, organizations, top labels) and the search, a click previews a card beside the
   list (notes, numbers, last messages; Open session, Restore or Archive, Delete), and checkboxes act on
@@ -275,6 +275,8 @@ runs under.
 - **Status lines**: Claude sets the card's state by ending a reply with `DESK-STATUS: blocked —
   <reason>` or `DESK-STATUS: done`, and attaches links with `DESK-LINK: <url>` (desk hides those
   lines). Done puts the card in Review, once nothing (subagent, background shell) is left running.
+  `DESK-STATUS: closed`, which Claude writes when your own message says the card is done, puts it
+  in Done; after desk's messages or a turn Claude takes by itself it goes to Review instead.
 - **Questions and permissions**: Claude's interviews (AskUserQuestion) and tool permissions show
   as a box at the end of the conversation; the card goes to "your turn" meanwhile.
 - **Shell commands**: a message starting with `!` runs it yourself with `bash` (PowerShell on
