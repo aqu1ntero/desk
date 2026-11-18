@@ -49,6 +49,19 @@ Roll back to 1.8.1 if the check fails.
 END
 ```
 
+## Hand over a file for a server
+
+When the work needs a file on a server (a config, a systemd unit, a script), write it yourself: you know the
+code and can use your own agents. Then hand it over; the infrastructure Claude checks it against the server
+and places it, and the user approves it as a diff.
+
+```sh
+desk peer file Acme --host ledger-app-1 --path /etc/ledger/config.yaml --why "pool size for the new index" ./config.yaml
+```
+
+`--mode 640` sets a new file's mode (an existing one keeps its own). Binary files work too. To change a file
+that's already there, first ask for its current content (`desk peer do`) and start from it.
+
 ## Wait for questions and the result
 
 Right after `tell` or `do`, run `desk peer wait` **in the background** (Bash with run_in_background). It

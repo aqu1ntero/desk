@@ -103,6 +103,18 @@ func TestRemoteCommandNoPTY(t *testing.T) {
 	}
 }
 
+// TestShellCmd: the given command runs in a PTY, whatever the config's
+// RemoteCommand, RequestTTY and SessionType say.
+func TestShellCmd(t *testing.T) {
+	c, _, _ := pwClient(t, "  RemoteCommand echo no\n  RequestTTY no\n  SessionType subsystem\n", sshtest.Opts{})
+	s, err := c.ShellCmd("xterm", 80, 24, nil, "pty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect(t, bufio.NewReader(s.Stdout), "pty xterm 80x24")
+	s.Wait()
+}
+
 func TestRequestTTYNo(t *testing.T) {
 	c, _, _ := pwClient(t, "  RequestTTY no\n", sshtest.Opts{})
 	s, err := c.Shell("xterm", 80, 24, nil)

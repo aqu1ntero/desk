@@ -41,8 +41,8 @@ the command, and as a block in the pane, marked **Claude**.
 
 ## What it can do
 
-The infra Claude has no tools of its own (no Bash, no file editing). Everything goes through
-desk's tools, in your panes:
+The infra Claude has no tools of its own (no Bash, no Claude Code file editing). Everything goes
+through desk's tools, on your servers:
 
 | Tool | What it does |
 |---|---|
@@ -54,6 +54,8 @@ desk's tools, in your panes:
 | `close_pane` | Closes a pane it opened. Yours stay. |
 | `hosts` | Lists the organization's servers, with their [`desc` and `tags`](/servers/servers-file/#desc-and-tags). |
 | `changes` | What changed on a server in the last hours: packages, `/etc`, services, logins, reboots, containers. Read-only. On Windows, for this machine: files changed in its `drivers\etc` folder and Docker's containers (Windows' own logs aren't read). |
+| `file_read`, `file_edit`, `file_write` | Read and change a server's files over the connection, not typed into a pane. Every change asks you, as a diff. See [Files](#files). |
+| `add_host` | Adds a machine it reaches from one of the servers as a server of desk's, once you approve. See [Servers reached from another one](/servers/servers-file/#servers-reached-from-another-one). |
 | `note` | Saves a fact about a server for next time. See [Notes](#notes). |
 | `save_runbook` | Saves a procedure as a [runbook](#runbooks). |
 | `ask_peer`, `task_done`, `message_card`, `create_card` | Talk to the cards that hand it work. See [Cards and servers](/servers/cards/). |
@@ -116,7 +118,9 @@ While an approval waits, the tab's dot and the server's dot in the sidebar turn 
 you aren't looking at desk you get a desktop notification ("Approval needed").
 
 Keys (`send_keys`) are asked the same way ("Claude wants to press keys"), and so is reading a
-secret ("Claude wants to read a secret": only **Deny** and **Approve** there).
+secret ("Claude wants to read a secret": only **Deny** and **Approve** there). A file change
+("Claude wants to edit a file", "create a file") and a new server ("Claude wants to add a
+server") show the change as a diff, also with only **Deny** and **Approve**: every one asks.
 
 :::note
 **Always** remembers the exact command, per organization, with no expiry. The list is
@@ -138,6 +142,41 @@ deny  = ["reboot*", "* --force*"]                   # always ask, even if marked
 - `deny` wins over `allow`, over **Always**, and over a `read` label.
 - `allow` only applies to a single command: one that chains others always goes by the rules
   above.
+
+## Files
+
+The infra Claude reads and changes a server's files with `file_read`, `file_edit` and
+`file_write`, never with `printf`, `cat`, `tee`, `sed -i` or a heredoc typed into a pane. They run
+beside the pane, over the same connection, so nothing shows at your prompt, quoting can't break,
+and a file up to 64 MB goes whole.
+
+- `file_read` returns the file's lines, numbered, as Claude Code's own Read does. It runs unasked.
+  A big file comes a window at a time (2000 lines or about 256 KB), and Claude reads on from where
+  it stopped.
+- `file_edit` changes one piece of a file (an exact `old_string` becomes `new_string`, found once
+  unless it asks for every one). `file_write` writes a whole file, a new one with its folders, or
+  one a card's Claude wrote for the server (`staged=N`, see
+  [Files the card writes](/servers/cards/#files-the-card-writes)).
+- Claude can change a file only after reading it, and only while it is still what it read. desk
+  checks again after you approve, so a file someone changed meanwhile isn't overwritten.
+- Every change asks you, as a diff: added lines green, removed red. There's no **Always** for
+  files.
+- The file is written to a temporary file beside it, then renamed over it: it's never half
+  written, and an existing file keeps its owner and mode. A new file gets mode 644 unless Claude
+  gives another.
+- Before each write, desk keeps the old content in
+  `~/.local/state/desk/infra/backups/<Org>/<host>/`, named by time and path. Claude is told where.
+- With `sudo`, the tools work as root through `sudo -n`: passwordless sudo only. When sudo wants
+  a password, Claude is told to ask you.
+- They work on a [server reached from another one](/servers/servers-file/#servers-reached-from-another-one)
+  too, through its hops. Claude names one by `host` instead of a pane.
+- A binary file (a certificate, a keystore) goes as base64: `file_read` gives it whole up to 1 MB,
+  and `file_write` replaces it whole. Its approval shows the size and SHA-256 before and after
+  instead of lines. `file_edit` is for text only.
+- The owner and mode are kept on Linux and on BSD and macOS servers alike (`stat -c` or
+  `stat -f`).
+
+Each change is in the [audit log](#the-audit-log) as a `file` event with its verdict.
 
 ## Its folder
 
@@ -194,7 +233,8 @@ One JSON line each, in `~/.local/state/desk/infra/audit/<Org>/<YYYY-MM-DD>.jsonl
 {"time":"2026-11-04T14:33:02Z","org":"Globex","group":"web","host":"web-02","event":"approval","by":"you","cmd":"sudo logrotate -f /etc/logrotate.d/billing","verdict":"approved"}
 ```
 
-- `event` is `command` or `approval`; `by` is `you` or `claude`.
+- `event` is `command`, `approval` or `file` (a file tool's change or an `add_host`, with what
+  it changed and its `verdict`); `by` is `you` or `claude`.
 - Commands have `exit`, `dur_ms` and the last 20 lines of `output`, secrets masked.
 - Approvals have a `verdict`: `approved`, `always`, `denied`, or `stopped` (you stopped the turn
   while it waited).

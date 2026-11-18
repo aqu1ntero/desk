@@ -8,6 +8,20 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **The infra Claude edits files properly.** It reads and changes a server's files with its own
+  tools (`file_read`, `file_edit`, `file_write`) over the connection, instead of `printf … | cat >`
+  in your pane. Every change asks you as a diff; the file is written atomically keeping its owner
+  and mode, only if it's still what Claude read, and desk keeps the old content. Files up to 64 MB
+  (a big one read a window at a time), binary ones as base64, on Linux, BSD and macOS servers;
+  `sudo` works with passwordless sudo.
+- **Cards write the files their servers get.** A card's Claude writes a config, unit or script with
+  its own context and agents and hands it over with `desk peer file`; the infra Claude checks it
+  against the server and places it, and you approve the diff, which names the card.
+- **Servers reached from another one.** A machine reached only from one of your servers, with a
+  key that lives there, gets `#@ on` and `#@ via` in the servers file: desk connects through that
+  server and runs the ssh there, so panes, the files panel, the file tools and port forwards work
+  on it and the key stays put. The infra Claude adds these itself (`add_host`, approved) instead of running ssh
+  inside a pane.
 - **Ticket workflow.** An organization whose statuses mean something of their own (its "Test" is
   "deployed to the testing environment") gets a Ticket workflow in its settings: write how its
   tickets move, or where to read it, and Learn has Haiku turn it, with the Jira projects' statuses,

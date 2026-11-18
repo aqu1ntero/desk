@@ -27,6 +27,11 @@ import (
 
 var paneProp = map[string]any{"type": "integer", "description": "Which pane (see <panes>). Default: the one the user is looking at."}
 
+var (
+	fileHostProp = map[string]any{"type": "string", "description": "A server as hosts lists it, in place of pane: no pane needed."}
+	fileSudoProp = map[string]any{"type": "boolean", "description": "As root, through sudo -n (passwordless sudo only)."}
+)
+
 var mcpTools = []map[string]any{
 	{
 		"name": "run",
@@ -179,6 +184,72 @@ var mcpTools = []map[string]any{
 			"pane": paneProp,
 			"text": map[string]any{"type": "string"}},
 			"required": []string{"text"}},
+	},
+	{
+		"name": "file_read",
+		"description": "Read a file on a server, over the connection, not through the terminal: its lines numbered from 1. Read a file " +
+			"before you change it with file_edit or file_write. Use these file tools, never printf, cat, tee, sed -i or heredocs in run, " +
+			"to look at and change files.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"path":   map[string]any{"type": "string", "description": "Absolute path."},
+			"pane":   paneProp,
+			"host":   fileHostProp,
+			"offset": map[string]any{"type": "integer", "description": "First line to read (default 1)."},
+			"limit":  map[string]any{"type": "integer", "description": "How many lines (default 2000; a long window is cut near 256 KB)."},
+			"encoding": map[string]any{"type": "string", "enum": []string{"base64"},
+				"description": "base64: the whole file as base64 (a binary file, up to 1 MB), instead of lines."},
+			"sudo": fileSudoProp},
+			"required": []string{"path"}},
+		"annotations": map[string]any{"readOnlyHint": true},
+	},
+	{
+		"name": "file_edit",
+		"description": "Change a file on a server you read with file_read: old_string, copied exactly from it, becomes new_string. " +
+			"It must be in the file once (give more context), unless replace_all. The user approves the change as a diff; it's written " +
+			"atomically keeping the file's owner and mode, and desk keeps the old content.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"path":        map[string]any{"type": "string", "description": "Absolute path."},
+			"old_string":  map[string]any{"type": "string"},
+			"new_string":  map[string]any{"type": "string"},
+			"replace_all": map[string]any{"type": "boolean"},
+			"reason":      map[string]any{"type": "string", "description": "One short sentence for the user: why this change."},
+			"pane":        paneProp,
+			"host":        fileHostProp,
+			"sudo":        fileSudoProp},
+			"required": []string{"path", "old_string", "new_string", "reason"}},
+		"annotations": map[string]any{"destructiveHint": true},
+	},
+	{
+		"name": "file_write",
+		"description": "Write a whole file on a server: a new one (with its folders), or one you read with file_read. The user approves " +
+			"it as a diff; an existing file keeps its owner and mode, and desk keeps its old content. Prefer file_edit for a change in a file. " +
+			"A file a card's Claude wrote for a server (\"File #N for host:path\") goes with staged=N: its content, server, path and mode come with it.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"path":    map[string]any{"type": "string", "description": "Absolute path (with staged: the card's unless given)."},
+			"content": map[string]any{"type": "string", "description": "Not with staged."},
+			"staged":  map[string]any{"type": "integer", "description": "A card's file #N, in place of content."},
+			"mode":    map[string]any{"type": "string", "description": "A new file's mode, octal (default 644)."},
+			"encoding": map[string]any{"type": "string", "enum": []string{"base64"},
+				"description": "base64: content is base64 (a binary file)."},
+			"reason": map[string]any{"type": "string", "description": "One short sentence for the user: why this file."},
+			"pane":   paneProp,
+			"host":   fileHostProp,
+			"sudo":   fileSudoProp},
+			"required": []string{"reason"}},
+		"annotations": map[string]any{"destructiveHint": true},
+	},
+	{
+		"name": "add_host",
+		"description": "Add a server reached from one of the organization's servers (ssh from it, often with a key that lives there) " +
+			"as a server of desk's, once the user approves: then connect opens a pane on it and the file tools take it as host. " +
+			"Use it instead of running ssh inside a pane, as soon as you need to work on such a machine.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"name":    map[string]any{"type": "string", "description": "A short name for it, e.g. its hostname."},
+			"on":      map[string]any{"type": "string", "description": "The server it is reached from, as hosts lists it (itself possibly one add_host added)."},
+			"command": map[string]any{"type": "string", "description": "The ssh command that reaches it from there, without a remote command: e.g. ssh -i /root/.ssh/key admin@192.0.2.10"},
+			"desc":    map[string]any{"type": "string", "description": "What it is, in a few words."},
+			"reason":  map[string]any{"type": "string", "description": "One short sentence for the user: why add it."}},
+			"required": []string{"name", "on", "command", "reason"}},
 	},
 	{
 		"name":        "close_pane",
@@ -571,6 +642,14 @@ func (t *Tab) callTool(c toolCall) toolResult {
 		return t.drawTool(c)
 	}
 	switch c.Name {
+	case "file_read", "file_edit", "file_write":
+		var fa fileArgs
+		json.Unmarshal(c.Args, &fa)
+		return t.fileTool(c.Name, fa)
+	case "add_host":
+		var ha addHostArgs
+		json.Unmarshal(c.Args, &ha)
+		return t.addHost(ha)
 	case "hosts":
 		var out []string
 		for _, n := range t.hosts {
@@ -988,7 +1067,12 @@ type approval struct {
 	edit             string // being edited (e)
 	editing          bool
 	done             chan approvalResult
+
+	file, title string // a file tool's or add_host's: the file (cmd is its diff) and the sheet's title; never edited or "always"
 }
+
+// fixed says the user can only approve or deny a: a secret, a file's diff.
+func (a *approval) fixed() bool { return a.secret || a.file != "" }
 
 type approvalResult struct {
 	ok   bool

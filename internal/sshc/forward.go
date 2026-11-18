@@ -20,6 +20,13 @@ import (
 // limiting it). addr is where it listens (the server's allocated port for
 // R with port 0). stop ends it; closing the client does too.
 func (c *Client) Forward(kind byte, f sshconfig.Forward) (addr net.Addr, stop func(), err error) {
+	return c.ForwardDial(kind, f, c.Dial)
+}
+
+// ForwardDial is Forward with L's and D's far ends opened by dial (a host
+// past the server: ssh -W run there, ExecConn) instead of the server's own
+// direct-tcpip.
+func (c *Client) ForwardDial(kind byte, f sshconfig.Forward, dial func(network, addr string) (net.Conn, error)) (addr net.Addr, stop func(), err error) {
 	var ln net.Listener
 	var handle func(net.Conn)
 	switch kind {
@@ -27,9 +34,9 @@ func (c *Client) Forward(kind byte, f sshconfig.Forward) (addr net.Addr, stop fu
 		if ln, err = c.listenLocal(f); err != nil {
 			return nil, nil, err
 		}
-		handle = func(conn net.Conn) { socks(conn, c.Dial, func(string, int) bool { return true }, c.opt.Logf) }
+		handle = func(conn net.Conn) { socks(conn, dial, func(string, int) bool { return true }, c.opt.Logf) }
 		if kind == 'L' {
-			handle = func(conn net.Conn) { c.relay(conn, c.Dial, f) }
+			handle = func(conn net.Conn) { c.relay(conn, dial, f) }
 		}
 	case 'R':
 		if f.ListenPath != "" {

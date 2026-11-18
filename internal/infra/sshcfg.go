@@ -157,6 +157,27 @@ func legacyFixes(err error) []legacyFix {
 	return fixes
 }
 
+// blockLines is where host's Host block is in an ssh_config's lines: its
+// Host line and the line after its end (the next Host, Match or #@ group);
+// -1 when it has none.
+func blockLines(lines []string, host string) (start, end int) {
+	start, end = -1, len(lines)
+	for i, l := range lines {
+		fs := strings.Fields(l)
+		if len(fs) == 0 {
+			continue
+		}
+		kw := strings.ToLower(fs[0])
+		if start >= 0 && (kw == "host" || kw == "match" || kw == "#@" && len(fs) > 1 && fs[1] == "group") {
+			return start, i
+		}
+		if kw == "host" && slices.Contains(fs[1:], host) {
+			start = i
+		}
+	}
+	return start, end
+}
+
 // applyFixes writes the fixes into host's block of an ssh_config, merging
 // with lines already there (ssh keeps the first value of a keyword).
 func applyFixes(path, host string, fixes []legacyFix) error {
@@ -165,21 +186,7 @@ func applyFixes(path, host string, fixes []legacyFix) error {
 		return err
 	}
 	lines := strings.Split(string(data), "\n")
-	start, end := -1, len(lines)
-	for i, l := range lines {
-		fs := strings.Fields(l)
-		if len(fs) == 0 {
-			continue
-		}
-		kw := strings.ToLower(fs[0])
-		if start >= 0 && (kw == "host" || kw == "match" || kw == "#@" && len(fs) > 1 && fs[1] == "group") {
-			end = i
-			break
-		}
-		if kw == "host" && slices.Contains(fs[1:], host) {
-			start = i
-		}
-	}
+	start, end := blockLines(lines, host)
 	if start < 0 {
 		return fmt.Errorf("no Host %s in %s", host, path)
 	}
@@ -290,12 +297,24 @@ func (f portFwd) run(cancel bool) error {
 	}
 	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
 	defer done()
+	_, via, err := route(f.dir, f.host)
+	if err != nil {
+		return err
+	}
 	c, release, err := sshClient(ctx, f.host, f.dir)
 	if err != nil {
 		return err
 	}
 	defer release()
-	_, stop, err := c.Forward(f.kind[0], spec)
+	var stop func()
+	switch {
+	case len(via) == 0:
+		_, stop, err = c.Forward(f.kind[0], spec)
+	case f.kind == "R": // a server reached from another: through its hops
+		stop, err = hopRemote(c, via, spec)
+	default:
+		_, stop, err = c.ForwardDial(f.kind[0], spec, hopDial(c, via))
+	}
 	if err != nil {
 		return err
 	}

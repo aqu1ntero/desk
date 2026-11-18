@@ -28,8 +28,21 @@ type Session struct {
 // cols×rows unless RequestTTY says no (with a command, only yes and force
 // ask for one); SendEnv, SetEnv, then env; ForwardAgent.
 func (c *Client) Shell(term string, cols, rows int, env map[string]string) (*Session, error) {
+	return c.shell(term, cols, rows, env, "")
+}
+
+// ShellCmd is Shell running cmd in a PTY instead of the config's command or
+// the login shell: a session that reaches on from this server (ssh -t).
+func (c *Client) ShellCmd(term string, cols, rows int, env map[string]string, cmd string) (*Session, error) {
+	return c.shell(term, cols, rows, env, cmd)
+}
+
+func (c *Client) shell(term string, cols, rows int, env map[string]string, own string) (*Session, error) {
 	cfg := c.cfg
 	kind := cfg.Get("sessiontype")
+	if own != "" {
+		kind = "default"
+	}
 	if kind == "none" {
 		return nil, errors.New("SessionType none: no session to open")
 	}
@@ -37,8 +50,10 @@ func (c *Client) Shell(term string, cols, rows int, env map[string]string) (*Ses
 	if err != nil {
 		return nil, err
 	}
-	cmd := cfg.Get("remotecommand")
-	tty := cfg.Get("requesttty")
+	cmd, tty := cfg.Get("remotecommand"), cfg.Get("requesttty")
+	if own != "" {
+		cmd, tty = own, "force"
+	}
 	if tty == "true" || tty == "force" || tty == "auto" && cmd == "" && kind == "default" {
 		if err := s.RequestPty(term, rows, cols, ssh.TerminalModes{}); err != nil {
 			s.Close()

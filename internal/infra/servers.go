@@ -34,6 +34,13 @@ import (
 //	    #@ pin
 //	Host bastion
 //	    #@ hidden
+//	Host ha
+//	    #@ on web1
+//	    #@ via ssh -i /root/.ssh/ha_key admin@192.0.2.158
+//
+// A block with "#@ on" and "#@ via" is a server reached from another one:
+// desk connects to the "on" host and runs the "via" command there (route.go);
+// its key stays on that server. The infra Claude's add_host writes them.
 //
 // Lines before any #@ group or Host are the file's defaults; #@ group starts
 // a section ("/" nests) to the next #@ group, whose lines before a Host are
@@ -72,6 +79,7 @@ type serverHost struct {
 	password                 *SecretRef // nil: none
 	wol, desc, nagios, tags  string
 	pin, hidden              bool
+	on, via                  string // "#@ on" a host and "#@ via" a command run there: reached from that server (route.go)
 }
 
 // serversPath is org folder's servers file, "" when it has none (the org
@@ -289,6 +297,7 @@ func (p *serverParse) resolve(i int) {
 	str := func(k string) string { v, _ := get(k); return unquote(v) }
 	flag := func(k string) bool { v, ok := get(k); return ok && v != "false" && v != "no" }
 	h.wol, h.desc, h.nagios, h.pin, h.hidden = str("wol"), str("desc"), str("nagios"), flag("pin"), flag("hidden")
+	h.on, h.via = unquote(p.own[i]["on"]), p.own[i]["via"] // the block's own only: a group's would reroute all its hosts
 	var tags []string
 	for _, t := range strings.Split(str("tags"), ",") {
 		if t = strings.TrimSpace(unquote(strings.TrimSpace(t))); t != "" {

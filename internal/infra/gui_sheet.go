@@ -286,6 +286,7 @@ func (u *ui) codeBoxes(bad bool) layout.Widget {
 
 func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 	a := u.st.Approval
+	fixed := a.Secret || a.File != "" // approve or deny only
 	tag := &u.editing
 	if opened {
 		gtx.Execute(keyFocus(tag))
@@ -293,7 +294,7 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 	}
 	verdict := func(v string) {
 		switch {
-		case v == "e" && !a.Secret:
+		case v == "e" && !fixed:
 			if !u.editing {
 				u.editing = true
 				u.apEdit.SetText(a.Cmd)
@@ -349,8 +350,11 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 	}
 	title, kind, place, where, why := approvalText(a)
 	ico, whyC := kit.IcoTerminal, cText3
-	if a.Secret {
+	switch {
+	case a.Secret:
 		ico = kit.IcoLock
+	case a.File != "":
+		ico = kit.IcoEdit
 	}
 	if a.Blocked {
 		whyC = cOrange
@@ -374,6 +378,9 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
 					if u.editing {
 						return u.editor(gtx, &u.apEdit, "", 13, monoFont, cText)
+					}
+					if a.File != "" {
+						return u.diffText(gtx, a.Cmd)
 					}
 					if a.Keys || a.Secret {
 						return u.label(gtx, a.Cmd, 13, cText, monoFont, 0)
@@ -408,11 +415,11 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 		buttons := func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 12, Bottom: 14, Left: 16, Right: 14}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				row := []layout.FlexChild{u.kb("apN", kit.Ghost, "Deny", "N", func() { verdict("n") }), layout.Rigid(hgap(8))}
-				if !a.Secret {
+				if !fixed {
 					row = append(row, u.kb("apE", kit.Secondary, "Edit", "E", func() { verdict("e") }))
 				}
 				row = append(row, spacer())
-				if !a.Secret {
+				if !fixed {
 					row = append(row, u.kb("apA", kit.Secondary, "Always allow in "+a.Org, "A", func() { verdict("a") }), layout.Rigid(hgap(8)))
 				}
 				row = append(row, u.kb("apY", kit.Primary, "Approve", "Y", func() { verdict("y") }))
@@ -435,6 +442,25 @@ func (u *ui) approvalSheet(gtx layout.Context, opened bool) layout.Dimensions {
 	return d
 }
 
+// diffText draws a unified diff: added lines green, removed red, hunk heads
+// dim. ponytail: line colors only; ui's word diff if long lines need it.
+func (u *ui) diffText(gtx layout.Context, text string) layout.Dimensions {
+	var kids []layout.FlexChild
+	for _, l := range strings.Split(strings.TrimSuffix(text, "\n"), "\n") {
+		c := cText2
+		switch {
+		case strings.HasPrefix(l, "@@"):
+			c = cText3
+		case strings.HasPrefix(l, "+"):
+			c = cGreen
+		case strings.HasPrefix(l, "-"):
+			c = cRed
+		}
+		kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.label(gtx, l, 12, c, monoFont, 0) }))
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
+}
+
 // approvalText is the approval sheet's header: what Claude wants, its pill,
 // where ("on "/"in " and the host, or the tab without one) and what sent it
 // to the user ("" when it just needs approval).
@@ -445,6 +471,12 @@ func approvalText(a *guiApproval) (title, kind, place, where, why string) {
 		title, kind = "Claude wants to press keys", "keystrokes"
 	case a.Secret:
 		title, kind = "Claude wants to read a secret", "secret"
+	case a.File != "":
+		title, where = a.Title, a.File
+		if a.Title == "Claude wants to add a server" {
+			kind = "adds a server"
+		}
+		return title, kind, "", where, why
 	}
 	if a.Host != "" && !a.Secret {
 		where, place = a.Host, "on "

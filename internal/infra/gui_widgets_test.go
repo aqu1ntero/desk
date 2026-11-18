@@ -345,6 +345,18 @@ func TestApprovalSheetVerdicts(t *testing.T) {
 	if u.editing || len(wActs(u)) != 1 { // A is still sent: the model refuses "always" for secrets
 		t.Error("a secret was edited")
 	}
+	// a file's diff: E does nothing either; the header names the file
+	for _, title := range []string{"Claude wants to edit a file", "Claude wants to add a server"} {
+		u.st = &guiState{Approval: &guiApproval{Tab: "web-1", Cmd: "@@ -1 +1 @@\n a\n-b\n+c\n", File: "web-1:/etc/x", Title: title, Org: "Acme"}}
+		h.frame()
+		h.send(wPress("E"))
+		if u.editing || len(wActs(u)) != 0 {
+			t.Error("a file's diff was edited")
+		}
+		if got, kind, _, where, _ := approvalText(u.st.Approval); got != title || where != "web-1:/etc/x" || (kind == "adds a server") != (title == "Claude wants to add a server") {
+			t.Errorf("header %q %q %q", got, kind, where)
+		}
+	}
 	// keys, blocked, without a host or reason
 	u.st = &guiState{Approval: &guiApproval{Tab: "db-1", Host: "db-1", Cmd: "q", Keys: true, Blocked: true, Org: "Acme"}}
 	h.frame()

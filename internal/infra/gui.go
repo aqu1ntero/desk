@@ -219,6 +219,7 @@ type guiApproval struct {
 	Keys, Secret, Blocked       bool
 	Explain                     []step
 	Org                         string // the tab's org: the sheet shows only over that org's workspace
+	File, Title                 string // a file approval's file (Cmd is its diff) and title
 }
 
 // guiPal is a palette row, with what its preview looks up: a session's tab,
@@ -298,7 +299,7 @@ func (d *driver) snapshot(m *model) *guiState {
 		if p, err := t.pane(a.pane); err == nil {
 			host = p.name
 		}
-		s.Approval = &guiApproval{t.name, host, a.cmd, a.reason, a.why, a.keys, a.secret, a.blocked, a.explain, t.org}
+		s.Approval = &guiApproval{t.name, host, a.cmd, a.reason, a.why, a.keys, a.secret, a.blocked, a.explain, t.org, a.file, a.title}
 	}
 	if len(m.asks) > 0 {
 		s.Ask, s.AskMasked = m.asks[0].title, m.asks[0].masked
@@ -430,7 +431,7 @@ func (d *driver) answer(verdict, cmd string) {
 		if t == nil {
 			return
 		}
-		if a := t.pending[0]; cmd != "" && cmd != a.cmd && !a.secret {
+		if a := t.pending[0]; cmd != "" && cmd != a.cmd && !a.fixed() {
 			a.edit, a.editing = cmd, true
 			d.key(m, "enter")
 		}
