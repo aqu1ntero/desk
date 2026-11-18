@@ -104,6 +104,12 @@ A toast says where each one went ("ABC-131 → In Review"). When desk starts, an
 every 3 minutes, it moves back any ticket that drifted from its card's column.
 An account with `sync = false` is left out. See [desk.toml](/reference/desk-toml/).
 
+An organization with a [ticket workflow](/orgs/workflow/) works the other way round in that
+check: its tickets are moved on purpose (by testers, deploys, the card's Claude), so desk never
+moves them back. A ticket someone moved, since the last check, to a status the workflow gives a
+column takes its card there instead ("ABC-131 is Test: DESK-12 follows to Review"), and a GitHub
+issue closed or reopened takes it to Done or out of it; any other stays as it is.
+
 ## Artifacts
 
 A card's session has Claude Code's claude.ai Artifact tools (desk turns them on

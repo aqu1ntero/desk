@@ -122,6 +122,10 @@ type cfgDialog struct {
 	langs   *cfgEntry // cfgFolders only: the languages ("card", "chat"), saved with the folders
 	opts    *cfgEntry // an org page only: its top-level switches (on["keep_login"]: clear_login = false)
 	models  *cfgEntry // an org page only: its Models part (config_models.go)
+	wf      *cfgEntry // an org page only: its Ticket workflow (config_workflow.go)
+	wfBusy  bool      // Learn runs
+	wfErr   string    // why Learn didn't, or Stopped
+	wfStop  func()    // stops Learn
 	list    layout.List
 	err     string
 	broken  bool   // the file didn't parse: saving would lose it
@@ -150,7 +154,7 @@ func (d *cfgDialog) sig() string {
 	if d == nil {
 		return ""
 	}
-	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d %v %d %s %s %d", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev), d.asbru != nil, len(d.asbru), d.rec, d.recErr, len(d.kdraft))
+	return fmt.Sprintf("%p %s %d %p %v %d %s %v %v %d %v %d %s %s %d %v %s", d, d.org, len(d.entries), d.open, d.warn, d.dirty, d.err, d.broken, d.showSkipped, len(d.prev), d.asbru != nil, len(d.asbru), d.rec, d.recErr, len(d.kdraft), d.wfBusy, d.wfErr)
 }
 
 type cfgSet struct {
@@ -211,6 +215,9 @@ func (d *cfgDialog) changes() int {
 		n++
 	}
 	if d.models != nil && d.models.edited() {
+		n++
+	}
+	if d.wf != nil && d.wf.edited() {
 		n++
 	}
 	for _, e := range d.entries {
@@ -306,6 +313,7 @@ func newEntry(kind string, raw map[string]any) *cfgEntry {
 // last used, else the first; none found, the search folders. Every page's
 // edits are dropped (Discard comes here too).
 func (u *ui) openConfig(org string) {
+	u.stopLearning()
 	u.orgList = orgs.List(u.root)
 	if len(u.orgList) == 0 && org != cfgKeys {
 		org = cfgFolders
@@ -362,6 +370,7 @@ func (u *ui) loadOrg(d *cfgDialog) {
 	d.opts.on["keep_login"] = raw["clear_login"] == false
 	d.opts.old, d.opts.base = true, d.opts.snap()
 	d.models = loadModels(raw)
+	d.wf = loadWorkflow(raw, u.boardColumns())
 	for _, k := range cfgKinds {
 		tables, _ := raw[k.key].([]map[string]any)
 		for _, t := range tables {
@@ -380,7 +389,10 @@ func (u *ui) closeConfig() {
 	u.dropConfig()
 }
 
-func (u *ui) dropConfig() { u.cfg, u.blur = nil, true }
+func (u *ui) dropConfig() {
+	u.stopLearning()
+	u.cfg, u.blur = nil, true
+}
 
 // vaultNames is the vaults the dialog has, for tokens to pick from.
 func (d *cfgDialog) vaultNames() []string {
@@ -465,7 +477,7 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 	if d.opts.on["keep_login"] {
 		out["clear_login"] = false
 	}
-	if !d.saveModels(out) {
+	if !d.saveModels(out) || !u.saveWorkflow(d, out) {
 		return false
 	}
 	for _, e := range d.entries {
@@ -830,7 +842,7 @@ func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 			if n == 0 {
 				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Bitbucket, GitLab, Nagios or a model provider.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
 			}
-			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers), layout.Rigid(u.cfgModels))
+			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers), layout.Rigid(u.cfgWorkflow), layout.Rigid(u.cfgModels))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
 		})
 	})

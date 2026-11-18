@@ -1244,15 +1244,15 @@ func TestCoverPushLocked(t *testing.T) {
 	}
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme", Pushed: "Done"})
 	l := []kanban.Link{{URL: "https://globex.atlassian.net/browse/ABC-1", Kind: links.KindJira, Ref: "ABC-1"}}
-	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l) })
+	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l, false) })
 	h.frame()
 	if h.u.b.Card(c.ID).Pushed != "" || len(h.u.locked) != 1 {
 		t.Fatalf("pushed %q, locked %d", h.u.b.Card(c.ID).Pushed, len(h.u.locked))
 	}
 	h.u.b.Delete(c.ID)
-	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l) }) // gone meanwhile: nothing to mark
+	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l, false) }) // gone meanwhile: nothing to mark
 	h.orgToml("Acme", "[[jira]\n")
-	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l) })
+	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l, false) })
 	h.frame()
 	if !strings.HasPrefix(h.u.toast, "DESK-1: tickets not moved: ") {
 		t.Fatalf("toast %q", h.u.toast)
@@ -1270,7 +1270,7 @@ func TestCoverPushNoAccount(t *testing.T) {
 	c := h.u.b.Add(0, kanban.Card{Title: "x", Org: "Acme", Pushed: "Done"})
 	h.u.pushErr[c.ID] = "old"
 	l := []kanban.Link{{URL: "https://github.com/acme/api/issues/1", Kind: links.KindGitHubIssue, Ref: "#1"}}
-	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l) })
+	h.off(func() { h.u.push(c.ID, "DESK-1", "Acme", "Backlog", l, false) })
 	h.frame()
 	if _, failed := h.u.pushErr[c.ID]; h.u.toast != "" || failed || h.u.b.Card(c.ID).Pushed != "Backlog" {
 		t.Fatalf("toast %q, failed %v, pushed %q", h.u.toast, failed, h.u.b.Card(c.ID).Pushed)
@@ -1949,6 +1949,7 @@ func TestCoverConfigDialog(t *testing.T) {
 	if d.open != v {
 		t.Fatal("the account added is not the one open")
 	}
+	d.list.Position = layout.Position{} // adding scrolled to the vault: the Jira above is out of view
 	h.clickIn(sz, all, w, jid+"hd")
 	if d.open != jira {
 		t.Fatal("a click on its header did not open the account")

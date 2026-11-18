@@ -47,9 +47,12 @@ func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
 	if text, ok, done := u.wsTool(id, ws, name, raw); done {
 		return text, ok
 	}
-	if name == "ask_lead" {
+	if name == "ask_lead" || name == "ticket_status" {
 		if ws {
-			return "no tool ask_lead", false
+			return "no tool " + name, false
+		}
+		if name == "ticket_status" {
+			return u.ticketTool(id, raw)
 		}
 		return u.leadTool(id, raw)
 	}

@@ -66,6 +66,10 @@ func newHarness(t *testing.T) *harness {
 	desktopNotify = func(string, string) {}
 	pushTicket = func(context.Context, kanban.Link, string, orgs.Config) (string, error) { return "", nil }
 	clipImage = func() ([]byte, string, error) { return nil, "", nil }
+	syncTicket = func(ctx context.Context, l kanban.Link, col string, cfg orgs.Config) (links.Synced, error) { // the check is a push, unless a test says
+		now, err := pushTicket(ctx, l, col, cfg)
+		return links.Synced{Now: now}, err
+	}
 	optimize = func(_ context.Context, a claude.Ask, _ func(claude.Progress)) (claude.Draft, error) {
 		return claude.Draft{Title: a.Request}, nil
 	} // the request, as is

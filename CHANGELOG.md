@@ -8,6 +8,14 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Ticket workflow.** An organization whose statuses mean something of their own (its "Test" is
+  "deployed to the testing environment") gets a Ticket workflow in its settings: write how its
+  tickets move, or where to read it, and Learn has Haiku turn it, with the Jira projects' statuses,
+  into each column's status, the statuses others move tickets to, and rules for the card's Claude,
+  all shown to check before Save. Then every card's Claude follows the rules and can move its
+  ticket itself (`ticket_status`), a ticket someone moves takes its card to the matching column,
+  and desk never moves such tickets back. Moving a card yourself still moves its ticket, and a
+  ticket desk couldn't move (someone else's) doesn't pull the card back.
 - **Model providers.** An organization's settings take a Model provider: OpenRouter or any other
   Anthropic-compatible endpoint, its API key, and the models it puts in place of Opus, Sonnet and
   Haiku. Each tier says what it is for, with the models that come close to it, or a custom one with

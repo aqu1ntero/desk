@@ -104,6 +104,10 @@ type Link struct {
 	State   string    `json:"state,omitempty"` // provider words: "approved", "In Review"
 	Tone    string    `json:"tone,omitempty"`  // good, wait, bad, done: how the chip colors
 	Checked time.Time `json:"checked,omitzero"`
+	// Seen is a ticket's status as the background check last read it: a
+	// workflow's card follows only a status that changed since (someone
+	// moved it), not one the card's own move couldn't change.
+	Seen string `json:"seen,omitempty"`
 }
 
 func (c Card) Key() string { return fmt.Sprintf("%s-%d", Prefix, c.Num) }

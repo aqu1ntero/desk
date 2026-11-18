@@ -355,6 +355,11 @@ sessions run under the outer org's Claude account.
 match. A Jira issue takes the transition to the column's status category (Blocked: a status named
 blocked; Review counts as in progress), a GitHub issue closes in Done and reopens out of it. Pull
 and merge requests are left alone. At start and every 3 minutes, tickets that drifted are brought back in line.
+An organization whose statuses mean something of their own (its "Test" is "deployed to the testing
+environment") gets a **ticket workflow** in its settings: write how its tickets move, or where to
+read it, and **Learn** has Haiku turn it, with the Jira projects' statuses, into each column's
+status, the statuses others move tickets to (the card follows them instead of pulling the ticket
+back), and rules every card's Claude follows, moving tickets itself with its `ticket_status` tool.
 
 desk only asks a provider through an account: a link whose organization has no account (with a
 token) for its host and owner shows **no GitHub account** (or GitLab, Bitbucket) and is never

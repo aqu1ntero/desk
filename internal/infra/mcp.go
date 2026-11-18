@@ -393,6 +393,16 @@ var cardTools = []map[string]any{
 			"decision":    map[string]any{"type": "string", "description": "The decision you need taken or checked, if any."}},
 			"required": []string{"department", "objective"}},
 	},
+	{
+		"name": "ticket_status",
+		"description": "Move one of the card's tickets (Jira issue, or a GitHub issue: open or closed) to a status by its name, when the organization's " +
+			"ticket workflow says it should; desk moves the card to the column the workflow gives that status. Only for organizations " +
+			"with a workflow in desk, and only the user's own tickets, through an account that syncs. Without url, the card's one ticket.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"status": map[string]any{"type": "string", "description": "The status's name, as the tracker spells it."},
+			"url":    map[string]any{"type": "string", "description": "The ticket, when the card has several."}},
+			"required": []string{"status"}},
+	},
 }
 
 // workspaceTools are the card's workspace Claude's (`desk mcp <sock>
