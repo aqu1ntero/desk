@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.17] - 2026-11-17
+
 ### Added
 
 - **The infra Claude edits files properly.** It reads and changes a server's files with its own
@@ -20,8 +22,8 @@ day). A release's section here is its notes on GitHub. The format follows
 - **Servers reached from another one.** A machine reached only from one of your servers, with a
   key that lives there, gets `#@ on` and `#@ via` in the servers file: desk connects through that
   server and runs the ssh there, so panes, the files panel, the file tools and port forwards work
-  on it and the key stays put. The infra Claude adds these itself (`add_host`, approved) instead of running ssh
-  inside a pane.
+  on it and the key stays put. The infra Claude adds these itself (`add_host`, approved) instead of
+  running ssh inside a pane.
 - **Ticket workflow.** An organization whose statuses mean something of their own (its "Test" is
   "deployed to the testing environment") gets a Ticket workflow in its settings: write how its
   tickets move, or where to read it, and Learn has Haiku turn it, with the Jira projects' statuses,
@@ -536,7 +538,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.16.5...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.17...HEAD
+[2026.11.17]: https://github.com/lfdominguez/desk/compare/2026.11.16.5...2026.11.17
 [2026.11.16.5]: https://github.com/lfdominguez/desk/compare/2026.11.16.4...2026.11.16.5
 [2026.11.16.4]: https://github.com/lfdominguez/desk/compare/2026.11.16.3...2026.11.16.4
 [2026.11.16.3]: https://github.com/lfdominguez/desk/compare/2026.11.16.2...2026.11.16.3
