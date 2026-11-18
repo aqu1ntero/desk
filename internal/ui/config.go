@@ -126,6 +126,7 @@ type cfgDialog struct {
 	wfBusy  bool      // Learn runs
 	wfErr   string    // why Learn didn't, or Stopped
 	wfStop  func()    // stops Learn
+	me      *cfgEntry // an org page only: its Who am I (config_me.go)
 	list    layout.List
 	err     string
 	broken  bool   // the file didn't parse: saving would lose it
@@ -218,6 +219,9 @@ func (d *cfgDialog) changes() int {
 		n++
 	}
 	if d.wf != nil && d.wf.edited() {
+		n++
+	}
+	if d.me != nil && d.me.edited() {
 		n++
 	}
 	for _, e := range d.entries {
@@ -371,6 +375,7 @@ func (u *ui) loadOrg(d *cfgDialog) {
 	d.opts.old, d.opts.base = true, d.opts.snap()
 	d.models = loadModels(raw)
 	d.wf = loadWorkflow(raw, u.boardColumns())
+	d.me = loadMe(raw)
 	for _, k := range cfgKinds {
 		tables, _ := raw[k.key].([]map[string]any)
 		for _, t := range tables {
@@ -480,6 +485,7 @@ func (u *ui) saveOrg(d *cfgDialog) bool {
 	if !d.saveModels(out) || !u.saveWorkflow(d, out) {
 		return false
 	}
+	d.saveMe(out)
 	for _, e := range d.entries {
 		t := e.raw
 		if k, _ := t["kind"].(string); e.kind == "vault" && k != "" && k != "vaultwarden" && !slices.Contains(vaultKinds, k) {
@@ -842,7 +848,7 @@ func (u *ui) cfgAccounts(gtx layout.Context) layout.Dimensions {
 			if n == 0 {
 				kids = append(kids, layout.Rigid(k.Lbl("No accounts yet: add a vault, GitHub, Jira, Bitbucket, GitLab, Nagios or a model provider.", 13, kit.CText3, kit.Sans)), layout.Rigid(kit.VGap(12)))
 			}
-			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers), layout.Rigid(u.cfgWorkflow), layout.Rigid(u.cfgModels))
+			kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return kit.Wrap(gtx, 6, ws) }), layout.Rigid(u.cfgServers), layout.Rigid(u.cfgMe), layout.Rigid(u.cfgWorkflow), layout.Rigid(u.cfgModels))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
 		})
 	})

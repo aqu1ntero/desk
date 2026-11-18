@@ -212,7 +212,7 @@ func (u *ui) wsStart(id string) (session, error) {
 		return nil, errors.New("the card is gone from the board")
 	}
 	acct := orgs.Account(u.root, c.Org)
-	o := claude.Options{Home: u.home, Org: acct, Dir: u.projects(c)[0], Root: orgs.Dir(u.root, c.Org, ""), System: claude.Workspace(c.Key(), c.Title) + cardLang(c)}
+	o := claude.Options{Home: u.home, Org: acct, Dir: u.projects(c)[0], Root: orgs.Dir(u.root, c.Org, ""), System: claude.Workspace(c.Key(), c.Title) + cardLang(c) + u.aboutMe(c.Org)}
 	for _, p := range c.Projects {
 		o.Args = append(o.Args, "--add-dir="+p) // = form: the flag is variadic
 	}

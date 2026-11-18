@@ -215,6 +215,14 @@ type Company struct {
 	Models map[string]string `toml:"models"`
 }
 
+// OrgMe is who the user is in one organization (their role there, what
+// they care about), told to its Claudes with the global Who am I, or in
+// its place when Extend is false (unset: true).
+type OrgMe struct {
+	About  string `toml:"about"`
+	Extend *bool  `toml:"extend"`
+}
+
 // Provider is an Anthropic-compatible endpoint desk Claudes can run on in
 // place of the Claude subscription (OpenRouter, a proxy in front of an
 // OpenAI-style API): its token, and the models it answers for Opus, Sonnet
@@ -301,6 +309,7 @@ type Config struct {
 	Vaults    []Vault     `toml:"vault"`
 	Providers []Provider  `toml:"provider"`
 	Workflow  Workflow    `toml:"workflow"`
+	Me        OrgMe       `toml:"me"`
 	// Models maps a desk Claude (Tasks) to the provider it runs on, by name;
 	// unset, the Claude subscription.
 	Models map[string]string `toml:"models"`
@@ -382,6 +391,33 @@ type settings struct {
 	Zoom     int               `toml:"zoom,omitempty"`      // the terminals' and session panel's text, in percent (zoom.go)
 	Editor   Editor            `toml:"editor,omitempty"`    // the workspace's panes and editor (editor.go)
 	Keys     map[string]string `toml:"keys,omitempty"`      // shortcuts the user rebound, by internal/keys ID
+	Me       string            `toml:"me,omitempty"`        // who the user is, told to every Claude desk starts (AboutMe)
+}
+
+// Me is who the user is, in their own words: the settings' Who am I.
+func Me() string { return loadSettings().Me }
+
+// SaveMe keeps who the user is, the rest as it is.
+func SaveMe(me string) error {
+	s := loadSettings()
+	s.Me = me
+	return saveSettings(s)
+}
+
+// AboutMe is what org's Claudes are told about the user: the settings' Who
+// am I, then the organization's own ([me] about), or the organization's
+// alone when it doesn't extend the global one (extend = false). A
+// desk.toml that doesn't read leaves the global one.
+func AboutMe(root, org string) string {
+	global := Me()
+	c, err := Load(root, org)
+	if err != nil {
+		return global
+	}
+	if c.Me.Extend != nil && !*c.Me.Extend {
+		return c.Me.About
+	}
+	return strings.TrimSpace(global + "\n\n" + c.Me.About)
 }
 
 func loadSettings() (s settings) {

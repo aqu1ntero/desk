@@ -40,6 +40,8 @@ func (u *ui) loadFolders(d *cfgDialog) {
 	d.langs = &cfgEntry{kind: "langs", eds: map[string]*widget.Editor{}, src: map[string]int{}, on: map[string]bool{}}
 	d.langs.ed("card").SetText(card)
 	d.langs.ed("chat").SetText(chat)
+	d.langs.eds["me"] = &widget.Editor{} // several lines
+	d.langs.ed("me").SetText(orgs.Me())
 	d.langs.old, d.langs.base = true, d.langs.snap()
 	for _, f := range orgs.Folders(u.root) {
 		p := f.Path
@@ -92,6 +94,9 @@ func (u *ui) saveFolders(d *cfgDialog) bool {
 	err := orgs.SaveFolders(fs)
 	if err == nil && d.langs.edited() {
 		err = orgs.SaveLangs(d.langs.text("card"), d.langs.text("chat"))
+	}
+	if err == nil && d.langs.edited() {
+		err = orgs.SaveMe(d.langs.text("me"))
 	}
 	if err != nil {
 		d.err = "Not saved: " + firstLine(err.Error())
@@ -165,6 +170,13 @@ func (u *ui) cfgFolderPage(gtx layout.Context) layout.Dimensions {
 		})
 	}
 	items := []layout.Widget{
+		func(gtx layout.Context) layout.Dimensions { // who the user is, for every Claude desk starts; an organization adds to it or replaces it
+			return layout.Inset{Bottom: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(th("Who am I?")), layout.Rigid(kit.VGap(6)),
+					layout.Rigid(k.Field(d.langs.ed("me"), meHint, 60)), layout.Rigid(kit.VGap(4)),
+					layout.Rigid(k.Lbl("Told to the Claudes desk starts for your work, to focus its answers and choices on you. An organization's own Who am I here adds to it, or replaces it.", 11, kit.CText3, kit.Sans)))
+			})
+		},
 		func(gtx layout.Context) layout.Dimensions { // the languages new cards start with; each card can change its own
 			return layout.Inset{Bottom: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{}.Layout(gtx,

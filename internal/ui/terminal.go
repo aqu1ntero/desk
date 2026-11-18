@@ -71,7 +71,7 @@ func (u *ui) terminal(id string) {
 	if c.Remote {
 		extra = append(extra, "--remote-control", c.Key()+" "+c.Title)
 	}
-	system := claude.System(c.Key(), c.Title, c.Org) + cardLang(c) + u.companyPrompt(c) + u.workflowPrompt(c)
+	system := claude.System(c.Key(), c.Title, c.Org) + cardLang(c) + u.companyPrompt(c) + u.workflowPrompt(c) + u.aboutMe(c.Org)
 	if u.cardSock != "" {
 		system += claude.CardTools
 	}

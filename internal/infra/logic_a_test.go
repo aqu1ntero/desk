@@ -23,6 +23,7 @@ import (
 
 	"github.com/lfdominguez/desk/internal/claude"
 	"github.com/lfdominguez/desk/internal/keys"
+	deskorgs "github.com/lfdominguez/desk/internal/orgs"
 )
 
 // --- helpers (suffix A: this file's) ---
@@ -275,6 +276,8 @@ exit 3
 `)
 	dbg := filepath.Join(t.TempDir(), "raw.jsonl")
 	t.Setenv("DESK_INFRA_DEBUG", dbg)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	deskorgs.SaveMe("I write Go.") // the infra Claude is told who the user is
 	tab := &Tab{org: "Acme", model: "sonnet", session: "s0", orgCfg: &orgConfig{Nagios: []SourceCfg{{Name: "n1"}}}}
 	ch := make(chan claudeMsg, 32)
 	c, err := StartClaude(t.TempDir(), "web1", func(m claudeMsg) { ch <- m }, tab)
@@ -320,7 +323,7 @@ done:
 	}
 	b, _ := os.ReadFile(args)
 	a := string(b)
-	for _, want := range []string{"-p\n--model\nsonnet\n--resume\ns0\n", "--permission-mode\nauto", `"nagios"`, "Nagios (nagios): n1", `host "web1"`} {
+	for _, want := range []string{"-p\n--model\nsonnet\n--resume\ns0\n", "--permission-mode\nauto", `"nagios"`, "Nagios (nagios): n1", `host "web1"`, "I write Go."} {
 		if !strings.Contains(a, want) {
 			t.Errorf("args miss %q:\n%s", want, a)
 		}
