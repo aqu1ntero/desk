@@ -8,6 +8,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ### Added
 
+- **Who am I.** Tell desk who you are (Settings → General): your role, what you know, how you like
+  the work done. The Claudes desk starts for you (card sessions and their terminal, workspace,
+  leads, drawings, infra, Improve with Claude) are told, to focus their answers and choices on you.
+  An organization can add who you are there, or, with Extend from global off, replace the global
+  one.
 - **Model providers.** An organization's settings take a Model provider: OpenRouter or any other
   Anthropic-compatible endpoint, its API key, and the models it puts in place of Opus, Sonnet and
   Haiku. Each tier says what it is for, with the models that come close to it, or a custom one with

@@ -43,6 +43,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | 🧭 **Workspace** | Each card's editor view: its projects' files in an editor beside a second Claude that reads them with you (never writes), answers the card's Claude, and opens any diff from the chat on the change. |
 | ✏️ **Drawings** | Excalidraw diagrams per organization and per card, in desk's own editor. Every Claude can read and draw in them: edits show live and undo, and what you didn't ask for comes as a suggestion to approve. |
 | 🔀 **Model providers** | Per org, any of desk's Claudes (card sessions, Improve, Explain, workspace, leads, drawings, infra) can run on OpenRouter or another Anthropic-compatible endpoint instead of your Claude subscription, each tier mapped to a near model or your own, and each company role on the model you pick. |
+| 🙋 **Who am I** | Tell desk who you are, globally and per organization (adding to the global one or replacing it): the Claudes it starts for your work are told, so answers and choices fit you. |
 | 🔐 **Vaults** | Tokens from Bitwarden/Vaultwarden, Passbolt, env vars or a command. Unlocked keys stay in memory only. |
 | 🪶 **No CLIs needed** | Every provider and vault is spoken to in Go. No `gh`, `glab`, `bw` or `wl-paste`. |
 

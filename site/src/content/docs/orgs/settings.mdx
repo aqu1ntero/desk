@@ -55,7 +55,26 @@ comments in the file are not. If you keep a commented `desk.toml` by hand, edit 
 
 ## General
 
-![The General page: the two language fields, the search folder ~/Work with depth 2, and the preview of the organizations it finds](../../../assets/shots/orgs-settings-general.png)
+![The General page: Who am I?, the two language fields, the text size, the search folder ~/Work with depth 2, and the preview of the organizations it finds](../../../assets/shots/orgs-settings-general.png)
+
+### Who am I
+
+<figure class="cut">
+
+![The Who am I? field, empty, with its example, and "Told to the Claudes desk starts for your work" under it](../../../assets/shots/orgs-settings-general-me.png)
+
+<figcaption>Who you are, for every organization unless one replaces it.</figcaption>
+</figure>
+
+**Who am I?** is you, in your own words: your role, what you know, how you like answers and work
+done ("I'm the backend lead: Go and Postgres. Keep answers short, ask before touching
+production."). Every Claude desk starts is told it (card sessions and their terminal, the
+workspace's, the leads, drawings, the infra Claude and Improve with Claude), to focus its answers
+and choices on you. It never overrides a repository's rules or what you ask in a message.
+
+An organization's page has its own **Who am I here**, for who you are there, and **Extend from
+global**: on (the default), its Claudes get the global Who am I, then the organization's; off,
+only the organization's. It is the organization's `[me]` in its desk.toml.
 
 ### Languages
 

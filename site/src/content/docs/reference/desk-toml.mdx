@@ -278,12 +278,24 @@ deny = ["reboot*", "* --force*"]
 health = "08:30"
 ```
 
+## [me]
+
+Who you are in this organization (see [Who am I](/orgs/settings/#who-am-i)).
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `about` | string | none | Your role here, what you care about, how you like the work done; told to every Claude desk starts for the organization. |
+| `extend` | bool | `true` | `true`: they get settings.toml's `me` first, then `about`. `false`: `about` alone. |
+
+Here `me` is a table, not settings.toml's string: a `me = "…"` line makes the whole desk.toml fail to read until it's fixed.
+
 ## settings.toml
 
 desk's own settings, not an organization's, are in `~/.config/desk/settings.toml`. **Settings → General** edits them.
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
+| `me` | string | none | **Who am I?**: who you are, in your own words, told to every Claude desk starts. See [Who am I](/orgs/settings/#who-am-i). |
 | `card_lang` | string | `English` | The language cards, tickets and Improve with Claude write in. |
 | `chat_lang` | string | `English` | The language Claude speaks with you in. |
 | `zoom` | int | `100` | The text size of the terminals and the session panel, in percent, from 50 to 300. <kbd>Ctrl</kbd>+<kbd>=</kbd>, <kbd>Ctrl</kbd>+<kbd>-</kbd> and <kbd>Ctrl</kbd>+<kbd>0</kbd> change it. |

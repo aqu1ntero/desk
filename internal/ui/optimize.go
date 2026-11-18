@@ -71,7 +71,7 @@ func (u *ui) optimizeCard() {
 		}
 	}
 	ask := claude.Ask{Home: u.home, Account: orgs.Account(u.root, org), Org: org, Dir: orgs.Dir(u.root, org, dir), Root: orgs.Dir(u.root, org, ""), Folder: dir, Request: req,
-		Folders: folders, Labels: labels, Today: time.Now().Format(kanban.DateLayout), Lang: strings.TrimSpace(s.lang.Text())}
+		Folders: folders, Labels: labels, Today: time.Now().Format(kanban.DateLayout), Lang: strings.TrimSpace(s.lang.Text()), About: orgs.AboutMe(u.root, org)}
 	cfg := u.orgConfig(org)
 	var ls []kanban.Link
 	for _, w := range strings.FieldsFunc(req+"\n"+s.links.Text(), func(r rune) bool { return strings.ContainsRune(" \t\n,;()<>\"'", r) }) {

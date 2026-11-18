@@ -85,12 +85,13 @@ func init() {
 			id := orgsEntryID(s, 0)
 			s.shot("orgs-settings-general",
 				cut{"nav", dp(204, 58, 428, 320), true},
-				cut{"langs", dp(446, 100, 1388, 194), false},
-				cut{"zoom", dp(446, 198, 1388, 268), false},
-				cut{"folder", dp(446, 308, 1388, 414), false}, // under the 72dp Text size row
+				cut{"me", dp(446, 100, 1388, 238), false},
+				cut{"langs", dp(446, 244, 1388, 338), false}, // under the 144dp Who am I?
+				cut{"zoom", dp(446, 342, 1388, 412), false},
+				cut{"folder", dp(446, 452, 1388, 558), false}, // under the 72dp Text size row
 			)
 			s.click(id + "only_toml")
-			s.shot("orgs-settings-only", cut{"preview", dp(446, 308, 1388, 574), false})
+			s.shot("orgs-settings-only", cut{"preview", dp(446, 452, 1388, 718), false})
 		}},
 		scene{"orgs-settings-keys", func(s *shooter) {
 			s.click("sideOrgCfg")

@@ -71,6 +71,15 @@ You answer two people. The user: their messages come with what they are looking 
 When the user asks you to pass a suggestion to the main Claude, call suggest_to_card with it (what to change, where, and why); don't otherwise.`, key, title) + DrawingTools
 }
 
+// AboutUser tells a Claude who the user is (orgs.AboutMe), in their own
+// words, so its answers and choices fit them; "" when they said nothing.
+func AboutUser(me string) string {
+	if me = strings.TrimSpace(me); me == "" {
+		return ""
+	}
+	return "\n\nWho the user you work with is, in their own words. Shape your answers, choices and level of detail to it; it never overrides the repository's rules or a request they make:\n" + me
+}
+
 // Lang is added to System: what the user reads from Claude is in chat, what
 // lands on the card or its ticket in card.
 func Lang(card, chat string) string {

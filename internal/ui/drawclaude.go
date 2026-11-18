@@ -44,7 +44,7 @@ func (u *ui) drawStart(st *drawState) (session, error) {
 	if c := u.b.Card(st.card); c != nil {
 		dirs, card = u.projects(c), c.Key()
 	}
-	o := claude.Options{Home: u.home, Org: acct, Dir: dirs[0], Root: root, System: claude.Drawing(drawName(st.path), st.org, card, dirs)}
+	o := claude.Options{Home: u.home, Org: acct, Dir: dirs[0], Root: root, System: claude.Drawing(drawName(st.path), st.org, card, dirs) + u.aboutMe(st.org)}
 	for _, p := range dirs[1:] {
 		o.Args = append(o.Args, "--add-dir="+p) // = form: the flag is variadic
 	}

@@ -202,7 +202,7 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 			"mcp__desk__ask_peer,mcp__desk__task_done,mcp__desk__message_card,mcp__desk__create_card,"+
 			"mcp__desk__nagios,mcp__desk__metrics,mcp__desk__secrets_search,mcp__desk__secret_get,"+
 			"mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_edit,mcp__desk__drawing_suggest",
-		"--append-system-prompt", systemPrompt(tab.org, host, org.describe()))...)
+		"--append-system-prompt", systemPrompt(tab.org, host, org.describe())+claude.AboutUser(deskorgs.AboutMe(deskorgs.Root(), tab.org)))...)
 	if err != nil {
 		return fail(err)
 	}

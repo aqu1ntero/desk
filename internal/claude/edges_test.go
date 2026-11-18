@@ -323,6 +323,17 @@ func TestLang(t *testing.T) {
 	}
 }
 
+// TestAboutUser: who the user is goes in as their own words; nothing said,
+// nothing added.
+func TestAboutUser(t *testing.T) {
+	if AboutUser(" \n") != "" {
+		t.Fatal("nothing said: nothing added")
+	}
+	if s := AboutUser("I write Go."); !strings.HasSuffix(s, "in their own words. Shape your answers, choices and level of detail to it; it never overrides the repository's rules or a request they make:\nI write Go.") {
+		t.Fatal(s)
+	}
+}
+
 func TestAuthFailed(t *testing.T) {
 	for msg, want := range map[string]bool{
 		"Failed to authenticate: OAuth session expired":  true,

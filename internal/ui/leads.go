@@ -82,7 +82,7 @@ func (u *ui) leadAsk(id string, d company.Department, b company.Brief) error {
 // folder and resumed, so it remembers.
 func (u *ui) leadStart(st *leadState, key string) (session, error) {
 	dir, acct := orgs.Dir(u.root, st.org, ""), orgs.Account(u.root, st.org)
-	o := claude.Options{Home: u.home, Org: acct, Dir: dir, System: company.LeadPrompt(st.org, st.dept),
+	o := claude.Options{Home: u.home, Org: acct, Dir: dir, System: company.LeadPrompt(st.org, st.dept) + u.aboutMe(st.org),
 		Args: []string{"--allowedTools=Read,Glob,Grep,Skill", "--disallowedTools=Edit,Write,NotebookEdit,Bash"}}
 	sid := company.Sessions(dir)[st.dept.Name]
 	if sid == "" {

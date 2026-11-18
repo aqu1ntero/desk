@@ -47,6 +47,7 @@ type Ask struct {
 	Today         string
 	Lang          string   // what the title and prompt are written in, "" the request's
 	Env           []string // more environment: ProviderEnv
+	About         string   // who the user is (AboutUser's), "" not said
 }
 
 const draftSchema = `{"type":"object","additionalProperties":false,
@@ -95,7 +96,7 @@ func Optimize(ctx context.Context, a Ask, on func(Progress)) (Draft, error) {
 	}
 	args := append([]string{"-p", "--model", "haiku", "--effort", "high", "--output-format", "stream-json", "--verbose",
 		"--include-partial-messages", "--json-schema", draftSchema, "--permission-mode", "dontAsk", "--allowedTools", "Read,Glob,Grep,Skill",
-		"--no-session-persistence", "--append-system-prompt", optimizer}, addRoot(a.Dir, a.Root)...)
+		"--no-session-persistence", "--append-system-prompt", optimizer + AboutUser(a.About)}, addRoot(a.Dir, a.Root)...)
 	c, err := Command(a.Home, a.Account, append(args, in)...)
 	if err != nil {
 		return Draft{}, err

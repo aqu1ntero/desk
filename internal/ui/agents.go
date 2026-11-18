@@ -59,6 +59,10 @@ func (u *ui) roster(c *kanban.Card) ([]claude.Agent, error) {
 	return company.Roster(claude.Agents(u.agentsDir(c.Org, cfg)), cfg.Company), err
 }
 
+// aboutMe is who the user is in org (orgs.AboutMe), for a Claude's system
+// prompt; "" when they said nothing.
+func (u *ui) aboutMe(org string) string { return claude.AboutUser(orgs.AboutMe(u.root, org)) }
+
 // companyPrompt is company.PromptFor its organization when c's session
 // has desk's roles.
 func (u *ui) companyPrompt(c *kanban.Card) string {
