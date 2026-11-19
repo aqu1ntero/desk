@@ -277,6 +277,8 @@ func convertKeysym(s C.xkb_keysym_t) (key.Name, bool) {
 		n = key.NameDeleteBackward
 	case C.XKB_KEY_Delete:
 		n = key.NameDeleteForward
+	case C.XKB_KEY_Insert: // desk patch
+		n = key.NameInsert
 	case C.XKB_KEY_Page_Up:
 		n = key.NamePageUp
 	case C.XKB_KEY_Page_Down:

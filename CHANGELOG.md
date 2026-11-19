@@ -6,6 +6,18 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Server panes act like Konsole or Kitty**: Shift+Page Up/Down page through the scrollback,
+  Shift+Insert pastes and Ctrl+Insert copies, a middle click pastes, and Ctrl+click opens a URL
+  (underlined while Ctrl is held over it).
+
+### Fixed
+
+- Ctrl+← and Ctrl+→ move a word in a server pane and a card's terminal, as in any terminal.
+  Shift, Alt and Ctrl with the arrows, Home, End, Delete, Page Up/Down and the F-keys reach the
+  program now instead of sending nothing, and Ctrl+Backspace sends `^H`.
+
 ## [2026.11.19.1] - 2026-11-19
 
 ### Changed
