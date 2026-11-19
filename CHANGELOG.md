@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.19.1] - 2026-11-19
+
 ### Changed
 
 - Getting a server's password for a sudo prompt (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>)
@@ -578,7 +580,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.19...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.19.1...HEAD
+[2026.11.19.1]: https://github.com/lfdominguez/desk/compare/2026.11.19...2026.11.19.1
 [2026.11.19]: https://github.com/lfdominguez/desk/compare/2026.11.17...2026.11.19
 [2026.11.17]: https://github.com/lfdominguez/desk/compare/2026.11.16.5...2026.11.17
 [2026.11.16.5]: https://github.com/lfdominguez/desk/compare/2026.11.16.4...2026.11.16.5
