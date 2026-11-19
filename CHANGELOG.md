@@ -6,6 +6,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A pane shows what desk is doing while it gets the server's password for a sudo prompt
+  (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>): each step with its time, as the connection box
+  does (looking it up in the vault, waiting for your master password, unlocking, typing it), and
+  the error, with Try again, when it fails.
+
 ## [2026.11.17] - 2026-11-17
 
 ### Added

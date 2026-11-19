@@ -387,12 +387,15 @@ func (u *ui) pane(gtx layout.Context, t *guiTab, i int) layout.Dimensions {
 
 	area := image.Rect(0, head+gtx.Dp(1), sz.X, sz.Y)
 	u.grid(gtx, t, i, p, area)
+	ss, fetching := p.Term.Fetch()
 	if p.Focused && p.Conn != "" {
 		u.connOverlay(gtx, area, p)
+	} else if fetching {
+		u.fetchOverlay(gtx, area, p, ss)
 	}
 	if v := u.view(p.Term); v.finding {
 		u.findBar(gtx, p, v, area)
-	} else if user, ok := v.sudo(p.Term); ok && p.Focused && p.Conn == "" {
+	} else if user, ok := v.sudo(p.Term); ok && p.Focused && p.Conn == "" && !fetching {
 		u.sudoBar(gtx, p, user, area)
 	}
 	return layout.Dimensions{Size: sz}
@@ -807,6 +810,10 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 		}
 		switch ev := ev.(type) {
 		case key.EditEvent:
+			if p.Conn == "" && u.fetchKey(p, ev.Text, "") {
+				gtx.Execute(op.InvalidateCmd{})
+				continue
+			}
 			if p.Conn != "" { // the connection box is up: its keys (R, C, A…), not the dead shell's
 				for _, r := range strings.ToLower(ev.Text) {
 					u.d.press(string(r))
@@ -824,6 +831,10 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			}
 		case key.Event:
 			if u.shortcut(ev) {
+				continue
+			}
+			if p.Conn == "" && ev.State == key.Press && u.fetchKey(p, "", ev.Name) {
+				gtx.Execute(op.InvalidateCmd{})
 				continue
 			}
 			if p.Conn != "" {

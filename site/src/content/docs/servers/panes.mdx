@@ -224,6 +224,16 @@ prompt reads "Asks for deploy's password" with **Type server password**
 - With no prompt waiting, the same key copies the password instead: "server password copied".
 - With no password set for the server, the bar says so ("no #@ password for this server").
 
+While desk gets the password, a box over the pane lists what it is doing, step by step with each
+step's time, as the connection box does: "Looking up web1-item in pb", "Waiting for your master
+password" (in grey: that's your time, while the vault asks to be unlocked), "Unlocking pb",
+"Reading its password", then "Typing it into the prompt". It goes the moment the password is typed or copied.
+
+- **Hide** (<kbd>C</kbd> or <kbd>Esc</kbd>) takes the box away; the lookup goes on and still types
+  the password when it comes. While the box is up, what you type doesn't reach the prompt.
+- If it fails (no such item, the vault unreachable, the unlock cancelled), the box stays with the
+  step that failed and its error: **Try again** (<kbd>R</kbd>) or **Close** (<kbd>C</kbd>).
+
 ## Wake-on-LAN
 
 A server with [`#@ wol`](/servers/servers-file/#wol) gets a magic packet each time a pane

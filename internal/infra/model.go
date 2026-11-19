@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -1236,11 +1237,13 @@ type passwordMsg struct {
 	err  error
 }
 
-// serverPasswordCmd fetches the pane's server password (the vault may ask for
-// its passphrase in the ask sheet, so not on the UI goroutine).
+// serverPasswordCmd fetches the pane's server password off the UI goroutine
+// (the vault may ask for its passphrase in the ask sheet), each step shown
+// in the pane's fetch box (pwfetch.go).
 func serverPasswordCmd(p *Pane) tea.Cmd {
+	p.term.fetchStart() // now: the box shows before the goroutine runs
 	return func() tea.Msg {
-		pw, err := serverPassword(p.dir, p.password)
+		pw, err := serverPasswordCtx(withStep(context.Background(), p.term.fetchStep), p.dir, p.password)
 		return passwordMsg{p.term, pw, err}
 	}
 }
@@ -1250,13 +1253,18 @@ func serverPasswordCmd(p *Pane) tea.Cmd {
 func (m *model) usePassword(msg passwordMsg) tea.Cmd {
 	switch {
 	case msg.err != nil:
+		msg.term.fetchEnd(msg.err)
 		m.flash = "! " + msg.err.Error()
 		return nil
 	case func() bool { _, ok := msg.term.SudoPrompt(); return ok }():
+		msg.term.fetchStep("Typing it into the prompt", false)
 		msg.term.TypeSecret(msg.pw) // checked again now: never into a shell
+		msg.term.fetchEnd(nil)
 		m.flash = "✓ sudo password sent"
 		return nil
 	}
+	msg.term.fetchStep("Copying it: no prompt waits for it", false)
+	msg.term.fetchEnd(nil)
 	m.flash = "⧉ server password copied"
 	return tea.SetClipboard(msg.pw)
 }

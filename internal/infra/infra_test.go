@@ -917,6 +917,9 @@ func TestSudoFill(t *testing.T) {
 	if cmd := m.usePassword(serverPasswordCmd(pane)().(passwordMsg)); cmd == nil || m.flash != "⧉ server password copied" {
 		t.Errorf("copy: %q", m.flash)
 	}
+	if _, ok := term.Fetch(); ok || !slices.Equal(stepNames(term.fetch.steps), []string{"Looking up id9 in pb", "Copying it: no prompt waits for it"}) {
+		t.Errorf("copy: box %t, steps %q", ok, stepNames(term.fetch.steps))
+	}
 	go term.Run(`read -rs -p "[sudo] password for deploy: " pw; echo; [ "$pw" = "$(printf hunt%s er2)" ] && echo GO""OD`, 10*time.Second)
 	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
 		if _, ok := term.SudoPrompt(); ok {
@@ -928,6 +931,13 @@ func TestSudoFill(t *testing.T) {
 	}
 	if s := term.Screen().Text; !strings.Contains(s, "GOOD") || strings.Contains(s, "hunter2") {
 		t.Errorf("password not typed, or echoed:\n%s", s)
+	}
+	if ss := term.fetch.steps; len(ss) == 0 || ss[len(ss)-1].Name != "Typing it into the prompt" {
+		t.Errorf("sudo steps: %q", stepNames(ss))
+	}
+	pane.password = nil
+	if m.usePassword(serverPasswordCmd(pane)().(passwordMsg)); !fetchFailed(term.fetch.steps) {
+		t.Error("no password: the box says it failed")
 	}
 }
 
