@@ -61,6 +61,7 @@ type Term struct {
 	up         bool       // the SSH session started: authenticated, the shell running
 	err        error      // why the SSH connection couldn't be made
 	steps      []connStep // the dial's steps (connsteps.go); none when the pool had the connection
+	fetch      *pwFetch   // the last server password fetch (pwfetch.go); nil before one
 	started    time.Time
 	integrated bool // saw at least one OSC 133 mark
 	exited     bool

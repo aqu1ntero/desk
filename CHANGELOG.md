@@ -6,6 +6,14 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Getting a server's password for a sudo prompt (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>)
+  shows in the pane what desk is doing, step by step with its time, as the connection box does:
+  looking it up in the vault, waiting for your master password, unlocking, typing it. It replaces
+  the "Loading password…" dialog. **Cancel** (C or Esc) stops the fetch, and a password that comes
+  after never gets typed. A failed fetch stays with its error, and **Try again** (R).
+
 ## [2026.11.19] - 2026-11-19
 
 ### Added

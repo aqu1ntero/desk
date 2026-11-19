@@ -34,8 +34,6 @@ func (u *ui) sheets(gtx layout.Context) {
 	switch {
 	case st.Ask != "":
 		kind = "ask"
-	case st.Loading != "":
-		kind = "loading"
 	case st.Approval != nil && st.Approval.Org == u.org:
 		kind = "approval"
 	case u.pal:
@@ -74,19 +72,17 @@ func (u *ui) sheets(gtx layout.Context) {
 	event.Op(gtx.Ops, scrimTag)
 	s.Pop()
 
-	topDp := map[string]unit.Dp{"ask": 120, "loading": 120, "approval": 80, "pal": 84}[kind]
+	topDp := map[string]unit.Dp{"ask": 120, "approval": 80, "pal": 84}[kind]
 	top := op.Offset(image.Pt(0, gtx.Dp(topDp))).Push(gtx.Ops)
 	cgtx := gtx
 	cgtx.Constraints.Min = image.Pt(gtx.Constraints.Max.X, 0)                       // N centers within Min
 	cgtx.Constraints.Max.Y = max(0, gtx.Constraints.Max.Y-gtx.Dp(topDp)-gtx.Dp(24)) // inside the window: a long sheet scrolls
 	layout.N.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X-gtx.Dp(32), gtx.Dp(map[string]unit.Dp{"ask": 440, "loading": 440, "approval": 720, "pal": 700}[kind]))
+		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X-gtx.Dp(32), gtx.Dp(map[string]unit.Dp{"ask": 440, "approval": 720, "pal": 700}[kind]))
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		switch kind {
 		case "ask":
 			return u.askSheet(gtx, opened)
-		case "loading":
-			return u.loadingSheet(gtx, opened)
 		case "approval":
 			return u.approvalSheet(gtx, opened)
 		}
@@ -209,52 +205,6 @@ func (u *ui) askSheet(gtx layout.Context, opened bool) layout.Dimensions {
 						u.kb("askNo", kit.Ghost, "Not now", "esc", func() { u.d.reply("", false) }),
 						layout.Rigid(hgap(8)),
 						u.kb("askOk", kit.Primary, v.ok, "↵", func() { u.d.reply(u.askIn.Text(), true) }))
-				})
-			}))
-	})(gtx)
-}
-
-// loadingSheet says a server password is on its way from a vault. It holds
-// the keyboard, so enter at a sudo prompt can't go before the password does;
-// Esc or Cancel stops the fetch.
-func (u *ui) loadingSheet(gtx layout.Context, opened bool) layout.Dimensions {
-	tag := &u.loadTag
-	cancel := func() { u.d.act(func(m *model) { m.cancelLoad() }) }
-	for {
-		ev, ok := gtx.Event(key.FocusFilter{Target: tag}, key.Filter{Focus: tag, Name: key.NameEscape})
-		if !ok {
-			break
-		}
-		if e, ok := ev.(key.Event); ok && e.State == key.Press {
-			cancel()
-		}
-	}
-	if !gtx.Focused(tag) { // kept: a click elsewhere mustn't hand keys back to the pane
-		gtx.Execute(keyFocus(tag))
-	}
-	event.Op(gtx.Ops, tag) // a tag takes the keyboard only once it's in the ops
-	return boxed(cPanel, cRim, rSheet, layout.Inset{}, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: 20, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{}.Layout(gtx,
-						layout.Rigid(iconTile(36, 18, rSheet, cPanelCard, cText, kit.IcoLock)),
-						layout.Rigid(hgap(12)),
-						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return u.label(gtx, "Loading password…", 16, cText, fBold(sansFont), 1)
-								}),
-								layout.Rigid(vgap(3)),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return u.label(gtx, "From the vault, for "+u.st.Loading+". It's typed or copied once it arrives.", 12, cText3, sansFont, 3)
-								}))
-						}))
-				})
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: 14, Bottom: 16, Left: 20, Right: 16}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{Alignment: layout.Middle}.Layout(gtx, spacer(), u.kb("loadNo", kit.Ghost, "Cancel", "esc", cancel))
 				})
 			}))
 	})(gtx)
