@@ -116,7 +116,7 @@ func (u *ui) count(v string) int {
 	n, done := 0, u.b.Column("Done")
 	for ci := range u.b.Columns {
 		for j := range u.b.Columns[ci].Cards {
-			if ci != done && inView(v, u.b.Columns[ci].Cards[j], now) {
+			if c := &u.b.Columns[ci].Cards[j]; ci != done && inView(v, *c, now) && u.pilotOf(c) == nil {
 				n++
 			}
 		}

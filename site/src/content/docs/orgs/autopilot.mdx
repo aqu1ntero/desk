@@ -1,0 +1,87 @@
+---
+title: Autopilot
+description: Several tickets at once, a card each, run by one Claude that only brings you what matters.
+---
+
+An **autopilot** works several of your tickets at once. Every ticket gets a card of its own, and
+one more card, the autopilot, has a Claude that runs them: it starts them, answers their
+questions and permission requests, and steers them. It does no work itself. Only what it can't
+decide reaches you, and only its card notifies you.
+
+## Start one
+
+1. Open an organization's [Tickets](/orgs/tickets/) view.
+2. Check the tickets with the box at the left of each row. A bar at the top says how many are
+   checked, with **Clear** and **Autopilot…**.
+3. **Autopilot…** opens the dialog:
+   - **Name**: the autopilot card's title (*Autopilot: ABC-1, ABC-2* to begin with).
+   - **Level**: what it decides without you (below).
+   - **Allowed without asking**: in your own words, what it may change outside the cards'
+     folders: *the staging server can be changed freely*, *push to feature branches*.
+   - **Working at once**: how many of its cards work at the same time (3 to begin with).
+   - **Budget for the whole group**: None, $5, $10, $25 or $50, what the autopilot and its cards
+     may spend together (below).
+4. **Start** (<kbd>Enter</kbd>): the cards are made in **To do**, a ticket that already has a card
+   keeps it, and the autopilot starts at once. <kbd>Esc</kbd> or **Cancel** closes the dialog.
+
+## Levels
+
+| Level | It decides | It asks you |
+|---|---|---|
+| **Supervised** | reading, edits inside the cards' folders, local builds and tests | everything else |
+| **Autopilot** | everything inside the cards' folders: edits, builds, tests, local commits and branches | anything that changes something outside them: pushing, pull requests, tickets, deploys, servers, sending anything |
+
+What you write under **Allowed without asking** is the exception: the autopilot may do it without
+asking. desk holds it to that for a permission request that looks external (`git push`, `gh`,
+`curl`, `ssh`, `kubectl`, `desk peer`, any MCP tool…):
+
+- With nothing written there, the request goes straight to you.
+- Otherwise the autopilot may allow it only by quoting the words of yours that allow it. Without
+  a quote that's in what you wrote, desk sends the request to you instead.
+- A request that went to you shows in its card's chat as *asks you to run*, and notifies you like
+  any card's. Answer it there.
+
+desk spots those by the command, not by what it does, so a script that pushes by itself gets past
+it. The autopilot is still told to leave every outside change to you.
+
+## Tickets
+
+Moving a ticket changes something outside, so while the autopilot runs:
+
+- its cards can't move their tickets without asking (`ticket_status` asks, and goes through the
+  rules above);
+- a card's column doesn't move its ticket.
+
+Once you move the autopilot's card to **Done**, or archive it, each ticket catches up with its card.
+
+## Budget
+
+With a budget, desk adds up what the autopilot and all its cards cost. Past it:
+
+- the autopilot can't start more cards;
+- each card pauses as its turn ends, as an organization's [budget](/orgs/company/) pauses one;
+- what the cards say to the autopilot waits.
+
+Your next message in the autopilot's chat is the go-ahead: the group gets the budget again from
+there.
+
+## How it runs
+
+- The autopilot's Claude starts its cards with a brief each, never more at once than you allowed,
+  and can add a card for work it finds along the way (a card only: no ticket).
+- A card's questions, permission requests and finished turns go to the autopilot, never to you:
+  in the card's chat they read *asks the autopilot*, *allowed by the autopilot*, and its
+  messages come from **Autopilot DESK-n**.
+- When it needs you, the autopilot ends its turn with the question and the card it's about, and
+  its card turns to you like any other. Answer in its chat. A card's open request also shows in
+  that card's own chat, where you can answer it yourself.
+- When every card is ready for review, the autopilot's card goes to **Review** with what each did.
+
+## On the board
+
+The autopilot's cards don't show as cards of their own: the autopilot's card lists them, each with
+its state, under *Autopilot · 1 of 3 ready*. Its session's header lists them too: a click opens
+one. A card's own header reads **↑ Run by the autopilot DESK-n**, which opens the autopilot.
+The board's [search](/board/search/) finds them too.
+
+Archiving the autopilot's card puts its cards back on the board.

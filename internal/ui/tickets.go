@@ -119,6 +119,15 @@ func (u *ui) ticketsView(gtx layout.Context) layout.Dimensions {
 	kit.Fill(gtx, kit.CPane)
 	q := u.search.Text()
 	var rows []layout.Widget
+	var act func() // the bar's buttons change what the rows draw from: run once drawn
+	defer func() {
+		if act != nil {
+			act()
+		}
+	}()
+	if len(u.pilotTickets(org)) > 0 {
+		rows = append(rows, func(gtx layout.Context) layout.Dimensions { return u.pilotBar(gtx, org, &act) })
+	}
 	if e := u.ticketErr[org]; e != "" {
 		rows = append(rows, func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 16, Left: 4}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return k.Label(gtx, e, 12, kit.CRed, kit.Sans, 3) })
@@ -158,6 +167,16 @@ func (u *ui) ticketRow(gtx layout.Context, org string, t links.Ticket) layout.Di
 	c := u.ticketCard(t)
 	return layout.Inset{Bottom: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // beside the row, not in it: a click is one or the other
+				return u.archBox(gtx, "tkSel"+t.URL, u.tkSel[t.URL], func() {
+					if u.tkSel[t.URL] {
+						delete(u.tkSel, t.URL)
+					} else {
+						u.tkSel[t.URL] = true
+					}
+				})
+			}),
+			layout.Rigid(kit.HGap(4)),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				d, ok := k.Button(gtx, "tk"+t.URL, kit.CPanelCard, kit.CHover, kit.RCard, layout.Inset{Top: 9, Bottom: 9, Left: 12, Right: 12}, func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X

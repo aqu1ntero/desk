@@ -197,6 +197,9 @@ func (u *ui) cardBody(gtx layout.Context, c kanban.Card, sel, hover, done bool) 
 			}
 			kids = append(kids, gap(4), layout.Rigid(u.linkChip(l)))
 		}
+		if c.Pilot != nil {
+			kids = append(kids, gap(6), layout.Rigid(u.pilotRows(c.ID)))
+		}
 		if c.Last != "" {
 			kids = append(kids, gap(5), line(kit.IcoChat, kit.CText3, strings.Join(strings.Fields(c.Last), " "), kit.CText2, 2))
 		} else if c.Notes != "" {

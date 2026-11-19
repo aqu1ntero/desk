@@ -68,12 +68,30 @@ type Card struct {
 	Draft     string    `json:"draft,omitempty"`        // a message to its Claude written but not sent
 	DraftImgs []string  `json:"draft_images,omitempty"` // the images pasted in it: [Image n] is DraftImgs[n-1], "" once removed
 	Detached  bool      `json:"detached,omitempty"`     // its session has a window of its own (ui's detach.go)
+	Pilot     *Pilot    `json:"pilot,omitempty"`        // its Claude runs other cards on autopilot (ui's autopilot.go)
+	Parent    string    `json:"parent,omitempty"`       // the autopilot card running this one, by ID
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated,omitzero"` // last change by anyone: the card's age
 	Archived  time.Time `json:"archived,omitzero"`
 	From      string    `json:"from,omitempty"`    // archived: the column it left
 	Finished  time.Time `json:"finished,omitzero"` // when it went to Done
 }
+
+// Pilot is how an autopilot card runs its cards: what reaches the user.
+type Pilot struct {
+	Level  string  `json:"level"`            // PilotSupervised or PilotAuto
+	Grants string  `json:"grants,omitempty"` // what the user lets it change outside without asking, in their words
+	Max    int     `json:"max,omitempty"`    // cards working at once
+	Budget float64 `json:"budget,omitempty"` // USD the whole group may spend before it pauses; 0 none
+	From   float64 `json:"from,omitempty"`   // what the group had spent at the user's last go-ahead
+}
+
+// Autopilot levels: Supervised asks the user for anything past reading and
+// editing the cards' folders; Auto decides all but changes outside them.
+const (
+	PilotSupervised = "supervised"
+	PilotAuto       = "auto"
+)
 
 // FinishedAt is when card c was finished: its move to Done, else (a card
 // from before desk kept that) its archiving, else its last change.

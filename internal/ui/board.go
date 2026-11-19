@@ -62,7 +62,7 @@ func (u *ui) visible(col int) []int {
 	}
 	out := []int{}
 	for j, c := range u.b.Columns[col].Cards {
-		if inView(u.view, c, now) && c.Matches(q) {
+		if inView(u.view, c, now) && c.Matches(q) && (q != "" || u.pilotOf(&c) == nil) { // an autopilot's cards show on it, and when searched for
 			out = append(out, j)
 		}
 	}

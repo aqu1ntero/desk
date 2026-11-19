@@ -35,6 +35,12 @@ func (u *ui) agentArgs(c *kanban.Card) ([]string, error) {
 		args = []string{"--add-dir=" + u.imagesDir()} // = form: one value, never the prompt after it
 	}
 	mcp, allow := infra.CardMCP(u.cardSock, c.ID)
+	if c.Pilot != nil { // an autopilot runs its cards: it reads, never writes
+		mcp, allow = infra.PilotMCP(u.cardSock, c.ID)
+		args = append(args, "--disallowedTools=Edit,Write,NotebookEdit")
+	} else if u.pilotOf(c) != nil { // moving a ticket changes something outside: it asks, and its autopilot needs the user's grant
+		allow = slices.DeleteFunc(allow, func(t string) bool { return t == "mcp__desk__ticket_status" })
+	}
 	if mcp != "" {
 		args = append(args, "--mcp-config", mcp)
 	}

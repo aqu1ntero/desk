@@ -43,6 +43,9 @@ func (u *ui) cardTool(id, name string, raw json.RawMessage) (string, bool) {
 	if strings.HasPrefix(name, "drawing") {
 		return u.drawTool(id, name, raw)
 	}
+	if strings.HasPrefix(name, "pilot_") {
+		return u.pilotTool(id, name, raw)
+	}
 	id, ws := strings.CutPrefix(id, "ws:") // the card's workspace Claude's call
 	if text, ok, done := u.wsTool(id, ws, name, raw); done {
 		return text, ok

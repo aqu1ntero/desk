@@ -25,7 +25,7 @@ var needsYou = map[string]string{
 // it already: the window focused with its session open.
 func (u *ui) notifyChange(c *kanban.Card, before string) {
 	what := needsYou[c.Status]
-	if c.Status == before || what == "" || c.Note == "Stopped" { // a stop is the user's own doing
+	if c.Status == before || what == "" || c.Note == "Stopped" || u.pilotOf(c) != nil && !strings.HasPrefix(c.Note, youNote) { // a stop is the user's own doing; an autopilot's card tells it, not the user, but for what it left to them
 		return
 	}
 	if u.mainPane.focused && (u.panel == c.ID || u.view == "sess:"+c.ID) {

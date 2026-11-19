@@ -243,6 +243,9 @@ const cameIn = "(desk) These came in while you were busy."
 // overBudget says why c's session is over its organization's budgets
 // (company.Over); "" when it isn't, or the organization has none.
 func (u *ui) overBudget(c *kanban.Card) string {
+	if why := u.pilotOver(c); why != "" {
+		return why
+	}
 	cfg, _ := orgs.Load(u.root, c.Org)
 	if cfg.Company.CardBudget <= 0 && cfg.Company.DayBudget <= 0 {
 		return ""
@@ -276,6 +279,9 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 	}
 	if !quiet { // the user's own message: the go-ahead past a budget
 		c.Allowed = c.Session.Cost
+		if c.Pilot != nil { // and past its group's
+			c.Pilot.From = u.pilotSpent(id)
+		}
 	} else if why := u.overBudget(c); why != "" { // another Claude's: held for the user's go-ahead
 		if text != cameIn {
 			u.peerOut[id] += text + "\n\n"
@@ -304,7 +310,7 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 	exists := claude.SessionExists(u.home, acct, c.Session.ID)
 	prompt := text
 	if !exists && !slices.ContainsFunc(u.chat(id), func(m kanban.ChatMsg) bool {
-		return !slices.Contains([]string{"shell", "peer", "workspace", "lead"}, m.Who)
+		return !slices.Contains([]string{"shell", "peer", "workspace", "lead", "pilot"}, m.Who)
 	}) { // the user's "!" commands, the infra, workspace and lead Claudes' notes aren't the conversation
 		prompt = firstPrompt(c, text)
 	} else if imageRef.MatchString(text) {
@@ -331,6 +337,11 @@ func (u *ui) deliver(id, text string, quiet bool, images ...string) {
 		o.System += cardLang(c) + u.companyPrompt(c) + u.workflowPrompt(c) + u.aboutMe(c.Org)
 		if c.Alert != "" {
 			o.System += claude.AlertSnooze
+		}
+		if c.Pilot != nil {
+			o.System += pilotPrompt(c)
+		} else if pl := u.pilotOf(c); pl != nil {
+			o.System += pilotChildPrompt(pl)
 		}
 		if u.infraOrg(c.Org) != nil { // server work goes to the org's infra Claude
 			o.System += claude.ServerWork(c.Key(), c.Org) // desk peer is allowed in agentArgs
@@ -447,6 +458,12 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 			break
 		}
 		u.asks[id] = newAsk(e.Ask)
+		if pl := u.pilotOf(c); pl != nil { // its autopilot answers, not the user
+			u.say(id, "tool", "asks the autopilot: "+cmp.Or(e.Ask.Line, "a question"))
+			c.Status = kanban.StatusWorking
+			defer u.pilotAsk(id) // telling the autopilot moves cards
+			break
+		}
 		if qs := e.Ask.Questions; len(qs) > 0 {
 			u.say(id, "claude", interviewText(qs))
 			c.Status, c.Note = kanban.StatusWaiting, "Claude asks: "+qs[0].Question
@@ -543,6 +560,7 @@ func (u *ui) onEvent(id string, base float64, e claude.Event) {
 		if c.Status != kanban.StatusWorking { // the user's word holds through the turns Claude takes while its work runs, no longer
 			delete(u.said, id)
 		}
+		defer u.pilotEnded(id) // once the card is saved as it ends: telling the autopilot moves cards
 	case claude.KindExit:
 		u.stopTasks(id)
 		delete(u.procs, id)

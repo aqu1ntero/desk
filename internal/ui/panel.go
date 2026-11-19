@@ -318,6 +318,7 @@ func (u *ui) chatPane(gtx layout.Context, id string, w int, full bool) layout.Di
 					return d
 				}))
 			}
+			kids = append(kids, u.pilotHead(c, &act)...)
 			for _, a := range c.Artifacts {
 				kids = append(kids, layout.Rigid(kit.VGap(5)), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					d, ok := k.Button(gtx, "pnArt"+c.ID+a, color.NRGBA{}, color.NRGBA{}, 3, layout.Inset{}, func(gtx layout.Context) layout.Dimensions {
@@ -610,9 +611,11 @@ func (u *ui) message(gtx layout.Context, card, id string, m kanban.ChatMsg, foll
 			}))
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
-	case "you", "prompt", "peer", "workspace", "main", "lead": // prompt: what the session asked a subagent; peer: what the infra Claude sent; workspace: the workspace Claude's to the card's; main: the card's to it; lead: a department lead's answer
+	case "you", "prompt", "peer", "workspace", "main", "lead", "pilot": // prompt: what the session asked a subagent; peer: what the infra Claude sent; workspace: the workspace Claude's to the card's; main: the card's to it; lead: a department lead's answer; pilot: between an autopilot and its cards
 		who, wc := "You", kit.CAccText
 		switch m.Who {
+		case "pilot":
+			who, wc = cmp.Or(m.Name, "Autopilot"), kit.CPurple
 		case "lead":
 			who, wc = cmp.Or(m.Name, "Department lead"), kit.Accents[6]
 		case "prompt":
