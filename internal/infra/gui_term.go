@@ -36,6 +36,7 @@ type termView struct {
 	scroll     int
 	cols, rows int
 	sel        [2]image.Point // cell (col,row) in the view; equal = no selection
+	link       linkSpan       // the URL under the pointer while Ctrl is held (termlinks.go)
 	selecting  bool
 	clicks     clicks
 	runs       [][]Run // last drawn, for copying
@@ -671,6 +672,10 @@ func (u *ui) grid(gtx layout.Context, t *guiTab, i int, p guiPane, area image.Re
 		v.recorded++
 	}
 	v.cellCall.Add(gtx.Ops)
+	if l := v.link; l.url != "" && l.row < len(runs) { // Ctrl over a URL: underlined, it opens on a click
+		y := at(l.row) + rowH - gtx.Dp(3)
+		paint.FillShape(gtx.Ops, cAcc, clip.Rect(image.Rect(inner.Min.X+l.lo*cw, y, inner.Min.X+l.hi*cw, y+max(1, gtx.Dp(1)))).Op())
+	}
 	if cursor && cy < len(runs) {
 		x, top := inner.Min.X+cx*cw, at(cy)+(rowH-chh)/2
 		c := cAcc
@@ -799,7 +804,7 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			key.FocusFilter{Target: v},
 			key.Filter{Focus: v, Name: "", Optional: mods},
 			key.Filter{Focus: v, Name: key.NameTab, Optional: mods},
-			pointer.Filter{Target: v, Kinds: pointer.Press | pointer.Drag | pointer.Release | pointer.Scroll, ScrollY: pointer.ScrollRange{Min: -1e6, Max: 1e6}},
+			pointer.Filter{Target: v, Kinds: pointer.Press | pointer.Drag | pointer.Release | pointer.Scroll | pointer.Move | pointer.Leave, ScrollY: pointer.ScrollRange{Min: -1e6, Max: 1e6}},
 			transfer.TargetFilter{Target: v, Type: "application/text"},
 		)
 		if !ok {
@@ -840,6 +845,10 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			if ev.State == key.Press && ev.Modifiers == 0 && u.blockKey(p, v, ev.Name, "") {
 				continue
 			}
+			if page := pageKey(ev); page != 0 && !p.Term.AltScreen() { // Shift+PgUp/PgDn: the scrollback, as Konsole and Kitty
+				v.scroll = max(0, min(p.Term.Scrollback(), v.scroll+page*max(1, v.rows-1)))
+				continue
+			}
 			if k, ok := termKey(ev); ok {
 				v.scroll, v.sel = 0, [2]image.Point{}
 				for _, term := range typingTo(t, p) {
@@ -848,10 +857,29 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			}
 		case pointer.Event:
 			switch ev.Kind {
+			case pointer.Move, pointer.Leave:
+				v.link = linkSpan{}
+				if ev.Kind == pointer.Move && ev.Modifiers.Contain(key.ModCtrl) {
+					c := cell(ev.Position.Round())
+					if lo, hi, url := urlAt(v.line(c.Y), (ev.Position.Round().X-inner.Min.X)/cw); url != "" {
+						v.link = linkSpan{c.Y, lo, hi, url}
+					}
+				}
 			case pointer.Press:
 				gtx.Execute(key.FocusCmd{Tag: v})
 				if !p.Focused {
 					u.d.focusPane(i)
+				}
+				if ev.Buttons.Contain(pointer.ButtonTertiary) { // a middle click pastes, as X terminals do (a selection is already copied)
+					gtx.Execute(clipboard.ReadCmd{Tag: v})
+					continue
+				}
+				if ev.Modifiers.Contain(key.ModCtrl) {
+					c := cell(ev.Position.Round())
+					if _, _, url := urlAt(v.line(c.Y), (ev.Position.Round().X-inner.Min.X)/cw); url != "" {
+						openLocal(url) //nolint:errcheck // the desktop says when it can't
+						continue
+					}
 				}
 				u.clearSelections()
 				c := cell(ev.Position.Round())
@@ -912,7 +940,11 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 	}
 	st := clip.Rect(inner.Inset(-gtx.Dp(8))).Push(gtx.Ops)
 	event.Op(gtx.Ops, v)
-	pointer.CursorText.Add(gtx.Ops)
+	if v.link.url != "" {
+		pointer.CursorPointer.Add(gtx.Ops)
+	} else {
+		pointer.CursorText.Add(gtx.Ops)
+	}
 	st.Pop()
 }
 
@@ -1180,6 +1212,21 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 		k.Text = string(r[0])
 	}
 	return k, true
+}
+
+// pageKey is Shift+PgUp (+1, a page back into the scrollback) or
+// Shift+PgDn (-1); 0 for any other key.
+func pageKey(e key.Event) int {
+	if e.State != key.Press || e.Modifiers != key.ModShift {
+		return 0
+	}
+	switch e.Name {
+	case key.NamePageUp:
+		return 1
+	case key.NamePageDown:
+		return -1
+	}
+	return 0
 }
 
 // keepsShift says Shift+c means something of its own to a terminal: shift+tab,

@@ -925,6 +925,14 @@ func (t *Term) ScrollFor(abs int) int {
 	return max(0, min(sb, sb-(abs-t.emu.Height()/3)))
 }
 
+// AltScreen says a full-screen program (htop, less, vim…) has the screen:
+// no scrollback to page through, its keys are its own.
+func (t *Term) AltScreen() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.emu.IsAltScreen()
+}
+
 // Scrollback is how many lines sit above the live screen.
 func (t *Term) Scrollback() int {
 	t.mu.Lock()

@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Server panes act like Konsole or Kitty**: Shift+Page Up/Down page through the scrollback,
+  Shift+Insert pastes and Ctrl+Insert copies, a middle click pastes, and Ctrl+click opens a URL
+  (underlined while Ctrl is held over it).
+
 ### Fixed
 
 - Ctrl+← and Ctrl+→ move a word in a server pane and a card's terminal, as in any terminal.

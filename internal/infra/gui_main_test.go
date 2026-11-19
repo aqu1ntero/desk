@@ -831,7 +831,7 @@ func TestGMShortcut(t *testing.T) {
 	if len(h.acts()) != 0 {
 		t.Error("4 is past the org's tabs")
 	}
-	if n := map[bool]int{true: 24, false: 26}[keys.Mod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'
+	if n := map[bool]int{true: 24, false: 28}[keys.Mod == key.ModCommand]; len(shortcutFilters()) != n || len(ShortcutFilters()) != n { // ⌘C, ⌘V are the editors'; elsewhere Ctrl+Insert, Shift+Insert too
 		t.Error("filters")
 	}
 	if u.shortcut(key.Event{Name: "3", Modifiers: mod, State: key.Release}) || u.shortcut(key.Event{Name: "3", Modifiers: key.ModCtrl, State: key.Press}) || u.shortcut(key.Event{Name: "0", Modifiers: mod, State: key.Press}) {
