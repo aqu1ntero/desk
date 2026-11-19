@@ -1,0 +1,72 @@
+---
+title: Backup
+description: What to back up so a new machine, or a lost disk, gives you your board, conversations and settings back; and how to restore it.
+---
+
+desk keeps everything in plain files (see [Files](/reference/files/)), so a backup is a copy of a few
+folders. `board.json.bak` is not one: it sits on the same disk as the board, and only guards against
+a board that gets spoiled.
+
+## What to back up
+
+| Folder | What you'd lose without it |
+|---|---|
+| `~/.local/share/desk/` | The board (cards, columns, archive), every card's conversation as desk shows it, pasted images. **The one that matters most.** |
+| `~/.config/desk/` | desk's settings: search folders, languages, shortcuts, the workspace's layout. |
+| `~/.local/state/desk/infra/` | The infra workspace: open tabs, pins, the audit log, recordings, the infra Claude's server notes. |
+| `<Org>/.desk/` in each organization | Its accounts (`desk.toml`), servers file, drawings, runbooks, company log and budgets. Often already in your organizations' own backups or Git: check they include `.desk/`. |
+| `~/.claude/projects/` and `~/Secure/Claudes/<Org>/projects/` | Claude Code's own sessions. desk keeps only each session's ID: without these, a card shows its conversation but its Claude starts over instead of resuming. |
+
+Leave out `~/.cache/desk/`, the sockets in `$XDG_RUNTIME_DIR/desk/`, and `board.json.lock` and
+`board.json.tmp`: desk makes them again.
+
+The folders use `$XDG_DATA_HOME`, `$XDG_CONFIG_HOME` and `$XDG_STATE_HOME` when those are set. macOS
+and Windows use the same paths under your home folder.
+
+:::caution
+A backup holds what desk does: conversations with commands and their output, servers' details,
+and in `desk.toml` maybe a token. Keep it as private as the machine: encrypted, or somewhere only
+you can read. desk makes `~/.local/share/desk` readable by you alone; a copy elsewhere doesn't keep
+that unless you do.
+:::
+
+## Making one
+
+desk can keep running. Each save replaces `board.json` whole, so a copy has the board from before
+or after a save, never half of one; a conversation copied mid-message loses only that message, which
+desk skips when it reads the file back.
+
+A one-off archive:
+
+```sh
+tar --exclude='board.json.lock' --exclude='board.json.tmp' \
+  -czf desk-backup-$(date +%F).tar.gz -C ~ \
+  .local/share/desk .config/desk .local/state/desk
+```
+
+Add `.claude/projects` (and `Secure/Claudes`) to the list to keep the Claude sessions too.
+
+Regular backups: point your backup tool (restic, Borg, Time Machine, Déjà Dup…) at the folders in
+the table. With restic, for instance:
+
+```sh
+restic -r /path/to/repo backup ~/.local/share/desk ~/.config/desk ~/.local/state/desk \
+  --exclude board.json.lock --exclude board.json.tmp
+```
+
+## Restoring
+
+1. Quit desk. A running desk saves its own board over the one you restore.
+2. Put the folders back where they were, for the archive above:
+
+   ```sh
+   tar -xzf desk-backup-2026-11-19.tar.gz -C ~
+   ```
+
+3. Start desk. It makes the restored data folder readable by you alone again.
+
+On a new machine, also put back your organizations' folders under `$DESK_ROOT` (`~/Work`) at the same
+paths: cards remember their organization and folder by name. Claude Code needs its own login there
+(`claude` once, or each organization's profile through its first session).
+
+To undo a bad change to the board instead, quit desk and copy `board.json.bak` over `board.json`.

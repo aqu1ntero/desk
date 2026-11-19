@@ -70,7 +70,7 @@ func (u *ui) pasteImage(gtx layout.Context, ed *widget.Editor, text *bool, live 
 
 // saveImage writes a pasted image of type typ to imagesDir, by time.
 func (u *ui) saveImage(b []byte, typ string) (string, error) {
-	if err := os.MkdirAll(u.imagesDir(), 0o755); err != nil {
+	if err := os.MkdirAll(u.imagesDir(), 0o700); err != nil {
 		return "", err
 	}
 	ext := strings.TrimPrefix(typ, "image/")
@@ -78,7 +78,7 @@ func (u *ui) saveImage(b []byte, typ string) (string, error) {
 		ext = ext[:i]
 	}
 	p := filepath.Join(u.imagesDir(), time.Now().Format("20060102-150405.000")+"."+ext)
-	return p, os.WriteFile(p, b, 0o644)
+	return p, os.WriteFile(p, b, 0o600)
 }
 
 // keepImages puts back the images of notes old that rewritten notes lost

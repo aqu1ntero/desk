@@ -155,6 +155,27 @@ func TestBadBoard(t *testing.T) {
 	}
 }
 
+// TestAlreadyRunning: with another desk on the board, desk says so and
+// opens no window.
+func TestAlreadyRunning(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", xdg)
+	f, err := kanban.Lock(filepath.Join(xdg, "desk", "board.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	told := false
+	old := tellRunning
+	tellRunning = func() { told = true }
+	defer func() { tellRunning = old }()
+	appMain = func() { t.Fatal("window opened") }
+	defer func() { appMain = nil }()
+	if code := run([]string{"desk"}); code != 1 || !told {
+		t.Errorf("code %d, told %v", code, told)
+	}
+}
+
 // TestWindow: the board loads, the crash log is opened beside it, and the
 // window's end is the exit code (1 on error, 0 otherwise).
 func TestWindow(t *testing.T) {
@@ -183,6 +204,8 @@ func TestWindow(t *testing.T) {
 		if r := run([]string{"desk"}); r != 0 || code != tc.want {
 			t.Errorf("ui err %v: run %d, exit %d, want %d", tc.err, r, code, tc.want)
 		}
+		lock := held
+		t.Cleanup(func() { lock.Close() }) // Windows can't remove the open lock file
 		if gotPath != filepath.Join(xdg, "desk", "board.json") {
 			t.Errorf("path %q", gotPath)
 		}

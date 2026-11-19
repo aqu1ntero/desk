@@ -71,7 +71,7 @@ export default defineConfig({
 				},
 				{
 					label: 'Reference',
-					items: ['reference/keys', 'reference/cli', 'reference/desk-toml', 'reference/files', 'reference/troubleshooting', 'reference/development'],
+					items: ['reference/keys', 'reference/cli', 'reference/desk-toml', 'reference/files', 'reference/backup', 'reference/troubleshooting', 'reference/development'],
 				},
 			],
 		}),

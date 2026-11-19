@@ -4,6 +4,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/x/notify"
 
 	"github.com/lfdominguez/desk/internal/infra"
 	"github.com/lfdominguez/desk/internal/kanban"
@@ -25,7 +27,14 @@ var (
 	runUI   = ui.Run
 	appMain = app.Main
 	exit    = os.Exit
+	// tellRunning says so where a desk started from a launcher shows it,
+	// which has no terminal: a desktop notification.
+	tellRunning = func() { notify.Push("desk is already running", "Its window is open: switch to it.") }
 )
+
+// held is the board's lock, kept for the life of the process: a lost
+// reference would let the GC close the file and the lock with it.
+var held *os.File
 
 // version is set at build time (-ldflags "-X main.version=2026.11.03");
 // a plain go build says its commit instead (versionOf).
@@ -144,6 +153,16 @@ func run(args []string) int {
 	exeOnPath(infra.Self())
 	os.Unsetenv("DESK_SELF") // read by infra already; not for the programs desk starts
 	path := kanban.Path()
+	lock, err := kanban.Lock(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "desk:", err)
+		if errors.Is(err, kanban.ErrLocked) {
+			tellRunning()
+		}
+		return 1
+	}
+	held = lock
+	kanban.Private(filepath.Dir(path))
 	b, err := kanban.Load(path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "desk:", err)
