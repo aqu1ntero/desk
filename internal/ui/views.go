@@ -214,6 +214,7 @@ func (u *ui) sections() []struct {
 			doneIDs[c.ID] = true
 		}
 	}
+	kids := map[string][]sideItem{} // an autopilot's cards' rows, by its id: they go right under its own
 	for _, c := range cards {
 		if doneIDs[c.ID] && u.terms[c.ID] == nil && u.asks[c.ID] == nil && u.view != "sess:"+c.ID && u.view != "ws:"+c.ID { // finished: the archive has it
 			continue
@@ -230,7 +231,26 @@ func (u *ui) sections() []struct {
 		case c.Session.ID == "":
 			continue
 		}
+		if pl := u.pilotOf(&c); pl != nil {
+			kids[pl.ID] = append(kids[pl.ID], it)
+			continue
+		}
 		byOrg[c.Org] = append(byOrg[c.Org], it)
+	}
+	for o, its := range byOrg {
+		var out []sideItem
+		for _, it := range its {
+			out = append(out, it)
+			id := strings.TrimPrefix(it.view, "sess:")
+			out = append(out, kids[id]...)
+			delete(kids, id)
+		}
+		byOrg[o] = out
+	}
+	for _, c := range cards { // an autopilot not listed itself: its cards stand alone
+		if its := kids[c.ID]; len(its) > 0 {
+			byOrg[c.Org] = append(byOrg[c.Org], its...)
+		}
 	}
 	var agents []sideItem
 	for _, o := range append(orgSeen, "") { // orgs sorted, then the cards with none
@@ -453,7 +473,10 @@ func (u *ui) sideRow(gtx layout.Context, it sideItem) layout.Dimensions {
 	if strings.HasPrefix(it.view, "tk:") || strings.HasPrefix(it.view, "al:") || strings.HasPrefix(it.view, "ci:") || strings.HasPrefix(it.view, "dr:") { // under its organization
 		in.Left = 24
 	}
-	row := serverIndent(it.view) > 0 && !strings.HasPrefix(it.view, "srv:") // a server row: no count, its own click
+	if sess && u.pilotOf(u.b.Card(id)) != nil { // an autopilot's card: under it
+		in.Left = 24
+	}
+	row :=serverIndent(it.view) > 0 && !strings.HasPrefix(it.view, "srv:") // a server row: no count, its own click
 	if i := serverIndent(it.view); i > 0 {
 		in.Left = unit.Dp(i)
 	}

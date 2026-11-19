@@ -6,6 +6,12 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- An autopilot's cards show under it: indented right below it in the sidebar's Agent Sessions, as
+  nodes wired from its session on its canvas (where it now opens; a click opens a card's session),
+  and next to it in the Company view, tied to it by dashed tethers.
+
 ## [2026.11.19.1] - 2026-11-19
 
 ### Changed
