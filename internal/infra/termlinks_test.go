@@ -87,9 +87,32 @@ func TestLinkWrapped(t *testing.T) {
 	if l := v.linkAt(2, 3); l.url != "https://b" || l.row != 3 {
 		t.Errorf("an unwrapped row: %+v", l)
 	}
+	v.runs[3] = []Run{{Text: "see"}, {X: 5, Text: "https://c"}} // a run after blank cells
+	if l := v.linkAt(6, 3); l.url != "https://c" || l.lo != 5 {
+		t.Errorf("after blanks: %+v", l)
+	}
+	v.runs = [][]Run{{{Text: "界 https:/"}}, {{Text: "/x.org a"}}} // a wide character takes two cells
+	v.meta = []Row{{Wrap: true}, {}}
+	if l := v.linkAt(1, 1); l.url != "https://x.org" || l.lo != 3 || l.hi != 16 {
+		t.Errorf("after a wide character: %+v", l)
+	}
 	v.runs[0] = []Run{{Text: "go"}} // a wrapped row's blanks count as cells: the line's next starts at its end
 	if l := v.linkAt(0, 1); l.url != "" || (linkSpan{hi: 5}).rows(0) != nil {
 		t.Errorf("blanks: %+v", l)
+	}
+}
+
+// TestPasteBehindFetch: no paste reaches a pane whose password box is up (its
+// prompt waits for the password); once the box is gone, it does.
+func TestPasteBehindFetch(t *testing.T) {
+	_, ts, ss := gmTermState(t)
+	ts[0].fetchStart(nil)
+	pasteTo(ts[:1], "rm -rf /tmp/x\n")
+	ts[0].fetchEnd(nil) // went well: the box is gone
+	pasteTo(ts[:1], "ok")
+	ss[0].wait(t, "ok")
+	if strings.Contains(ss[0].String(), "rm -rf") {
+		t.Errorf("pasted behind the box: %q", ss[0].String())
 	}
 }
 

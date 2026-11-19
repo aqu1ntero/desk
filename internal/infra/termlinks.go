@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // A pane's URLs open with Ctrl+click, as in Konsole and Kitty: Ctrl over one
@@ -22,7 +24,9 @@ type linkSpan struct {
 }
 
 // linkAt is the URL covering cell (x, y) of the view, followed over the rows
-// the terminal wrapped its line onto.
+// the terminal wrapped its line onto. ponytail: only the rows on screen; a
+// URL running past the view's top or bottom opens cut there (the scrollback's
+// lines would complete it).
 func (v *termView) linkAt(x, y int) linkSpan {
 	if y < 0 || y >= len(v.runs) {
 		return linkSpan{}
@@ -37,7 +41,7 @@ func (v *termView) linkAt(x, y int) linkSpan {
 	}
 	var line []rune
 	for r := top; r <= bot; r++ {
-		line = append(line, v.line(r)...)
+		line = append(line, v.cells(r)...)
 		for r < bot && len(line) < (r-top+1)*v.cols { // a wrapped row is full: its trailing blanks count
 			line = append(line, ' ')
 		}
@@ -46,7 +50,30 @@ func (v *termView) linkAt(x, y int) linkSpan {
 	if url == "" {
 		return linkSpan{}
 	}
-	return linkSpan{top, lo, hi, url}
+	return linkSpan{top, lo, hi, strings.ReplaceAll(url, string(halfCell), "")}
+}
+
+// halfCell stands for a wide character's second cell in cells: no space, so
+// a URL runs on over it.
+const halfCell = '​'
+
+// cells is row y as one rune per cell (a wide character then halfCell), so
+// positions in it are columns. ponytail: a combining mark (no cell of its
+// own) still counts one; graphemes would place it.
+func (v *termView) cells(y int) []rune {
+	var line []rune
+	for _, r := range v.runs[y] {
+		for len(line) < r.X {
+			line = append(line, ' ')
+		}
+		for _, c := range r.Text {
+			line = append(line, c)
+			if ansi.StringWidth(string(c)) == 2 {
+				line = append(line, halfCell)
+			}
+		}
+	}
+	return []rune(strings.TrimRight(string(line), " "))
 }
 
 // rows is the span cut at each row: a row, and its cells [lo, hi) on it.

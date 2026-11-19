@@ -3,6 +3,7 @@
 package clip
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -24,11 +25,13 @@ import (
 // receive's fd open without writing, "noisy" mixes in events of other
 // objects and opcodes that look like the ones Image reads.
 // Its primary selection offers the same types, and reads as "primary:"+data.
-// A client that takes the primary selection is asked for it (a send with a
-// pipe), and what it writes comes on the channel; then it is cancelled.
+// A client that takes the primary selection (set_primary_selection, request
+// 2 in both protocols) gets another's offer, is asked for it (a send with a
+// pipe), and what it writes comes on the channel with how many offers it had
+// destroyed when it took it; then it is cancelled.
 // "v1" binds wlroots' manager at version 1 (no primary selection), "ext" offers
 // ext-data-control instead, "serve-error" answers the take with an error,
-// "silent-take" lets it take and never asks, "bad-send" sends a pipe for
+// "silent-take" lets it take, says "taken" and never asks, "bad-send" sends a pipe for
 // another object and then a malformed message.
 func fakeCompositor(t *testing.T, dir string, types []string, data string, mode ...string) <-chan string {
 	m := ""
@@ -54,9 +57,10 @@ func fakeCompositor(t *testing.T, dir string, types []string, data string, mode 
 			c.Write(append(m, a...))
 		}
 		ifaces := map[uint32]string{1: "wl_display"}
-		var reg, src uint32
-		var devSent, taken bool
-		const offer, primary = 0xff000001, 0xff000002
+		var reg, src, dev uint32
+		var devSent bool
+		destroyed := 0
+		const offer, primary, later = 0xff000001, 0xff000002, 0xff000003
 		mgr, mver := "zwlr_data_control_manager_v1", uint32(2)
 		switch m {
 		case "v1":
@@ -64,7 +68,6 @@ func fakeCompositor(t *testing.T, dir string, types []string, data string, mode 
 		case "ext":
 			mgr, mver = "ext_data_control_manager_v1", 1
 		}
-		setPrimary := map[bool]uint32{true: 1, false: 2}[m == "ext"]
 		buf, oob := make([]byte, 4096), make([]byte, 64)
 		for {
 			n, on, _, _, err := c.ReadMsgUnix(buf, oob)
@@ -98,46 +101,49 @@ func fakeCompositor(t *testing.T, dir string, types []string, data string, mode 
 						c.CloseRead() // the client's next request fails
 					}
 					ev(rest.u(), 0, args{}.u(0))
-					if taken && m != "silent-take" { // the client owns the primary selection: a reader asks for it
-						taken = false
-						if m == "serve-error" {
-							protoErr(ev)
-							continue
-						}
-						if m == "bad-send" { // a pipe for some other object, then a message too short to be one
-							r, w, _ := os.Pipe()
-							c.WriteMsgUnix(append(le.AppendUint32(nil, 99), le.AppendUint32(nil, 8<<16)...), syscall.UnixRights(int(w.Fd())), nil)
-							w.Close()
-							r.Close()
-							c.Write(append(le.AppendUint32(nil, src), le.AppendUint32(nil, 4<<16)...))
-							continue
-						}
-						r, w, _ := os.Pipe()
-						msg := le.AppendUint32(nil, src)
-						a := args{}.s("text/plain;charset=utf-8")
-						msg = le.AppendUint32(msg, uint32(8+len(a))<<16|0)
-						c.WriteMsgUnix(append(msg, a...), syscall.UnixRights(int(w.Fd())), nil)
-						w.Close()
-						go func() {
-							b, _ := io.ReadAll(r)
-							r.Close()
-							served <- string(b)
-							ev(src, 1, args{}) // cancelled: another took it
-						}()
-					}
+				case (id == offer || id == primary || id == later) && op == 1: // offer.destroy
+					destroyed++
 				case ifaces[id] == "manager" && op == 0: // create_data_source
 					src = rest.u()
 					ifaces[src] = "source"
-				case ifaces[id] == "device" && op == setPrimary && rest.u() == src:
-					taken = true
+				case id == dev && op == 2 && rest.u() == src: // set_primary_selection: a reader asks for it
+					if m == "silent-take" {
+						served <- "taken"
+						continue
+					}
+					if m == "serve-error" {
+						protoErr(ev)
+						continue
+					}
+					if m == "bad-send" { // a pipe for some other object, then a message too short to be one
+						r, w, _ := os.Pipe()
+						c.WriteMsgUnix(append(le.AppendUint32(nil, 99), le.AppendUint32(nil, 8<<16)...), syscall.UnixRights(int(w.Fd())), nil)
+						w.Close()
+						r.Close()
+						c.Write(append(le.AppendUint32(nil, src), le.AppendUint32(nil, 4<<16)...))
+						continue
+					}
+					ev(dev, 0, args{}.u(later)) // meanwhile another's selection: an offer to destroy
+					r, w, _ := os.Pipe()
+					msg := le.AppendUint32(nil, src)
+					a := args{}.s("text/plain;charset=utf-8")
+					msg = le.AppendUint32(msg, uint32(8+len(a))<<16|0)
+					c.WriteMsgUnix(append(msg, a...), syscall.UnixRights(int(w.Fd())), nil)
+					w.Close()
+					n := destroyed // the first selections', before it took this one
+					go func() {
+						b, _ := io.ReadAll(r)
+						r.Close()
+						served <- fmt.Sprintf("%s|%d destroyed", b, n)
+						ev(src, 1, args{}) // cancelled: another took it
+					}()
 				case ifaces[id] == "manager" && op == 1 && m == "error-device":
 					protoErr(ev)
 				case id == reg && op == 0:
 					name, _, _, nid := rest.u(), rest.s(), rest.u(), rest.u()
 					ifaces[nid] = map[uint32]string{1: "seat", 2: "manager"}[name]
 				case ifaces[id] == "manager" && op == 1:
-					dev := rest.u()
-					ifaces[dev] = "device"
+					dev = rest.u()
 					if mver >= 2 || m == "ext" {
 						ev(dev, 0, args{}.u(primary))
 						for _, ty := range types {
@@ -222,7 +228,7 @@ func TestPrimaryWayland(t *testing.T) {
 		go func() { ended <- ownWayland("ls -la", done) }()
 		select {
 		case got := <-served:
-			if got != "ls -la" {
+			if got != "ls -la|2 destroyed" { // the clipboard's and the primary selection's offers
 				t.Errorf("%q: served %q", mode, got)
 			}
 		case <-time.After(testwait.Long):
@@ -273,10 +279,11 @@ func TestPrimaryWaylandFallback(t *testing.T) {
 // TestPrimaryStops: done ends serving; SetPrimary replaces the selection
 // it serves, stopping the last.
 func TestPrimaryStops(t *testing.T) {
-	fakeCompositor(t, t.TempDir(), nil, "", "silent-take")
+	taken := fakeCompositor(t, t.TempDir(), nil, "", "silent-take")
 	done := make(chan struct{})
 	ended := make(chan error, 1)
 	go func() { ended <- ownWayland("x", done) }()
+	<-taken
 	close(done)
 	select {
 	case err := <-ended:
@@ -292,11 +299,38 @@ func TestPrimaryStops(t *testing.T) {
 	if got := Primary(); got != "two" {
 		t.Errorf("fallback: %q", got)
 	}
+	owner.serving.Wait() // none left to dial another test's compositor
 	owner.Lock()
 	close(owner.stop)
 	owner.stop = nil
 	owner.Unlock()
-	owner.serving.Wait() // none left to dial another test's compositor
+}
+
+// TestPrimaryOrder: a call already stopped never takes the selection, and
+// an older SetPrimary waiting its turn gives way to the newer one.
+func TestPrimaryOrder(t *testing.T) {
+	served := fakeCompositor(t, t.TempDir(), nil, "")
+	done := make(chan struct{})
+	close(done)
+	ownWayland("stale", done) // closed or not yet, it returns without taking it
+	select {
+	case got := <-served:
+		t.Errorf("a stopped call took it: %q", got)
+	case <-time.After(100 * time.Millisecond):
+	}
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir()) // nowhere to serve
+	owner.turn.Lock()                        // an owner still letting go
+	SetPrimary("older")
+	SetPrimary("newer") // stops the older before it had its turn
+	owner.turn.Unlock()
+	owner.serving.Wait() // the newer tries, finds nowhere to serve, ends
+	owner.Lock()
+	close(owner.stop)
+	owner.stop = nil
+	owner.Unlock()
+	if got := Primary(); got != "newer" {
+		t.Errorf("fallback: %q", got)
+	}
 }
 
 // TestNewID: ids count up from where the connection left off.

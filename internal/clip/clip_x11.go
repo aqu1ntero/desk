@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var xle = binary.LittleEndian // we open the connection as 'l': little-endian
@@ -50,8 +51,9 @@ const (
 )
 
 // ownX11 makes text the PRIMARY selection on the X display disp and answers
-// the clients that ask for it until another takes it or done closes.
-// ponytail: text past xPropMax is cut; INCR would carry the rest.
+// the clients that ask for it until another takes it or done closes; a done
+// closed before it takes it keeps it from doing so (stopped).
+// ponytail: text past xPropMax is cut (at a character); INCR would carry the rest.
 func ownX11(disp, text string, done <-chan struct{}) error {
 	x, err := dialX(disp)
 	if err != nil {
@@ -64,12 +66,27 @@ func ownX11(disp, text string, done <-chan struct{}) error {
 			return err
 		}
 	}
+	if stopped(done) {
+		return nil
+	}
 	win := x.base // as readX11's: an InputOnly window of ours, never mapped
 	x.send(xCreateWindow, 0, words(win, x.root, 0, 1|1<<16, 2<<16, 0, 0x800, 0x400000))
 	x.send(xSetSelectionOwner, 0, words(win, a["PRIMARY"], 0))
 	x.c.SetDeadline(time.Time{}) // it waits for readers now, as long as it owns it
-	go func() { <-done; x.c.Close() }()
-	data := []byte(text[:min(len(text), xPropMax)])
+	defer closeOn(done, x.c)()
+	data := []byte(text)
+	if len(data) > xPropMax {
+		cut := xPropMax
+		for !utf8.RuneStart(data[cut]) {
+			cut--
+		}
+		data = data[:cut]
+	}
+	latin1, isLatin1 := []byte{}, true // STRING is ISO Latin-1 (ICCCM)
+	for _, r := range string(data) {
+		isLatin1 = isLatin1 && r < 0x100
+		latin1 = append(latin1, byte(r))
+	}
 	for {
 		m := make([]byte, 32)
 		if _, err := io.ReadFull(x.c, m); err != nil {
@@ -91,12 +108,14 @@ func ownX11(disp, text string, done <-chan struct{}) error {
 			switch target {
 			case a["TARGETS"]:
 				x.send(xChangeProperty, 0, append(words(req, prop, xAtom, 32, 4), words(a["TARGETS"], a["UTF8_STRING"], a["STRING"], a["TEXT"])...))
-			case a["UTF8_STRING"], a["STRING"], a["TEXT"]:
-				typ := target
-				if typ == a["TEXT"] {
-					typ = a["UTF8_STRING"]
+			case a["UTF8_STRING"], a["TEXT"]: // TEXT: the owner's choice of encoding
+				x.send(xChangeProperty, 0, append(words(req, prop, a["UTF8_STRING"], 8, uint32(len(data))), data...))
+			case a["STRING"]:
+				if !isLatin1 { // it can't say it: refused, the client asks for UTF8_STRING
+					prop = 0
+					break
 				}
-				x.send(xChangeProperty, 0, append(words(req, prop, typ, 8, uint32(len(data))), data...))
+				x.send(xChangeProperty, 0, append(words(req, prop, a["STRING"], 8, uint32(len(latin1))), latin1...))
 			default:
 				prop = 0 // refused
 			}

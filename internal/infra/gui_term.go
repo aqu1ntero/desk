@@ -306,6 +306,18 @@ func typingTo(t *guiTab, p guiPane) []*Term {
 	return out
 }
 
+// pasteTo pastes s into terms, but not into one whose password box is up:
+// its prompt waits for the password, and a pasted line with a newline would
+// run behind the box. Checked as it pastes: a middle click's text comes
+// later, from the selection's owner.
+func pasteTo(terms []*Term, s string) {
+	for _, term := range terms {
+		if _, fetching := term.Fetch(); !fetching {
+			term.Paste(s)
+		}
+	}
+}
+
 // pane draws one terminal: header, grid with block cards, overlay.
 func (u *ui) pane(gtx layout.Context, t *guiTab, i int) layout.Dimensions {
 	p := t.Panes[i]
@@ -713,6 +725,7 @@ func (v *termView) screen(t *Term) (sb int, runs [][]Run, meta []Row, cx, cy int
 		v.gridVer, v.gridScroll, v.gridGen = ver, v.scroll, v.gridGen+1
 		v.sb = t.Scrollback()
 		v.runs, v.meta, v.cx, v.cy, v.cursor = t.Grid(v.scroll)
+		v.link = linkSpan{} // found on the rows before: the next pointer or Ctrl event finds it again
 	}
 	return v.sb, v.runs, v.meta, v.cx, v.cy, v.cursor
 }
@@ -894,9 +907,7 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 					terms := typingTo(t, p)
 					go func() { // reading it asks its owner: off the frame
 						if s := readPrimary(); s != "" {
-							for _, term := range terms {
-								term.Paste(s)
-							}
+							pasteTo(terms, s)
 						}
 					}()
 					continue
@@ -945,9 +956,7 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 			if r := ev.Open(); r != nil {
 				b, _ := io.ReadAll(r)
 				r.Close()
-				for _, term := range typingTo(t, p) {
-					term.Paste(string(b))
-				}
+				pasteTo(typingTo(t, p), string(b))
 			}
 		}
 	}

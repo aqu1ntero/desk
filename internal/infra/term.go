@@ -1083,6 +1083,11 @@ var sudoPrompt = regexp.MustCompile(`(?i)(?:^|\]\s*|\)\s*)(?:password|contraseñ
 func (t *Term) SudoPrompt() (string, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	return t.sudoPrompt()
+}
+
+// sudoPrompt is SudoPrompt with mu held.
+func (t *Term) sudoPrompt() (string, bool) {
 	if t.emu.IsAltScreen() {
 		return "", false
 	}

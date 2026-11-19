@@ -986,6 +986,13 @@ func TestPasswordCancel(t *testing.T) {
 	if _, ok := term.Fetch(); !ok {
 		t.Error("the new fetch's box went with the old one")
 	}
+	pane.password = &SecretRef{Raw: "pw"} // a password that came, its box cancelled meanwhile
+	cmd = serverPasswordCmd(pane)
+	msg = cmd().(passwordMsg)
+	term.fetchHide()
+	if msg.err != nil || m.usePassword(msg) != nil || m.flash != "" {
+		t.Errorf("a cancelled fetch's password used: %v %q", msg.err, m.flash)
+	}
 }
 
 // TestConnectUnreachable: connect on a server already stuck in its "can't

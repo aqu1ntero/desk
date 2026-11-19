@@ -22,9 +22,9 @@ import (
 // (counted from 0; -1 never). Other modes misbehave: "no-owner",
 // "refuse-image", "x-error", "huge", "short-reply", "incr-hang", and the
 // setup's "refuse-setup", "cut-head", "cut-more", "bad-setup", "bad-screen".
-// A client that takes PRIMARY is asked for TARGETS, UTF8_STRING, TEXT (as an
-// obsolete client: no property) and an image it can't give; what it puts
-// in properties and tells comes on got, then it loses the selection.
+// A client that takes PRIMARY is asked for TARGETS, UTF8_STRING, STRING, TEXT
+// (as an obsolete client: no property) and an image it can't give; what it
+// puts in properties and tells comes on got, then it loses the selection.
 type fakeX struct {
 	types        []string
 	data, cookie string
@@ -140,7 +140,7 @@ func (f fakeX) run(c net.Conn) {
 				return
 			}
 			c.Write(append(xle.AppendUint32([]byte{1, 0, 0, 0}, 1), make([]byte, 28)...)) // a stray reply, its tail too
-			for _, tg := range []string{"TARGETS", "UTF8_STRING", "TEXT", "image/png"} {
+			for _, tg := range []string{"TARGETS", "UTF8_STRING", "STRING", "TEXT", "image/png"} {
 				p := atom("P")
 				if tg == "TEXT" {
 					p = 0
@@ -159,7 +159,7 @@ func (f fakeX) run(c net.Conn) {
 			f.got <- names[w(1)] + " " + names[w(2)] + ": " + strings.TrimSpace(v)
 		case xSendEvent:
 			f.got <- "notify " + names[xle.Uint32(body[8+20:])]
-			if answered++; answered == 4 { // all asked: the selection goes elsewhere
+			if answered++; answered == 5 && f.mode != "keep" { // all asked: the selection goes elsewhere
 				ev(xSelectionClear, 0, 0, 0)
 			}
 		case xInternAtom:
@@ -405,28 +405,51 @@ func TestPrimaryX11(t *testing.T) {
 	if got := Primary(); got != "uptime" {
 		t.Errorf("primary: %q", got)
 	}
-	got := make(chan string, 16)
-	listenX(t, fakeX{cut: -1, got: got})
-	ended := make(chan error, 1)
-	go func() { ended <- ownPrimary("df -h", make(chan struct{})) }()
-	want := []string{
-		"P ATOM: TARGETS UTF8_STRING STRING TEXT", "notify P",
-		"P UTF8_STRING: df -h", "notify P",
-		"TEXT UTF8_STRING: df -h", "notify TEXT",
-		"notify ", // the image: refused, no property
-	}
-	for i, w := range want {
-		select {
-		case g := <-got:
-			if g != w {
-				t.Errorf("%d: %q, want %q", i, g, w)
+	long := strings.Repeat("a", xPropMax-1) + "é" // its second byte past what fits: cut before the é
+	for text, string_ := range map[string][]string{
+		"café": {"P STRING: caf\xe9", "notify P"}, // Latin-1, as ICCCM's STRING is
+		"✓ ok": {"notify "},                       // no Latin-1 for it: refused
+		long:   {"P STRING: " + long[:xPropMax-1], "notify P"},
+	} {
+		got := make(chan string, 16)
+		listenX(t, fakeX{cut: -1, got: got})
+		ended := make(chan error, 1)
+		go func() { ended <- ownPrimary(text, make(chan struct{})) }()
+		utf := text
+		if text == long {
+			utf = long[:xPropMax-1]
+		}
+		want := append(append([]string{
+			"P ATOM: TARGETS UTF8_STRING STRING TEXT", "notify P",
+			"P UTF8_STRING: " + utf, "notify P",
+		}, string_...), "TEXT UTF8_STRING: "+utf, "notify TEXT",
+			"notify ", // the image: refused, no property
+		)
+		for i, w := range want {
+			select {
+			case g := <-got:
+				if g != w {
+					t.Errorf("%.12q %d: %.40q, want %.40q", text, i, g, w)
+				}
+			case <-time.After(testwait.Long):
+				t.Fatalf("%.12q %d: nothing, want %.40q", text, i, w)
 			}
-		case <-time.After(testwait.Long):
-			t.Fatalf("%d: nothing, want %q", i, w)
+		}
+		if err := <-ended; err != nil { // the selection went elsewhere
+			t.Error(err)
 		}
 	}
-	if err := <-ended; err != nil { // the selection went elsewhere
-		t.Error(err)
+	got := make(chan string, 16)
+	listenX(t, fakeX{cut: -1, got: got})
+	done := make(chan struct{})
+	close(done)
+	if err := ownPrimary("stale", done); err != nil {
+		t.Errorf("a stopped call: %v", err)
+	}
+	select {
+	case g := <-got:
+		t.Errorf("a stopped call took it: %q", g)
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 
@@ -437,10 +460,12 @@ func TestPrimaryX11Fails(t *testing.T) {
 	if err := ownPrimary("x", nil); err == nil {
 		t.Error("an X error on the atoms")
 	}
-	listenX(t, fakeX{cut: -1, got: make(chan string, 16)})
+	got := make(chan string, 16)
+	listenX(t, fakeX{cut: -1, got: got, mode: "keep"})
 	done := make(chan struct{})
 	ended := make(chan error, 1)
 	go func() { ended <- ownPrimary("x", done) }()
+	<-got // it serves
 	close(done)
 	if err := <-ended; err == nil {
 		t.Error("stopped: no error from the closed connection")

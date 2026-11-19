@@ -58,12 +58,11 @@ func x11() string {
 	return os.Getenv("DISPLAY")
 }
 
-// wl is a connection with the seat's data-control device.
+// wl is a connection with the seat's data-control device. Both managers
+// number their requests and events alike.
 type wl struct {
 	*conn
 	mgr, dev uint32
-	ext      bool   // ext-data-control: its device's requests are numbered apart from wlroots'
-	ver      uint32 // the manager's version bound: wlroots' has the primary selection from 2
 }
 
 // errNoPrimary: the compositor's data-control has no primary selection.
@@ -102,16 +101,33 @@ func openDevice() (*wl, error) {
 		return id
 	}
 	g := globals[managers[i]]
-	d := &wl{conn: w, ext: i == 0, ver: min(g.version, 2)}
+	d := &wl{conn: w}
 	seatID := bind("wl_seat", seat.name, 1)
-	d.mgr = bind(managers[i], g.name, d.ver)
+	d.mgr = bind(managers[i], g.name, min(g.version, 2)) // wlroots' has the primary selection from 2
 	d.dev = w.newID()
 	w.send(d.mgr, 1, args{}.u(d.dev).u(seatID), -1) // get_data_device
 	return d, nil
 }
 
-// hasPrimary says the device speaks of the primary selection.
-func (d *wl) hasPrimary() bool { return d.ext || d.ver >= 2 }
+// selections reads the device's first events: its offers and their types,
+// the clipboard's offer and the primary selection's (0: empty), and whether
+// it has a primary selection at all (it says so then, empty or not).
+func (w *wl) selections() (offers map[uint32][]string, clip, primary uint32, hasPrimary bool, err error) {
+	offers = map[uint32][]string{}
+	err = w.roundtrip(func(id, op uint32, b body) {
+		switch {
+		case id == w.dev && op == 0: // data_offer: a new offer, its types follow
+			offers[b.u()] = nil
+		case id == w.dev && op == 1: // selection
+			clip = b.u()
+		case id == w.dev && op == 3: // primary_selection
+			primary, hasPrimary = b.u(), true
+		case op == 0 && hasKey(offers, id): // offer.offer: one of its types
+			offers[id] = append(offers[id], b.s())
+		}
+	})
+	return offers, clip, primary, hasPrimary, err
+}
 
 // readWayland reads the clipboard, or with primary the primary selection,
 // as the type pick chooses among those offered; nil when there's none.
@@ -121,26 +137,15 @@ func readWayland(primary bool, pick func([]string) string) ([]byte, string, erro
 		return nil, "", err
 	}
 	defer w.c.Close()
-	if primary && !w.hasPrimary() {
-		return nil, "", errNoPrimary
-	}
-	selOp := uint32(1) // the device's selection event: the clipboard's offer, 0 empty
-	if primary {
-		selOp = 3 // primary_selection
-	}
-	offers := map[uint32][]string{}
-	var sel uint32
-	if err := w.roundtrip(func(id, op uint32, b body) {
-		switch {
-		case id == w.dev && op == 0: // data_offer: a new offer, its types follow
-			offers[b.u()] = nil
-		case id == w.dev && op == selOp:
-			sel = b.u()
-		case op == 0 && hasKey(offers, id): // offer.offer: one of its types
-			offers[id] = append(offers[id], b.s())
-		}
-	}); err != nil {
+	offers, sel, psel, hasPrimary, err := w.selections()
+	if err != nil {
 		return nil, "", err
+	}
+	if primary {
+		if !hasPrimary {
+			return nil, "", errNoPrimary
+		}
+		sel = psel
 	}
 	typ := pick(offers[sel])
 	if sel == 0 || typ == "" {
@@ -178,36 +183,54 @@ func pickText(types []string) string {
 var textTypes = []string{"text/plain;charset=utf-8", "UTF8_STRING", "text/plain", "STRING", "TEXT"}
 
 // ownWayland makes text the primary selection and hands it to whoever asks
-// until another takes the selection or done closes.
+// until another takes the selection or done closes; a done closed before it
+// takes it keeps it from doing so (stopped).
 func ownWayland(text string, done <-chan struct{}) error {
 	w, err := openDevice()
 	if err != nil {
 		return err
 	}
 	defer w.c.Close()
-	if !w.hasPrimary() {
+	offers, _, _, hasPrimary, err := w.selections()
+	if err != nil {
+		return err
+	}
+	if !hasPrimary {
 		return errNoPrimary
+	}
+	for id := range offers { // others' selections: not ours to keep
+		w.send(id, 1, args{}, -1) // offer.destroy
+	}
+	if stopped(done) {
+		return nil
 	}
 	src := w.newID()
 	w.send(w.mgr, 0, args{}.u(src), -1) // create_data_source
 	for _, t := range textTypes {
 		w.send(src, 0, args{}.s(t), -1) // source.offer
 	}
-	setPrimary := uint32(2) // wlroots' set_primary_selection
-	if w.ext {
-		setPrimary = 1
-	}
-	w.send(w.dev, setPrimary, args{}.u(src), -1)
-	if err := w.roundtrip(func(uint32, uint32, body) {}); err != nil {
-		return err
-	}
-	w.c.SetDeadline(time.Time{}) // it waits for readers now, as long as it owns it
-	go func() { <-done; w.c.Close() }()
+	w.send(w.dev, 2, args{}.u(src), -1) // set_primary_selection
+	w.c.SetDeadline(time.Time{})        // it waits for readers now, as long as it owns it
+	defer closeOn(done, w.c)()
 	return w.serve(src, text)
 }
 
+// closeOn closes c when done closes, until the returned func is called.
+func closeOn(done <-chan struct{}, c io.Closer) func() {
+	ended := make(chan struct{})
+	go func() {
+		select {
+		case <-done:
+			c.Close()
+		case <-ended:
+		}
+	}()
+	return func() { close(ended) }
+}
+
 // serve answers source src's events: each send writes text into the
-// reader's pipe; cancelled (another took the selection) ends it.
+// reader's pipe; cancelled (another took the selection) ends it. The offers
+// of others' selections meanwhile are destroyed as they come.
 func (w *wl) serve(src uint32, text string) error {
 	var buf []byte
 	var fds []int
@@ -243,9 +266,13 @@ func (w *wl) serve(src uint32, text string) error {
 			case id == 1 && op == 0: // wl_display.error
 				_, code := ev.u(), ev.u()
 				return fmt.Errorf("wayland error %d: %s", code, ev.s())
+			case id == w.dev && op == 0: // data_offer: another's selection
+				w.send(ev.u(), 1, args{}, -1) // offer.destroy
 			case id == src && op == 0 && len(fds) > 0: // send: a reader's pipe
-				f := os.NewFile(uintptr(fds[0]), "pipe")
+				fd := fds[0]
 				fds = fds[1:]
+				syscall.SetNonblock(fd, true) // pollable: the deadline holds even on a reader that stops reading
+				f := os.NewFile(uintptr(fd), "pipe")
 				go func() { // a slow reader holds no one else up
 					f.SetWriteDeadline(time.Now().Add(5 * time.Second))
 					f.WriteString(text)

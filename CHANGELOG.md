@@ -20,6 +20,10 @@ day). A release's section here is its notes on GitHub. The format follows
 - Ctrl+← and Ctrl+→ move a word in a server pane and a card's terminal, as in any terminal.
   Shift, Alt and Ctrl with the arrows, Home, End, Delete, Page Up/Down and the F-keys reach the
   program now instead of sending nothing, and Ctrl+Backspace sends `^H`.
+- While a pane shows the server password's box, nothing pasted reaches its prompt (a pasted line
+  could have run behind the box), and the password is never typed once the prompt has gone or
+  you cancelled, however close the timing. With boxes on two panes, each one's Cancel and Try
+  again act on its own pane.
 
 ## [2026.11.19.1] - 2026-11-19
 
