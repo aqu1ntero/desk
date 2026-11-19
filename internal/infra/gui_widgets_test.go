@@ -185,6 +185,35 @@ func TestAskSheetAnswers(t *testing.T) {
 	}
 }
 
+// TestLoadingSheet: a vault password on its way holds the keyboard; esc and
+// Cancel stop it, and the terminal gets the keyboard back once it's gone.
+func TestLoadingSheet(t *testing.T) {
+	u := wUI(t)
+	u.st = &guiState{Loading: "web-01", Ask: ""}
+	h := newWH(t, u, func(gtx layout.Context) { u.sheets(gtx) })
+	if u.sheetSig != "loading" {
+		t.Fatalf("sig %q", u.sheetSig)
+	}
+	cancelled := func(how string) {
+		t.Helper()
+		stopped := false
+		m := &model{loading: &pwLoad{"web-01", func() { stopped = true }}}
+		if n := wRun(u, m); n != 1 || !stopped || m.loading != nil || m.flash != "password load cancelled" {
+			t.Errorf("%s: %d actions, stopped %v, loading %v, flash %q", how, n, stopped, m.loading, m.flash)
+		}
+	}
+	h.send(wPress(key.NameEscape))
+	cancelled("esc")
+	h.clickBtn("loadNo")
+	cancelled("Cancel")
+	u.wantTerm = false
+	u.st = &guiState{}
+	h.frame()
+	if !u.wantTerm {
+		t.Error("closing the sheet left the keyboard")
+	}
+}
+
 // TestAskFor: vault unlocks read as Unlock <vault>, ssh's prompts as what
 // the host asks with their note as the error, one-time codes get the boxes.
 func TestAskFor(t *testing.T) {

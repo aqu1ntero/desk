@@ -6,6 +6,11 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Typing or copying a server's password from a vault shows "Loading password…" until it arrives,
+  with Cancel (Esc). On a slow vault, Enter at sudo's prompt no longer goes before the password.
+
 ## [2026.11.17] - 2026-11-17
 
 ### Added

@@ -103,6 +103,13 @@ func passwordRef(dir, host string) *SecretRef {
 // serverPassword reads a host's password from its org's vault. It may ask the
 // user for the vault passphrase, so never call it from the UI goroutine.
 func serverPassword(dir string, ref *SecretRef) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	return serverPasswordCtx(ctx, dir, ref)
+}
+
+// serverPasswordCtx is serverPassword ending with ctx: the loading sheet's Cancel.
+func serverPasswordCtx(ctx context.Context, dir string, ref *SecretRef) (string, error) {
 	if ref == nil {
 		return "", fmt.Errorf("no password for this server: add \"#@ password <item>\" to its Host in %s", sshConfigFor(dir))
 	}
@@ -117,8 +124,6 @@ func serverPassword(dir string, ref *SecretRef) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 	it, err := resolve(ctx, v, ref.Item)
 	if dv, ok := v.(deskVault); ok && err == nil && ref.Field != "" && ref.Field != "password" {
 		return unlocking(ctx, dv.v, func() (string, error) { return deskvault.Get(ctx, dv.v, it.ID, ref.Field) })
