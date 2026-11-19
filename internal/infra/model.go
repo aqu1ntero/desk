@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -215,6 +216,7 @@ type model struct {
 	palSel  int
 	saved   uiState
 	asks    []*question // integrations waiting for a passphrase or code
+	loading *pwLoad     // a server password on its way from a vault
 	flash   string      // a short note shown as a toast
 
 	onInvestigate func(org, host, service, state, output string, since time.Time) // desk's: an investigation is a card
@@ -796,6 +798,12 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if m.loading != nil { // the loading sheet: only Esc, so enter can't beat the password to sudo
+		if k == "esc" {
+			m.cancelLoad()
+		}
+		return m, nil
+	}
 	if at := m.approvalTab(); at != nil && !strings.HasPrefix(k, "alt+") {
 		return m, m.answer(at, msg)
 	}
@@ -836,7 +844,7 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	switch {
 	case k == "alt+p" && t != nil && t.term != nil:
-		return m, serverPasswordCmd(t.focused())
+		return m, m.passwordCmd(t.focused())
 	case k == "ctrl+y" && t != nil && t.term != nil && t.suggest != "":
 		t.term.TypeForClaude(t.suggest)
 		t.suggest = ""
@@ -1148,7 +1156,7 @@ func (m *model) palKey(msg tea.KeyPressMsg) tea.Cmd {
 					return tea.SetClipboard(sshCommand(p.term.Host, p.dir))
 				}
 			case it.label == "copy server password" && t != nil && t.term != nil:
-				return serverPasswordCmd(t.focused())
+				return m.passwordCmd(t.focused())
 			}
 		case "themes":
 			setTheme(it.theme)
@@ -1234,6 +1242,15 @@ type passwordMsg struct {
 	term *Term
 	pw   string
 	err  error
+	load *pwLoad // the vault fetch it ends, nil for a raw password
+}
+
+// pwLoad is a password coming from a vault: the loading sheet shows it until
+// it arrives, so nobody presses enter at sudo's prompt before it's typed
+// (slow vaults), and Esc or Cancel stops it.
+type pwLoad struct {
+	host   string
+	cancel context.CancelFunc
 }
 
 // serverPasswordCmd fetches the pane's server password (the vault may ask for
@@ -1241,13 +1258,46 @@ type passwordMsg struct {
 func serverPasswordCmd(p *Pane) tea.Cmd {
 	return func() tea.Msg {
 		pw, err := serverPassword(p.dir, p.password)
-		return passwordMsg{p.term, pw, err}
+		return passwordMsg{p.term, pw, err, nil}
+	}
+}
+
+// passwordCmd is serverPasswordCmd with the loading sheet up while a vault
+// fetches it.
+func (m *model) passwordCmd(p *Pane) tea.Cmd {
+	if p.password == nil || p.password.Raw != "" {
+		return serverPasswordCmd(p)
+	}
+	m.cancelLoad()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	l := &pwLoad{p.name, cancel}
+	m.loading = l
+	return func() tea.Msg {
+		pw, err := serverPasswordCtx(ctx, p.dir, p.password)
+		return passwordMsg{p.term, pw, err, l}
+	}
+}
+
+// cancelLoad stops the vault fetch the loading sheet shows; what it brings
+// later is dropped by usePassword.
+func (m *model) cancelLoad() {
+	if m.loading != nil {
+		m.loading.cancel()
+		m.loading = nil
+		m.flash = "password load cancelled"
 	}
 }
 
 // usePassword types the password into a sudo prompt that is still waiting,
 // or else copies it to the clipboard.
 func (m *model) usePassword(msg passwordMsg) tea.Cmd {
+	if msg.load != nil {
+		if msg.load != m.loading {
+			return nil // cancelled
+		}
+		m.loading = nil
+		msg.load.cancel()
+	}
 	switch {
 	case msg.err != nil:
 		m.flash = "! " + msg.err.Error()

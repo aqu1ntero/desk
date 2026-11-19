@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/lfdominguez/desk/internal/testtmp"
 	"github.com/lfdominguez/desk/internal/testwait"
@@ -928,6 +929,66 @@ func TestSudoFill(t *testing.T) {
 	}
 	if s := term.Screen().Text; !strings.Contains(s, "GOOD") || strings.Contains(s, "hunter2") {
 		t.Errorf("password not typed, or echoed:\n%s", s)
+	}
+}
+
+// slowVault answers only when let go, or with its context's error.
+type slowVault chan error
+
+func (s slowVault) search(ctx context.Context, _ string) ([]vaultItem, error) {
+	select {
+	case err := <-s:
+		return nil, err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+func (s slowVault) get(context.Context, string) (vaultItem, error) { return vaultItem{}, nil }
+
+// TestPasswordLoading: a vault password puts the loading sheet up until it
+// comes; esc cancels it and drops what comes later; other keys wait; a raw
+// password needs no sheet.
+func TestPasswordLoading(t *testing.T) {
+	g := filepath.Join(t.TempDir(), "Org", infraDir)
+	sv := make(slowVault, 1)
+	orgsMu.Lock()
+	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}}, vaults: map[string]vault{"pb": sv}}
+	orgsMu.Unlock()
+	pane := &Pane{dir: g, name: "web-01", password: &SecretRef{Vault: "pb", Item: "x"}}
+	m := model{}
+	cmd := m.passwordCmd(pane)
+	if st := (&driver{}).snapshot(&m); st.Loading != "web-01" {
+		t.Fatalf("loading %q", st.Loading)
+	}
+	r, _ := m.Update(keyOf("enter")) // enter waits for the password
+	if m = r.(model); m.loading == nil {
+		t.Fatal("enter ended the load")
+	}
+	r, _ = m.Update(keyOf("esc"))
+	if m = r.(model); m.loading != nil || m.flash != "password load cancelled" {
+		t.Fatalf("esc: loading %v flash %q", m.loading, m.flash)
+	}
+	msg := cmd().(passwordMsg) // the cancelled fetch ends with its context
+	if m.usePassword(msg) != nil || m.flash != "password load cancelled" {
+		t.Errorf("a cancelled load used: %q", m.flash)
+	}
+	// one that arrives
+	cmd = m.passwordCmd(pane)
+	sv <- errors.New("vault down")
+	if m.usePassword(cmd().(passwordMsg)); m.loading != nil || m.flash != "! vault down" {
+		t.Errorf("arrived: loading %v flash %q", m.loading, m.flash)
+	}
+	// a new load replaces one still going
+	first := m.passwordCmd(pane)
+	m.passwordCmd(pane)
+	if msg := first().(passwordMsg); m.usePassword(msg) != nil || m.loading == nil {
+		t.Errorf("the replaced load ended the new one")
+	}
+	m.cancelLoad()
+	// a raw password: no sheet
+	pane.password = &SecretRef{Raw: "pw"}
+	if m.loading = nil; m.passwordCmd(pane) == nil || m.loading != nil {
+		t.Error("raw password loaded")
 	}
 }
 

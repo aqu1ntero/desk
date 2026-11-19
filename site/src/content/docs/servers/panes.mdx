@@ -222,6 +222,9 @@ prompt reads "Asks for deploy's password" with **Type server password**
 - It types the server's password from its `#@ password` (or `password-raw`) straight into the
   prompt: "sudo password sent".
 - With no prompt waiting, the same key copies the password instead: "server password copied".
+- While a `#@ password` comes from the vault, a "Loading password…" dialog holds the keyboard, so
+  an early <kbd>Enter</kbd> can't reach sudo before the password does. <kbd>Esc</kbd> or
+  **Cancel** stops it ("password load cancelled"); a `password-raw` one needs no wait.
 - With no password set for the server, the bar says so ("no #@ password for this server").
 
 ## Wake-on-LAN

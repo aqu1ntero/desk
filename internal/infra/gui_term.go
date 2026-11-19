@@ -465,7 +465,7 @@ func (u *ui) grid(gtx layout.Context, t *guiTab, i int, p guiPane, area image.Re
 			u.keyTerm = nil
 		}
 	}
-	if p.Focused && u.wantTerm && u.st.Approval == nil && u.st.Ask == "" && !u.pal {
+	if p.Focused && u.wantTerm && u.st.Approval == nil && u.st.Ask == "" && u.st.Loading == "" && !u.pal {
 		gtx.Execute(key.FocusCmd{Tag: v})
 		u.wantTerm = false
 	}
