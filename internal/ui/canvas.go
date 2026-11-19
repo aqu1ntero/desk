@@ -48,7 +48,7 @@ func (u *ui) canvasOn(c *kanban.Card) bool {
 	if on, ok := u.canvas[c.ID]; ok {
 		return on
 	}
-	return c.Agent != ""
+	return c.Agent != "" || c.Pilot != nil // an autopilot shows its cards there
 }
 
 // started is whether c's session has begun: before, the pane offers to start it.
@@ -234,6 +234,8 @@ func (u *ui) cvOpen(id, open string) {
 		u.open(id)
 	case "url":
 		openURL(arg)
+	case "card": // an autopilot's card: its own session
+		u.openSession(arg)
 	}
 }
 
