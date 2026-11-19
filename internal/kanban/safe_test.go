@@ -86,6 +86,19 @@ func TestSaveFull(t *testing.T) {
 	}
 }
 
+// TestSaveOntoFolder: a board path taken by a folder fails the save at the
+// rename, and leaves the folder as it was.
+func TestSaveOntoFolder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "board.json")
+	os.MkdirAll(filepath.Join(path, "inside"), 0o700)
+	if err := Default().Save(path); err == nil {
+		t.Error("a save over a folder")
+	}
+	if _, err := os.Stat(filepath.Join(path, "inside")); err != nil {
+		t.Errorf("the folder: %v", err)
+	}
+}
+
 // TestPrivate: the board, the chats and their folders are the user's alone,
 // new ones and those from before.
 func TestPrivate(t *testing.T) {
