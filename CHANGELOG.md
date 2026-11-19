@@ -14,6 +14,12 @@ day). A release's section here is its notes on GitHub. The format follows
   the "Loading password…" dialog. **Cancel** (C or Esc) stops the fetch, and a password that comes
   after never gets typed. A failed fetch stays with its error, and **Try again** (R).
 
+### Fixed
+
+- Claude no longer fails to start ("bwrap: Can't mkdir …" or "Can't mount on symlink destination")
+  when another organization's folder is a symlink, such as a synced folder kept elsewhere: its wall
+  now goes on the folder the link points at.
+
 ## [2026.11.19] - 2026-11-19
 
 ### Added

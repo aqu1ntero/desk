@@ -41,6 +41,15 @@ func Jail(cmd *exec.Cmd, home, dir string) *exec.Cmd {
 			keep = append(keep, d)
 		}
 	}
+	// real paths: bwrap can't mount on a symlink (an org folder linked
+	// elsewhere), and Seatbelt matches real paths (/var is /private/var)
+	for _, ps := range [][]string{hide, keep} {
+		for i, p := range ps {
+			if r, err := filepath.EvalSymlinks(p); err == nil {
+				ps[i] = r
+			}
+		}
+	}
 	slices.Sort(keep) // a folder around another first; each once
 	keep = slices.Compact(keep)
 	if seatbelt {
@@ -90,9 +99,6 @@ func sandboxed(cmd *exec.Cmd, hide, keep []string) *exec.Cmd {
 		var b strings.Builder
 		for _, p := range ps {
 			if isDir(p) {
-				if r, err := filepath.EvalSymlinks(p); err == nil { // Seatbelt matches real paths: /var is /private/var
-					p = r
-				}
 				b.WriteString(` (subpath "` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(p) + `")`)
 			}
 		}
