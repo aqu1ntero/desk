@@ -170,8 +170,22 @@ func TestGMFetchBox(t *testing.T) {
 	if _, ok := term.Fetch(); ok || !stopped || term.fetchLive(f) {
 		t.Fatalf("esc must stop the fetch and take the box away: box %t, stopped %t", ok, stopped)
 	}
-	stopped = false
+	term.fetchStart(func() { stopped = true }) // typed on the pane: the box's keys, never the prompt's
+	stopped = false                            // after: starting it stopped the last one
+	v := u.view(term)
+	h.draw(func(gtx layout.Context) { gtx.Execute(key.FocusCmd{Tag: v}); u.terminals(gtx) })
+	h.r.Queue(key.EditEvent{Text: "x"}, key.Event{Name: key.NameReturn, State: key.Press})
+	h.draw(draw)
+	if _, ok := term.Fetch(); !ok || stopped {
+		t.Fatalf("typing and Enter must leave the box up, the fetch going: box %t, stopped %t", ok, stopped)
+	}
+	h.r.Queue(key.Event{Name: key.NameEscape, State: key.Press})
+	h.draw(draw)
+	if _, ok := term.Fetch(); ok || !stopped {
+		t.Fatal("Esc on the pane cancels")
+	}
 	term.fetchStart(func() { stopped = true })
+	stopped = false
 	h.draw(draw)
 	u.click("pwC").Click() // the button does the same
 	h.draw(draw)
