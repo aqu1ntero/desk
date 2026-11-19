@@ -6,6 +6,8 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+## [2026.11.19] - 2026-11-19
+
 ### Added
 
 - **Autopilot for several tickets.** Check tickets in an organization's Tickets view and start an
@@ -562,7 +564,8 @@ can't open. If something breaks on either, please
 
 The first release: `.deb`, AppImage, and the AUR package `desk-kanban`.
 
-[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.17...HEAD
+[Unreleased]: https://github.com/lfdominguez/desk/compare/2026.11.19...HEAD
+[2026.11.19]: https://github.com/lfdominguez/desk/compare/2026.11.17...2026.11.19
 [2026.11.17]: https://github.com/lfdominguez/desk/compare/2026.11.16.5...2026.11.17
 [2026.11.16.5]: https://github.com/lfdominguez/desk/compare/2026.11.16.4...2026.11.16.5
 [2026.11.16.4]: https://github.com/lfdominguez/desk/compare/2026.11.16.3...2026.11.16.4
