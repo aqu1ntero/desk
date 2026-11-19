@@ -20,6 +20,7 @@ type coPlanet struct {
 	note  string // a line of what it does, handwritten
 	fam   int    // its pastel (coFams)
 	state string // "work", "you", "stuck", "done" or "" (idle)
+	up    string // the autopilot's planet running this card, "" none
 	x, y  float32
 }
 

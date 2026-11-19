@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"gioui.org/io/key"
 	"gioui.org/layout"
@@ -405,5 +406,111 @@ func TestExternal(t *testing.T) {
 		if external(line) != want {
 			t.Errorf("%q: %v", line, !want)
 		}
+	}
+}
+
+// apSessions gives card ids sessions, as if each had started.
+func apSessions(h *harness, ids ...string) {
+	for _, id := range ids {
+		h.u.b.Card(id).Session.ID = "s-" + id
+	}
+}
+
+// TestAutopilotSidebar: an autopilot's cards list right under it in Agent
+// Sessions; without its own row, they still list.
+func TestAutopilotSidebar(t *testing.T) {
+	h := newHarness(t)
+	other := h.u.b.Add(0, kanban.Card{Title: "other", Org: "Globex"}).ID
+	pid, kids := apStart(t, h, kanban.Pilot{Level: kanban.PilotAuto})
+	apSessions(h, other, pid, kids[0], kids[1])
+	rows := func() (out []string) {
+		for _, s := range h.u.sections() {
+			if s.title == "Agent Sessions" {
+				for _, it := range s.items {
+					out = append(out, strings.TrimPrefix(it.view, "sess:"))
+				}
+			}
+		}
+		return out
+	}
+	got := rows()
+	i := slices.Index(got, pid)
+	if i < 0 || len(got) != 4 || !slices.Equal(got[i+1:i+3], kids) {
+		t.Fatalf("rows %v, autopilot %s, cards %v", got, pid, kids)
+	}
+	h.frame() // drawn, its cards indented
+	h.u.b.Card(pid).Session.ID = ""
+	if got := rows(); len(got) != 3 || slices.Contains(got, pid) || !slices.Contains(got, kids[0]) || !slices.Contains(got, kids[1]) {
+		t.Errorf("without the autopilot's row: %v", got)
+	}
+}
+
+// TestAutopilotCanvas: an autopilot's canvas (its default) has a node per
+// card, wired from its session and into Done; a click opens that card.
+func TestAutopilotCanvas(t *testing.T) {
+	h := newHarness(t)
+	pid, kids := apStart(t, h, kanban.Pilot{Level: kanban.PilotAuto})
+	pc := h.u.b.Card(pid)
+	if !h.u.canvasOn(pc) {
+		t.Error("an autopilot opens on its canvas")
+	}
+	k0, k1 := h.u.b.Card(kids[0]), h.u.b.Card(kids[1])
+	k0.Status, k0.Note = kanban.StatusWorking, "Reading"
+	k1.Status = kanban.StatusReview
+	g := h.u.cardGraph(pc, time.Now())
+	for _, k := range kids {
+		n := g.node("kid:" + k)
+		if n == nil || n.open != "card:"+k || n.frame != "Autopilot" {
+			t.Fatalf("card %s: %+v", k, n)
+		}
+		if !slices.Contains(g.wires, cvWire{"main", "Cards", n.id, "Run"}) || !slices.Contains(g.wires, cvWire{n.id, "Finish", "done", "Cards"}) {
+			t.Errorf("wires %v", g.wires)
+		}
+	}
+	if n := g.node("kid:" + kids[0]); n.dim || !n.who.busy || n.who.status != "Reading" {
+		t.Errorf("a working card: %+v %+v", n, n.who)
+	}
+	if n := g.node("kid:" + kids[1]); !n.dim || n.who.status != "Review" {
+		t.Errorf("a card in review: %+v %+v", n, n.who)
+	}
+	if _, ok := g.node("main").row("Cards"); !ok {
+		t.Error("no Cards socket on the autopilot's session")
+	}
+	if h.u.cardGraph(k0, time.Now()).node("kid:"+kids[1]) != nil {
+		t.Error("a card's canvas shows its siblings")
+	}
+	h.u.cvOpen(pid, "card:"+kids[1])
+	if h.u.view != "sess:"+kids[1] {
+		t.Errorf("view %q", h.u.view)
+	}
+}
+
+// TestAutopilotCompany: in the sky an autopilot's cards follow it on the
+// outer ring, tethered to it; without it in the sky, they stand alone.
+func TestAutopilotCompany(t *testing.T) {
+	h := newHarness(t)
+	pid, kids := apStart(t, h, kanban.Pilot{Level: kanban.PilotAuto})
+	apSessions(h, pid, kids[0], kids[1])
+	h.u.view = viewCompany
+	h.frame() // the tethers drawn
+	_, ps, _ := h.u.coModel(time.Now())
+	i := slices.IndexFunc(ps, func(p coPlanet) bool { return p.id == "card:"+pid })
+	if i < 0 || i+2 >= len(ps) || ps[i].note != "autopilot · 2 cards" || ps[i].fam != 0 {
+		t.Fatalf("autopilot planet at %d of %+v", i, ps)
+	}
+	for j, k := range kids {
+		if p := ps[i+1+j]; p.id != "card:"+k || p.up != "card:"+pid {
+			t.Errorf("card %s: %+v", k, p)
+		}
+	}
+	h.u.b.Card(pid).Session.ID = ""
+	_, ps, _ = h.u.coModel(time.Now())
+	for _, p := range ps {
+		if p.id == "card:"+pid || p.ring == 2 && p.up != "" {
+			t.Errorf("without the autopilot: %+v", p)
+		}
+	}
+	if n := slices.IndexFunc(ps, func(p coPlanet) bool { return p.id == "card:"+kids[0] }); n < 0 {
+		t.Error("its card left the sky")
 	}
 }

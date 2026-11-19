@@ -26,6 +26,9 @@ From left to right:
   failed), its brief, its result once it's done, and its tools, tokens and time. An agent that ran
   several times shows "×N" and its latest run. Click it to open its conversation.
 - **Shells** hang off whoever ran them: the session or a subagent. Click one to see its output.
+- **An autopilot's cards**, in their own Autopilot frame: one node per card, with its title,
+  status and what it's doing, wired from the autopilot's session and into Done. Click one to open
+  its session.
 - **Pull requests and commits**, with their state, and their **CI**: each job and how it went.
   Click a pull request to open it, its CI to open the failed run (or the first).
 - **Other links** and the pages the session published.
@@ -88,7 +91,8 @@ that agent's conversation. **Hide handoffs** puts the list away.
 ## Canvas or Conversation
 
 **Canvas | Conversation** in the header switches between the canvas and the session's own
-conversation. A card that runs as an agent opens on its canvas, any other on its conversation;
+conversation. A card that runs as an agent, or an autopilot, opens on its canvas, any other on
+its conversation;
 desk keeps what you picked for each card until it quits. A question or a permission Claude asks
 shows over the message box either way.
 

@@ -199,7 +199,9 @@ tickets, CI, alerts and Globex's servers (with their infra Claude) are scripted:
 SSH, nothing of yours read or written.
 
 Everything is saved as you go: the board in `~/.local/share/desk/board.json`, conversations in
-`~/.local/share/desk/chats/<card>.jsonl`, settings in `~/.config/desk/settings.toml`.
+`~/.local/share/desk/chats/<card>.jsonl`, settings in `~/.config/desk/settings.toml`. The board is
+synced to disk on each save, with an earlier copy kept as `board.json.bak`; the folder is readable
+by you alone, and one desk at a time runs on it. What to back up, and how to restore it: [Backup](https://desk.domivega.com/reference/backup/).
 
 ## Guide
 

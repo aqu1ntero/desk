@@ -176,8 +176,28 @@ func (u *ui) cardGraph(c *kanban.Card, now time.Time) cvGraph {
 		}
 	}
 
-	// what it delivers: pull requests and commits with their CI, other links
+	// an autopilot's cards: it runs each, and each finishes into its Done
 	done := cvNode{id: "done", title: "Done", fam: famDesk, col: 4, rows: []cvRow{{name: "Finish", in: true}}}
+	if kids := u.pilotKids(c.ID); c.Pilot != nil && len(kids) > 0 {
+		sess.rows = append(sess.rows, cvRow{name: "Cards", out: true})
+		done.rows = append(done.rows, cvRow{name: "Cards", in: true})
+		for _, k := range kids {
+			kc := u.b.Card(k)
+			n := cvNode{id: "kid:" + k, title: "Card · " + kc.Key(), fam: famClaude, col: 2, band: 2, frame: "Autopilot", open: "card:" + k,
+				dim: kc.Status == kanban.StatusReview || kc.Status == kanban.StatusDone,
+				rows: []cvRow{{name: "Run", in: true}, {name: "title", value: kc.Title}}}
+			if s, ok := statusName[kc.Status]; ok {
+				n.rows = append(n.rows, cvRow{name: "status", value: s, tone: statusColor[kc.Status]})
+			}
+			n.rows = append(n.rows, cvRow{name: "Finish", out: true})
+			n.who = &cvWho{initials: fmt.Sprint(kc.Num), col: pastels[1], status: cmp.Or(kc.Note, statusName[kc.Status], "Not started"), busy: kc.Status == kanban.StatusWorking}
+			g.nodes = append(g.nodes, n)
+			wire("main", "Cards", n.id, "Run")
+			wire(n.id, "Finish", "done", "Cards")
+		}
+	}
+
+	// what it delivers: pull requests and commits with their CI, other links
 	wire("main", "Finish", "done", "Finish")
 	if len(prs) > 0 {
 		sess.rows = append(sess.rows, cvRow{name: "Diff", out: true, sock: sockDiff})

@@ -89,7 +89,7 @@ type cvNode struct {
 	col, band        int    // its column (left to right) and band (top to bottom)
 	frame            string // the frame it sits in, "" none
 	who              *cvWho
-	open             string // what a click does: "convo", "sub:<task>", "url:<url>", "ws", "edit"; "" nothing
+	open             string // what a click does: "convo", "sub:<task>", "url:<url>", "ws", "edit", "card:<id>"; "" nothing
 	dim              bool   // done: drawn quieter
 	tone             color.NRGBA
 	r                image.Rectangle

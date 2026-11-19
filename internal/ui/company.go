@@ -122,7 +122,9 @@ func (u *ui) coCardState(c kanban.Card) string {
 func (u *ui) coModel(now time.Time) ([]coSector, []coPlanet, []coLink) {
 	cards := u.coCards()
 	var orgList []string
+	sky := map[string]bool{} // the cards in it, by id
 	for _, c := range cards {
+		sky[c.ID] = true
 		if !slices.Contains(orgList, c.Org) {
 			orgList = append(orgList, c.Org)
 		}
@@ -158,9 +160,27 @@ func (u *ui) coModel(now time.Time) ([]coSector, []coPlanet, []coLink) {
 		if u.infraOrg(org) != nil {
 			ps = append(ps, coPlanet{id: "lead:" + org + ":infra", org: org, ring: 1, ini: "IN", label: "Infra lead", fam: 2})
 		}
+		kids := map[string][]kanban.Card{} // an autopilot's cards, next to it on the ring
+		under := func(c kanban.Card) bool { pl := u.pilotOf(&c); return pl != nil && sky[pl.ID] }
 		for _, c := range cards {
-			if c.Org == org {
-				ps = append(ps, coPlanet{id: "card:" + c.ID, org: org, ring: 2, ini: fmt.Sprint(c.Num), label: c.Key(), note: coShort(c.Title, 20), fam: 1, state: u.coCardState(c)})
+			if c.Org == org && under(c) {
+				kids[c.Parent] = append(kids[c.Parent], c)
+			}
+		}
+		card := func(c kanban.Card, up string) {
+			p := coPlanet{id: "card:" + c.ID, org: org, ring: 2, ini: fmt.Sprint(c.Num), label: c.Key(), note: coShort(c.Title, 20), fam: 1, state: u.coCardState(c), up: up}
+			if c.Pilot != nil {
+				p.fam, p.note = 0, fmt.Sprintf("autopilot · %s", plural(len(kids[c.ID]), "card", "cards"))
+			}
+			ps = append(ps, p)
+		}
+		for _, c := range cards {
+			if c.Org != org || under(c) {
+				continue
+			}
+			card(c, "")
+			for _, k := range kids[c.ID] {
+				card(k, "card:"+c.ID)
 			}
 		}
 	}
@@ -271,6 +291,15 @@ func (u *ui) companyView(gtx layout.Context) layout.Dimensions {
 	}
 	for _, rr := range radii {
 		coDotted(cg.Ops, rr)
+	}
+	at := map[string]int{} // planets by id, for the autopilots' tethers
+	for i, p := range ps {
+		at[p.id] = i
+	}
+	for _, p := range ps { // an autopilot's tether to each of its cards
+		if i, ok := at[p.up]; ok && p.up != "" {
+			coTether(cg.Ops, ps[i], p, coFams[ps[i].fam][1])
+		}
 	}
 	t := float32(gtx.Now.UnixMilli()%2400) / 2400
 	for i, l := range links {
@@ -449,6 +478,7 @@ func (u *ui) coPanel(gtx layout.Context, r image.Rectangle, ps []coPlanet) {
 		"Close to you: the executives.",
 		"Next ring: the department leads.",
 		"Outside: the cards' Claudes.",
+		"A dashed tether: an autopilot's cards.",
 		"A halo is busy; a sticker wants you.",
 		"Dots on the move: hand-offs.",
 	} {
@@ -495,6 +525,25 @@ func coDisc(ops *op.Ops, x, y, r float32, c color.NRGBA) {
 func coRing(ops *op.Ops, x, y, r, w float32, c color.NRGBA) {
 	b := image.Rect(int(x-r), int(y-r), int(x+r), int(y+r))
 	paint.FillShape(ops, c, clip.Stroke{Path: clip.Ellipse(b).Path(ops), Width: w}.Op())
+}
+
+// coTether dashes the line from autopilot a to its card b, outside the
+// ring so it stays clear of the hand-offs that cross the middle.
+func coTether(ops *op.Ops, a, b coPlanet, c color.NRGBA) {
+	const n = 16
+	c.A = 0xb0
+	pt := func(t float32) f32.Point { // bowed outwards, away from the sun
+		mx, my := (a.x+b.x)/2*1.12, (a.y+b.y)/2*1.12
+		v := 1 - t
+		return f32.Pt(v*v*a.x+2*v*t*mx+t*t*b.x, v*v*a.y+2*v*t*my+t*t*b.y)
+	}
+	for i := 0; i < n; i += 2 {
+		var p clip.Path
+		p.Begin(ops)
+		p.MoveTo(pt(float32(i) / n))
+		p.LineTo(pt(float32(i+1) / n))
+		paint.FillShape(ops, c, clip.Stroke{Path: p.End(), Width: 2}.Op())
+	}
 }
 
 // coChordLine strokes the hand-off from a to b.

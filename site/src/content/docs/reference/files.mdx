@@ -5,6 +5,8 @@ description: Where desk keeps the board, conversations, settings, infra state an
 
 desk follows the XDG folders. Below, `~/.local/share` is `$XDG_DATA_HOME`, `~/.config` is `$XDG_CONFIG_HOME`, `~/.local/state` is `$XDG_STATE_HOME` and `~/.cache` is `$XDG_CACHE_HOME`, when those are set. macOS and Windows use the same folders (not `~/Library`, not `%APPDATA%`); on Windows `~` is your profile folder, `%USERPROFILE%`.
 
+To keep a copy of it all, see [Backup](/reference/backup/).
+
 :::tip
 To try something without touching your real board, point `XDG_DATA_HOME` and `DESK_ROOT` at scratch folders. Or run [`desk demo`](/start/demo/), which puts all of the below in a temporary folder.
 :::
@@ -13,12 +15,18 @@ To try something without touching your real board, point `XDG_DATA_HOME` and `DE
 
 | Path | What's in it |
 |---|---|
-| `board.json` | The board: columns, cards, their links and session stats, the archive. Saved as you go, atomically (written to `board.json.tmp`, then renamed). A missing file starts a fresh board. |
+| `board.json` | The board: columns, cards, their links and session stats, the archive. Saved as you go, atomically (written to `board.json.tmp`, synced to disk, then renamed), so neither a crash nor a power cut leaves half a board. A missing file starts a fresh board. |
+| `board.json.bak` | An earlier board, at most about an hour older than the last save before it: kept so a spoiled board leaves the one from before. When `board.json` doesn't read, desk opens this one instead. To go back to it by hand, quit desk and copy it over `board.json`. |
+| `board.json.lock` | Held while desk runs, so only one desk at a time works on the board: a second one tells you desk is already running and quits. |
 | `chats/<card>.jsonl` | Each card's conversation, one message per line. |
 | `chats/ws-<card>.jsonl` | Its [workspace](/sessions/workspace/) Claude's conversation. |
 | `images/` | Images you pasted: a card's notes reference them as `![image](path)`, a message as `[Image n]`. |
 | `snoozed.json` | Snoozed alerts and until when. |
 | `crash.log` | If desk crashes, the trace goes here. desk runs detached, with no terminal to print it on. A window the display dropped is noted here too, with why, before desk opens it again. |
+
+The folder and everything in it are readable by you alone (folders `700`, files `600`): conversations
+hold commands, their output and servers' details. desk sets that on what was there before too, each
+time it starts.
 
 ## Settings: `~/.config/desk/`
 
