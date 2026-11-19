@@ -6,6 +6,18 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Autopilot for several tickets.** Check tickets in an organization's Tickets view and start an
+  autopilot: a card per ticket, run by one Claude that starts them (as many at once as you pick),
+  answers their questions and permission requests, and steers them, without doing their work.
+  Only what it can't decide reaches you, and only its card notifies you. At the Supervised level
+  it decides reading and local edits; at Autopilot, everything inside the cards' folders. Changes
+  outside them always ask you, unless you allowed them in the dialog in your own words. desk holds
+  it to that: it can allow a change outside only by quoting what you allowed. Its cards' tickets
+  move once you move it to Done. An optional budget for the whole group pauses every card past
+  it. The board's search finds its cards.
+
 ## [2026.11.17] - 2026-11-17
 
 ### Added

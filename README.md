@@ -37,6 +37,7 @@ Pull requests, tickets, CI, alerts and the org's servers sit next to the work. `
 | ✨ **Prompt optimization** | A new card's request is worked out by Haiku in the org's folder into a real brief: context, steps, acceptance criteria, labels, links and the skills to use. |
 | 🔗 **Live links** | GitHub, GitLab and Bitbucket PRs/MRs and Jira issues on each card, with their state and CI. Tickets follow their card's column. |
 | 🎫 **My tickets, CI, alerts** | Per org: tickets assigned to you, failing pipelines, and Nagios alerts. One click turns any of them into a card. |
+| 🛩️ **Autopilot** | Check several tickets and one Claude runs a card for each: it starts them, answers their questions and permissions, and brings you only what it can't decide. Changes outside the cards' folders always ask you, unless you allowed them. |
 | 🖥️ **Infra workspace** | Live SSH panes of the org's servers, from a plain OpenSSH config (or imported from Ásbrú), shared with an infrastructure Claude that asks before every change. |
 | 💬 **Rich conversation** | Markdown with highlighted code, diffs of every edit, explained shell commands, subagents and background shells, permission prompts and interviews inline. |
 | 🧑‍💻 **Full TUI too** | Any card opens in the real Claude Code TUI, inside desk, on the same session. |
@@ -220,7 +221,10 @@ Everything is saved as you go: the board in `~/.local/share/desk/board.json`, co
   many at once with one undo. The box in the toolbar archives every Done card.
 - **My tickets**: under each organization with a Jira, GitHub or GitLab account, **Tickets** lists
   the open issues assigned to you there, by project. Click one to open its card, or to make one
-  linked to it.
+  linked to it. Check several for an **autopilot**: a card each, run by one Claude (Supervised or
+  Autopilot level, how many at once, what it may change outside without asking, a budget for the
+  group) whose cards ask it
+  instead of you; its card lists them and is the only one that notifies.
 - **CI**: under each organization whose cards link pull or merge requests or commits, **CI** lists
   their GitHub Actions runs and GitLab pipelines; failed and running ones show their jobs. A PR or
   MR chip says its CI too ("approved — merge · CI failed" turns red).

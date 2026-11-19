@@ -712,6 +712,39 @@ func TestCardMCPA(t *testing.T) {
 		"mcp__desk__drawings,mcp__desk__drawing_read,mcp__desk__drawing_suggest,mcp__desk__suggest_to_card" {
 		t.Errorf("workspace: %s %v", cfg, allow)
 	}
+	cfg, allow = PilotMCP("/run/x.sock", "c7")
+	if !strings.Contains(cfg, `"pilot=c7"`) || strings.Join(allow, ",") != "mcp__desk__alerts,mcp__desk__tickets,mcp__desk__link,mcp__desk__ci,mcp__desk__ci_log,"+
+		"mcp__desk__pilot_cards,mcp__desk__pilot_tell,mcp__desk__pilot_answer,mcp__desk__pilot_add" {
+		t.Errorf("autopilot: %s %v", cfg, allow)
+	}
+}
+
+// TestPilotMCPA: an autopilot's server lists the pilot tools, not the card
+// tools that write, and calls as its card.
+func TestPilotMCPA(t *testing.T) {
+	noUnix(t)
+	sock := filepath.Join(runtimeA(t), "p.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		var tc toolCall
+		json.NewDecoder(c).Decode(&tc)
+		json.NewEncoder(c).Encode(toolResult{Text: tc.Card + "|" + tc.Name})
+	}()
+	in := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}` + "\n" + `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"pilot_cards","arguments":{}}}`
+	var out strings.Builder
+	mcpServe(sock, "pilot=c7", strings.NewReader(in), &out)
+	if s := out.String(); !strings.Contains(s, `"pilot_answer"`) || strings.Contains(s, `"add_project"`) || !strings.Contains(s, "c7|pilot_cards") {
+		t.Errorf("served: %s", s)
+	}
 }
 
 // TestWorkspaceMCPA: a workspace Claude's server lists its own tools and

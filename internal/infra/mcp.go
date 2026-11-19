@@ -332,6 +332,9 @@ func mcpServe(sock, groups string, r io.Reader, w io.Writer) {
 	if isCard {
 		tools = append(slices.Clone(cardTools), drawingTools...)
 	}
+	if id, ok := strings.CutPrefix(groups, "pilot="); ok { // an autopilot card's Claude: reads, and runs its cards
+		tools, card = append(slices.Clone(cardTools[:5]), pilotTools...), id
+	}
 	if id, ok := strings.CutPrefix(groups, "ws="); ok { // a card's workspace Claude: reads, and suggests to the card's
 		tools, card = workspaceTools, "ws:"+id
 	}
@@ -486,6 +489,45 @@ var workspaceTools = append(append(slices.Clone(cardTools[:5]), readDrawingTools
 		"text": map[string]any{"type": "string"}}, "required": []string{"text"}},
 })
 
+// pilotTools are an autopilot card's Claude's (`desk mcp <sock> pilot=<id>`),
+// beside the card tools that read: it runs its cards, never works itself.
+var pilotTools = []map[string]any{
+	{
+		"name": "pilot_cards",
+		"description": "The cards you run: key, title, status and its note, whether it waits on you (an open question or permission " +
+			"request), its links, its last message, and how many may work at once.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+		"annotations": map[string]any{"readOnlyHint": true},
+	},
+	{
+		"name": "pilot_tell",
+		"description": "Send one of your cards a message: its first one starts it (refused while as many as allowed already work), " +
+			"later ones steer it. Its Claude reads it as from you, the autopilot.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"card": map[string]any{"type": "string", "description": "Its key, DESK-n."},
+			"text": map[string]any{"type": "string"}}, "required": []string{"card", "text"}},
+	},
+	{
+		"name": "pilot_answer",
+		"description": "Answer a card's open request. A permission request: allow true runs it, false refuses it with message as why, " +
+			"user true leaves it to the user. A question: message is the answer. Allowing what changes anything outside the cards' " +
+			"own folders needs grant, the user's own words that allow it; without them it goes to the user.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"card":    map[string]any{"type": "string"},
+			"allow":   map[string]any{"type": "boolean"},
+			"user":    map[string]any{"type": "boolean"},
+			"grant":   map[string]any{"type": "string"},
+			"message": map[string]any{"type": "string"}}, "required": []string{"card"}},
+	},
+	{
+		"name":        "pilot_add",
+		"description": "Add a card to those you run, for work you found along the way (a card only: no ticket). It starts when you tell it.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"title": map[string]any{"type": "string"},
+			"notes": map[string]any{"type": "string"}}, "required": []string{"title"}},
+	},
+}
+
 // ServeCards answers the card sessions' tool calls with handle (card is
 // the card's id; ok false: an error), on a socket of desk's; the socket's
 // path. Calls run on their own goroutines.
@@ -527,6 +569,12 @@ func ServeCards(handle func(card, name string, args json.RawMessage) (text strin
 // they only read. "" without a socket.
 func CardMCP(sock, id string) (string, []string) {
 	return toolsMCP(sock, "card="+id, append(slices.Clone(cardTools), drawingTools...))
+}
+
+// PilotMCP is CardMCP for autopilot card id's session: the card tools that
+// read, and the pilot tools.
+func PilotMCP(sock, id string) (string, []string) {
+	return toolsMCP(sock, "pilot="+id, append(slices.Clone(cardTools[:5]), pilotTools...))
 }
 
 // WorkspaceMCP is CardMCP for card id's workspace Claude.
