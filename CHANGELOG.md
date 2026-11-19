@@ -22,6 +22,13 @@ day). A release's section here is its notes on GitHub. The format follows
 
 - Typing or copying a server's password from a vault shows "Loading password…" until it arrives,
   with Cancel (Esc). On a slow vault, Enter at sudo's prompt no longer goes before the password.
+- When the infra Claude exits with an error, its chat says why (what Claude Code printed), not
+  only the exit status.
+
+### Fixed
+
+- desk no longer crashes when a program in a terminal asks for a scroll region taller than the
+  pane.
 
 ## [2026.11.17] - 2026-11-17
 

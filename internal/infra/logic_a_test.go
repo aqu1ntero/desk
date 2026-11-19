@@ -276,6 +276,7 @@ not json
 {"type":"result","is_error":true,"result":"boom","permission_denials":[{"tool_name":"mcp__desk__run","tool_input":{"command":"rm x"}}],"modelUsage":{"a":{"contextWindow":200000},"b":{"contextWindow":1000000}}}
 {"type":"result","is_error":true,"result":""}
 EOF
+echo 'Error: no login' >&2
 exit 3
 `)
 	dbg := filepath.Join(t.TempDir(), "raw.jsonl")
@@ -322,7 +323,7 @@ done:
 	if !got[8].done || got[8].err != nil || got[8].window != 0 {
 		t.Errorf("an interrupted turn has no error: %+v", got[8])
 	}
-	if got[9].exited != c || !got[9].done || got[9].err == nil || got[9].err.Error() != "claude exited: exit status 3" {
+	if got[9].exited != c || !got[9].done || got[9].err == nil || got[9].err.Error() != "claude exited: exit status 3: Error: no login" { // its stderr says why
 		t.Errorf("exit: %+v", got[9])
 	}
 	b, _ := os.ReadFile(args)

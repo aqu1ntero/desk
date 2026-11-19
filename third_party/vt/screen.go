@@ -173,7 +173,7 @@ func (s *Screen) setHorizontalMargins(left, right int) {
 // setVerticalMargins sets the vertical margins.
 func (s *Screen) setVerticalMargins(top, bottom int) {
 	s.scroll.Min.Y = top
-	s.scroll.Max.Y = bottom
+	s.scroll.Max.Y = min(bottom, s.buf.Height()) // desk patch: xterm clamps the bottom margin to the screen; a TUI sized for a taller one asks past it
 }
 
 // setCursorX sets the cursor X position. If margins is true, the cursor is

@@ -104,7 +104,7 @@ func Optimize(ctx context.Context, a Ask, on func(Progress)) (Draft, error) {
 	c = Jail(c, a.Home, a.Dir)
 	cmd := exec.CommandContext(ctx, c.Path, c.Args[1:]...)
 	cmd.Dir, cmd.Env = a.Dir, append(c.Env, a.Env...) // Command's environment: the profile's, without a parent Claude Code's markers
-	var stderr tail
+	var stderr Tail
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

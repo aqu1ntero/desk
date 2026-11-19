@@ -58,7 +58,7 @@ func TestParseEdges(t *testing.T) {
 
 // TestTail: stderr keeps only its last 2KB.
 func TestTail(t *testing.T) {
-	var s tail
+	var s Tail
 	s.Write([]byte("short"))
 	if s.String() != "short" {
 		t.Fatalf("%q", s.String())

@@ -369,3 +369,16 @@ func TestScrollbackWrapMarks(t *testing.T) {
 		t.Errorf("no history: rows %q cursor %v", rows, cur)
 	}
 }
+
+// TestMarginsPastBottom: a scroll region asked past the screen's bottom (a
+// TUI sized for a taller one) ends at it, as xterm's; deleting and
+// inserting lines in it once panicked on the wrap marks.
+func TestMarginsPastBottom(t *testing.T) {
+	e := newEm(5, 3, "\x1b[1;35r\x1b[2;1Ha\x1b[Mb\x1b[Lc")
+	if got := e.scr.ScrollRegion().Max.Y; got != 3 {
+		t.Errorf("bottom margin %d", got)
+	}
+	if rows, _ := shown(e); !eq(rows, []string{"", "c", "b"}) {
+		t.Errorf("rows %q", rows)
+	}
+}
