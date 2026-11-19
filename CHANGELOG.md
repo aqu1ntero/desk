@@ -6,6 +6,23 @@ day). A release's section here is its notes on GitHub. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Only one desk runs on a board at a time: a second one says desk is already running and quits,
+  instead of each saving its own copy of the board over the other's.
+
+### Fixed
+
+- A power cut while saving can no longer leave the board empty: it is synced to disk before it
+  replaces the old one. desk also keeps an earlier copy, `board.json.bak` (at most about an hour
+  older), and opens it when `board.json` doesn't read.
+
+### Security
+
+- desk's data folder (`~/.local/share/desk`: the board, conversations, pasted images) is readable
+  by you alone. It was readable by every user of the machine, and conversations hold commands,
+  their output and servers' details. Existing files are fixed when desk starts.
+
 ## [2026.11.19.1] - 2026-11-19
 
 ### Changed

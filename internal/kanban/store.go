@@ -21,7 +21,9 @@ func Path() string {
 	return filepath.Join(dir, "desk", "board.json")
 }
 
-// Load reads the board at path; a missing file is a fresh default board.
+// Load reads the board at path; a missing file is a fresh default board. A
+// board that doesn't read (cut short by a power loss) gives way to the one
+// Save kept before it (BackupPath).
 func Load(path string) (*Board, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -32,10 +34,43 @@ func Load(path string) (*Board, error) {
 	}
 	b := &Board{}
 	if err := json.Unmarshal(data, b); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		bak, berr := os.ReadFile(BackupPath(path))
+		if b = (&Board{}); berr != nil || json.Unmarshal(bak, b) != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
 	}
 	b.migrate()
 	return b, nil
+}
+
+// BackupPath is an earlier board, kept by Save.
+func BackupPath(path string) string { return path + ".bak" }
+
+// backupEvery is how old the backup gets before Save keeps a newer one: a
+// bug or a slip that spoils the board leaves the one from before it, not
+// the one saved half a second earlier.
+const backupEvery = time.Hour
+
+// backupDue says whether Save keeps the board it replaces as backup bak.
+func backupDue(bak string, now time.Time) bool {
+	fi, err := os.Stat(bak)
+	return err != nil || now.Sub(fi.ModTime()) >= backupEvery
+}
+
+// Private makes desk's data folder dir (the board's) and everything in it
+// readable by the user alone: chats hold commands, their output and servers'
+// details. Boards from before it were made world-readable.
+func Private(dir string) {
+	filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+		case d.IsDir():
+			os.Chmod(p, 0o700)
+		case d.Type().IsRegular():
+			os.Chmod(p, 0o600)
+		}
+		return nil
+	})
 }
 
 // ChatMsg is one entry of a card's conversation.
@@ -65,10 +100,10 @@ func ChatPath(boardPath, id string) string {
 
 // AppendChat adds m to the conversation file at path.
 func AppendChat(path string, m ChatMsg) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -92,19 +127,37 @@ func LoadChat(path string) []ChatMsg {
 	return out
 }
 
-// Save writes the board through a temp file and a rename, so a crash
-// mid-write never leaves half a board.
+// Save writes the board through a temp file synced to disk and a rename, so
+// neither a crash nor a power loss mid-write leaves half a board; the board
+// it replaces stays as BackupPath, a link to the same file, for Load.
 func (b *Board) Save(path string) error {
 	data, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	_, werr := f.Write(data)
+	if err := errors.Join(werr, f.Sync(), f.Close()); err != nil {
+		return err
+	}
+	if bak := BackupPath(path); backupDue(bak, time.Now()) {
+		os.Remove(bak)
+		os.Link(path, bak) // none yet, or a filesystem without links: no backup this time
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	if d, err := os.Open(dir); err == nil { // the rename itself to disk; Windows can't sync a folder
+		d.Sync()
+		d.Close()
+	}
+	return nil
 }

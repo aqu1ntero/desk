@@ -125,6 +125,13 @@ the button, the server offers nothing desk has (DSA host keys only, for one).
 
 `desk peer` talks to a running desk through its socket in `$XDG_RUNTIME_DIR/desk/peer/` (`~/.cache/desk/run/peer/` on macOS and Windows). If it says `desk is not running. Ask the user to start desk, then try again.`, start desk. A session running with a different `XDG_RUNTIME_DIR` (another user, a container) can't reach it.
 
+## "desk is already running"
+
+Only one desk at a time works on a board: two would each save their own copy over the other's. A
+second desk shows this notification and quits; switch to the window that's open. If no desk is
+running, the lock went with it (the system lets go of it when a process ends, a crash too), so
+start it again.
+
 ## desk crashed
 
 desk runs detached, with no terminal to print to. A crash's trace goes to `~/.local/share/desk/crash.log`. Include it when you [report the bug](https://github.com/lfdominguez/desk/issues).
