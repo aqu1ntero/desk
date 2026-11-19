@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -230,6 +231,8 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 	if err != nil {
 		return fail(err)
 	}
+	var stderr claude.Tail // why it exited, when it says so
+	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
 		return fail(err)
 	}
@@ -318,7 +321,11 @@ func StartClaude(dir, host string, send func(claudeMsg), tab *Tab) (*Claude, err
 		}
 		err := cmd.Wait()
 		ln.Close()
-		send(claudeMsg{tab: tab, err: fmt.Errorf("claude exited: %v", err), done: true, exited: c})
+		why := fmt.Sprintf("claude exited: %v", err)
+		if s := strings.TrimSpace(stderr.String()); s != "" {
+			why += ": " + s
+		}
+		send(claudeMsg{tab: tab, err: errors.New(why), done: true, exited: c})
 	}()
 	return c, nil
 }

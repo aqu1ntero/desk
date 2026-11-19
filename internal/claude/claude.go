@@ -399,7 +399,7 @@ func Start(o Options, on func(Event)) (*Proc, error) {
 	if err != nil {
 		return nil, err
 	}
-	var stderr tail
+	var stderr Tail
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
 		return nil, err
@@ -489,13 +489,13 @@ func (p *Proc) Close() {
 	p.cmd.Process.Kill()
 }
 
-// tail keeps the last 2KB written to it: the end of Claude's stderr.
-type tail struct {
+// Tail keeps the last 2KB written to it: the end of Claude's stderr.
+type Tail struct {
 	mu  sync.Mutex
 	buf []byte
 }
 
-func (t *tail) Write(b []byte) (int, error) {
+func (t *Tail) Write(b []byte) (int, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.buf = append(t.buf, b...)
@@ -505,7 +505,7 @@ func (t *tail) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (t *tail) String() string {
+func (t *Tail) String() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return string(bytes.TrimSpace(t.buf))
