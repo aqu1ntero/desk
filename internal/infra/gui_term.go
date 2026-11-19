@@ -37,6 +37,8 @@ type termView struct {
 	cols, rows int
 	sel        [2]image.Point // cell (col,row) in the view; equal = no selection
 	link       linkSpan       // the URL under the pointer while Ctrl is held (termlinks.go)
+	hover      image.Point    // the cell under the pointer, while hovering: Ctrl pressed there finds its URL
+	hovering   bool
 	selecting  bool
 	clicks     clicks
 	runs       [][]Run // last drawn, for copying
@@ -675,9 +677,11 @@ func (u *ui) grid(gtx layout.Context, t *guiTab, i int, p guiPane, area image.Re
 		v.recorded++
 	}
 	v.cellCall.Add(gtx.Ops)
-	if l := v.link; l.url != "" && l.row < len(runs) { // Ctrl over a URL: underlined, it opens on a click
-		y := at(l.row) + rowH - gtx.Dp(3)
-		paint.FillShape(gtx.Ops, cAcc, clip.Rect(image.Rect(inner.Min.X+l.lo*cw, y, inner.Min.X+l.hi*cw, y+max(1, gtx.Dp(1)))).Op())
+	for _, s := range v.link.rows(v.cols) { // Ctrl over a URL: underlined, each row it's wrapped onto; it opens on a click
+		if s[0] < len(runs) {
+			y := at(s[0]) + rowH - gtx.Dp(3)
+			paint.FillShape(gtx.Ops, cAcc, clip.Rect(image.Rect(inner.Min.X+s[1]*cw, y, inner.Min.X+s[2]*cw, y+max(1, gtx.Dp(1)))).Op())
+		}
 	}
 	if cursor && cy < len(runs) {
 		x, top := inner.Min.X+cx*cw, at(cy)+(rowH-chh)/2
@@ -835,6 +839,13 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 				}
 			}
 		case key.Event:
+			if ev.Name == key.NameCtrl { // Ctrl alone over a URL underlines it, as moving with it held does
+				v.link = linkSpan{}
+				if ev.State == key.Press && v.hovering {
+					v.link = v.linkAt(v.hover.X, v.hover.Y)
+				}
+				continue
+			}
 			if u.shortcut(ev) {
 				continue
 			}
@@ -869,26 +880,30 @@ func (u *ui) termEvents(gtx layout.Context, t *guiTab, i int, p guiPane, v *term
 		case pointer.Event:
 			switch ev.Kind {
 			case pointer.Move, pointer.Leave:
-				v.link = linkSpan{}
-				if ev.Kind == pointer.Move && ev.Modifiers.Contain(key.ModCtrl) {
-					c := cell(ev.Position.Round())
-					if lo, hi, url := urlAt(v.line(c.Y), (ev.Position.Round().X-inner.Min.X)/cw); url != "" {
-						v.link = linkSpan{c.Y, lo, hi, url}
-					}
+				v.link, v.hovering = linkSpan{}, ev.Kind == pointer.Move
+				v.hover = image.Pt((ev.Position.Round().X-inner.Min.X)/cw, cell(ev.Position.Round()).Y)
+				if v.hovering && ev.Modifiers.Contain(key.ModCtrl) {
+					v.link = v.linkAt(v.hover.X, v.hover.Y)
 				}
 			case pointer.Press:
 				gtx.Execute(key.FocusCmd{Tag: v})
 				if !p.Focused {
 					u.d.focusPane(i)
 				}
-				if ev.Buttons.Contain(pointer.ButtonTertiary) { // a middle click pastes, as X terminals do (a selection is already copied)
-					gtx.Execute(clipboard.ReadCmd{Tag: v})
+				if ev.Buttons.Contain(pointer.ButtonTertiary) { // a middle click pastes the primary selection, as X terminals do
+					terms := typingTo(t, p)
+					go func() { // reading it asks its owner: off the frame
+						if s := readPrimary(); s != "" {
+							for _, term := range terms {
+								term.Paste(s)
+							}
+						}
+					}()
 					continue
 				}
 				if ev.Modifiers.Contain(key.ModCtrl) {
-					c := cell(ev.Position.Round())
-					if _, _, url := urlAt(v.line(c.Y), (ev.Position.Round().X-inner.Min.X)/cw); url != "" {
-						openLocal(url) //nolint:errcheck // the desktop says when it can't
+					if l := v.linkAt((ev.Position.Round().X-inner.Min.X)/cw, cell(ev.Position.Round()).Y); l.url != "" {
+						openLocal(l.url) //nolint:errcheck // the desktop says when it can't
 						continue
 					}
 				}

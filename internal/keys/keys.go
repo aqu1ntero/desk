@@ -188,9 +188,9 @@ func Load(m map[string]string) error {
 
 // Check is the rule every shortcut keeps: a modifier comes with Ctrl or
 // Alt (⌘ counts as Ctrl), since Shift alone types: Shift+2 is "@" on many
-// layouts; and with arrows, Home, Tab… it selects or moves in a text field.
-// Shift alone does go with a key that neither types nor edits (shiftOK:
-// Shift+Insert, a terminal's paste). A bare printable key only runs a binding
+// layouts; and with arrows, Home, PgUp, Tab… it selects or moves in a text
+// field. Shift alone does go with Insert, which neither types nor edits
+// (shiftOK: Shift+Insert, a terminal's paste). A bare printable key only runs a binding
 // that fires outside text fields (Bare).
 func Check(b *Binding, c Chord) error {
 	if c.Name == "" || modName(c.Name) {
@@ -225,10 +225,9 @@ func printable(n key.Name) bool {
 }
 
 // shiftOK is a key Shift alone may go with: one that neither types nor
-// moves or edits in a text field.
-func shiftOK(n key.Name) bool {
-	return n == key.NameInsert || n == key.NamePageUp || n == key.NamePageDown
-}
+// moves or edits in a text field. Not PgUp/PgDn: Shift with them selects a
+// page there (a pane pages its scrollback with them itself: infra's pageKey).
+func shiftOK(n key.Name) bool { return n == key.NameInsert }
 
 // named is one of Gio's names for a key that doesn't type.
 func named(n key.Name) bool {

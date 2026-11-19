@@ -61,6 +61,38 @@ func TestPageKey(t *testing.T) {
 	}
 }
 
+// TestLinkWrapped: a URL the terminal wrapped over rows is found from any
+// of them, whole, and underlined row by row; a row that ends with a newline
+// ends it.
+func TestLinkWrapped(t *testing.T) {
+	v := &termView{cols: 10}
+	for _, s := range []string{"go https:/", "/example.c", "om/a. done", "https://b"} {
+		v.runs = append(v.runs, []Run{{Text: s}})
+	}
+	v.meta = []Row{{Wrap: true}, {Wrap: true}, {}, {}}
+	for _, at := range [][2]int{{5, 0}, {0, 1}, {1, 2}} {
+		l := v.linkAt(at[0], at[1])
+		if l.url != "https://example.com/a" || l.row != 0 || l.lo != 3 || l.hi != 24 {
+			t.Errorf("at %v: %+v", at, l)
+		}
+		if got := l.rows(v.cols); fmt.Sprint(got) != "[[0 3 10] [1 0 10] [2 0 4]]" {
+			t.Errorf("rows %v", got)
+		}
+	}
+	for _, at := range [][2]int{{1, 0}, {7, 2}, {0, 9}, {0, -1}} {
+		if l := v.linkAt(at[0], at[1]); l.url != "" {
+			t.Errorf("at %v: %+v", at, l)
+		}
+	}
+	if l := v.linkAt(2, 3); l.url != "https://b" || l.row != 3 {
+		t.Errorf("an unwrapped row: %+v", l)
+	}
+	v.runs[0] = []Run{{Text: "go"}} // a wrapped row's blanks count as cells: the line's next starts at its end
+	if l := v.linkAt(0, 1); l.url != "" || (linkSpan{hi: 5}).rows(0) != nil {
+		t.Errorf("blanks: %+v", l)
+	}
+}
+
 // TestGMTermConsoleKeys: what Konsole and Kitty do with the keys and the
 // mouse: Shift+PgUp/PgDn page through the scrollback (not in a full-screen
 // program), Shift+Insert pastes and Ctrl+Insert copies, a middle click
@@ -164,13 +196,26 @@ func TestGMTermConsoleKeys(t *testing.T) {
 		t.Fatal("Ctrl over the row never found the URL")
 	}
 
-	// a middle click pastes, and selects nothing
+	// a middle click pastes the primary selection, and selects nothing; what
+	// a drag selects becomes the primary selection
+	var owned string
+	setPrimary, readPrimary = func(s string) { owned = s }, func() string { return "middle" }
+	t.Cleanup(func() { setPrimary, readPrimary = func(string) {}, func() string { return "" } })
+	v.sel = [2]image.Point{}
 	h.r.Queue(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonTertiary, Position: f32.Pt(inX, y)})
 	h.r.Queue(pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: f32.Pt(inX, y)})
 	h.draw(w)
-	h.r.Queue(transfer.DataEvent{Type: "application/text", Open: func() io.ReadCloser { return io.NopCloser(strings.NewReader("middle")) }})
-	h.draw(w)
 	ss[0].wait(t, "middle")
+	if v.sel[0] != v.sel[1] {
+		t.Error("a middle click selected")
+	}
+	h.r.Queue(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(inX, y)},
+		pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(inX+40, y)}, // a drag
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: f32.Pt(inX+40, y)})
+	h.draw(w)
+	if owned == "" || !strings.Contains("https://example.com/runbook", owned) {
+		t.Errorf("a drag's text isn't the primary selection: %q", owned)
+	}
 
 	// Ctrl over the URL: underlined; without Ctrl: not
 	h.r.Queue(pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Position: f32.Pt(inX, y), Modifiers: key.ModCtrl})
@@ -182,6 +227,16 @@ func TestGMTermConsoleKeys(t *testing.T) {
 	h.draw(w)
 	if v.link.url != "" {
 		t.Error("no Ctrl, no link")
+	}
+	h.r.Queue(key.Event{Name: key.NameCtrl, State: key.Press}) // Ctrl pressed where the pointer rests: underlined, released: not
+	h.draw(w)
+	if v.link.url != "https://example.com/runbook" {
+		t.Errorf("Ctrl pressed over it: %+v", v.link)
+	}
+	h.r.Queue(key.Event{Name: key.NameCtrl, State: key.Release})
+	h.draw(w)
+	if v.link.url != "" {
+		t.Errorf("Ctrl released: %+v", v.link)
 	}
 	// a plain click on it selects, as before
 	h.press(inX, y, 0)
@@ -203,6 +258,26 @@ func TestGMTermConsoleKeys(t *testing.T) {
 	h.draw(w)
 	if len(opened) != 1 {
 		t.Error("no URL there")
+	}
+	// a URL the terminal wrapped opens whole from its second row
+	long := "https://example.com/" + strings.Repeat("a", 2*v.cols)
+	gmOut(ts[0], "\r\n"+long+"\r\n$ ")
+	h.draw(w)
+	row = -1
+	for k := range v.runs {
+		if strings.HasPrefix(string(v.line(k)), "aaaa") && k > 0 && v.meta[k-1].Wrap {
+			row = k
+			break
+		}
+	}
+	if row < 0 {
+		t.Fatal("no wrapped row of the long URL")
+	}
+	h.press(inX, float32(v.rowY[row]+4), key.ModCtrl)
+	h.release(inX, float32(v.rowY[row]+4))
+	h.draw(w)
+	if len(opened) != 2 || opened[1] != long {
+		t.Errorf("wrapped: opened %q", opened)
 	}
 
 	// a full-screen program keeps Shift+PgUp

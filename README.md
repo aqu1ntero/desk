@@ -592,7 +592,7 @@ every key, Esc included, for Claude Code, except the text size's. A drawing has 
 (tool letters and digits, Ctrl+C/X/V, Ctrl+G, Ctrl+D…): see the docs' Keys page.
 
 Every key with a modifier has Ctrl or Alt in it (⌘ on macOS): Shift alone types (Shift+2 is `@` on
-many layouts), except with Insert, Page Up and Page Down, which don't (a terminal's Shift+Insert
+many layouts), except with Insert, which neither types nor edits (a terminal's Shift+Insert
 pastes). These are the defaults; what you change is kept in `settings.toml` under `[keys]`
 and the buttons show it.
 

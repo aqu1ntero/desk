@@ -9,8 +9,11 @@ day). A release's section here is its notes on GitHub. The format follows
 ### Added
 
 - **Server panes act like Konsole or Kitty**: Shift+Page Up/Down page through the scrollback,
-  Shift+Insert pastes and Ctrl+Insert copies, a middle click pastes, and Ctrl+click opens a URL
-  (underlined while Ctrl is held over it).
+  Shift+Insert pastes and Ctrl+Insert copies, and Ctrl+click opens a URL (underlined while Ctrl
+  is held over it), whole even when the terminal wrapped it over several rows.
+- **The primary selection, as in X terminals**: what you select in a pane can be pasted with a
+  middle click in any window, and a middle click in a pane pastes the text last selected with the
+  mouse anywhere. On macOS, Windows and GNOME, it pastes what you last selected in desk.
 
 ### Fixed
 

@@ -257,12 +257,10 @@ func TestGetUnknown(t *testing.T) {
 // (Shift+Insert, a terminal's paste), not with one that does.
 func TestShiftAlone(t *testing.T) {
 	b := &Binding{ID: "x"}
-	for _, n := range []key.Name{key.NameInsert, key.NamePageUp, key.NamePageDown} {
-		if err := Check(b, Chord{n, key.ModShift}); err != nil {
-			t.Errorf("Shift+%s: %v", n, err)
-		}
+	if err := Check(b, Chord{key.NameInsert, key.ModShift}); err != nil {
+		t.Errorf("Shift+Insert: %v", err)
 	}
-	for _, n := range []key.Name{"A", "2", key.NameTab, key.NameLeftArrow, key.NameHome, key.NameDeleteForward} {
+	for _, n := range []key.Name{"A", "2", key.NameTab, key.NameLeftArrow, key.NameHome, key.NameDeleteForward, key.NamePageUp, key.NamePageDown} {
 		if err := Check(b, Chord{n, key.ModShift}); err == nil {
 			t.Errorf("Shift+%s must need Ctrl or Alt", n)
 		}

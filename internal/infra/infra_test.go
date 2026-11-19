@@ -1463,6 +1463,8 @@ func TestMain(m *testing.M) {
 		os.Exit(255)
 	}
 	desktopNotify = func(string, string) {} // tests never reach the desktop
+	// nor take or read its selection
+	setPrimary, readPrimary = func(string) {}, func() string { return "" }
 	state, _ := testtmp.Dir("desk-test-state")
 	os.Setenv("XDG_STATE_HOME", state)  // nor the user's state: recordings, audit, session
 	os.Setenv("XDG_CONFIG_HOME", state) // nor desk's settings: the folders to search

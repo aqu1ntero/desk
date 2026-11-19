@@ -117,6 +117,7 @@ type Row struct {
 	Running bool // inside the command still running
 	Typed   bool // prompt line holding a command Claude wrote
 	PX      int  // on a block's first line: where the command starts (Grid only)
+	Wrap    bool // the terminal wrapped it onto the next row (autowrap; Grid only)
 }
 
 // shellIntegration makes bash, zsh and fish emit OSC 133 marks: B after the
@@ -787,6 +788,7 @@ func (t *Term) Grid(scroll int) (runs [][]Run, rows []Row, cx, cy int, cursor bo
 	runs, rows = make([][]Run, h), make([]Row, h)
 	for i := range h {
 		abs := top + i
+		rows[i].Wrap = t.wrapped(abs, sb)
 		if !alt {
 			r := &rows[i]
 			r.Running = t.c != nil && abs >= t.b.line
