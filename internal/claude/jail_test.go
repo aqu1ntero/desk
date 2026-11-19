@@ -144,4 +144,15 @@ func TestJailHides(t *testing.T) {
 	if got := strings.Fields(string(out)); !slices.Equal(got, []string{"keep", "mine", "2"}) {
 		t.Errorf("inside: %q", got)
 	}
+	// an organization's folder linked from elsewhere: bwrap can't mount on
+	// the link, so the wall goes on what it points at
+	link := filepath.Join(t.TempDir(), "Globex")
+	if err := os.Symlink(walls, link); err != nil {
+		t.Skip("no symlinks here:", err)
+	}
+	confine(t, func(string) (hide, keep []string) { return []string{link}, []string{filepath.Join(link, "keep")} })
+	out, err = Jail(exec.Command("sh", "-c", "ls -A "+link+"/"), t.TempDir(), t.TempDir()).CombinedOutput()
+	if got := strings.Fields(string(out)); err != nil || !slices.Equal(got, []string{"keep"}) {
+		t.Errorf("through a link: %v %q", err, out)
+	}
 }
