@@ -440,7 +440,7 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 	}
 	if c, ok := specialKeys[e.Name]; ok {
 		k.Code = c
-		if c != uv.KeyTab && c != uv.KeyEnter { // shift+tab, and shift+enter (Claude Code's newline)
+		if c == uv.KeyBackspace || c == uv.KeyEscape || c == uv.KeySpace { // shift+enter stays: Claude Code's newline
 			k.Mod &^= uv.ModShift
 		}
 		return k, true

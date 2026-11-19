@@ -1163,7 +1163,7 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 	}
 	if c, ok := specialKeys[e.Name]; ok {
 		k.Code = c
-		if c != uv.KeyTab {
+		if !keepsShift(c) {
 			k.Mod &^= uv.ModShift
 		}
 		return k, true
@@ -1180,6 +1180,17 @@ func termKey(e key.Event) (uv.KeyPressEvent, bool) {
 		k.Text = string(r[0])
 	}
 	return k, true
+}
+
+// keepsShift says Shift+c means something of its own to a terminal: shift+tab,
+// and the cursor, editing and function keys xterm sends with a modifier
+// (Shift+↑ = CSI 1;2A); Enter, Backspace, Esc and Space drop it.
+func keepsShift(c rune) bool {
+	switch c {
+	case uv.KeyEnter, uv.KeyBackspace, uv.KeyEscape, uv.KeySpace:
+		return false
+	}
+	return true
 }
 
 var specialKeys = map[key.Name]rune{
