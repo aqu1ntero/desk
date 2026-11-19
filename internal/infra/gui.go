@@ -1,7 +1,6 @@
 package infra
 
 import (
-	"cmp"
 	"fmt"
 	"image"
 	"reflect"
@@ -239,7 +238,6 @@ type guiState struct {
 	Approval   *guiApproval
 	Ask        string // title of the question waiting for the user
 	AskMasked  bool
-	Loading    string // the host whose password a vault is fetching, "" when none
 	Pal        []guiPal
 	PalOpen    bool // Pal is loaded for the open palette
 	Flash, Err string
@@ -305,9 +303,6 @@ func (d *driver) snapshot(m *model) *guiState {
 	}
 	if len(m.asks) > 0 {
 		s.Ask, s.AskMasked = m.asks[0].title, m.asks[0].masked
-	}
-	if m.loading != nil {
-		s.Loading = cmp.Or(m.loading.host, "this server")
 	}
 	if d.palOpen {
 		s.PalOpen = true

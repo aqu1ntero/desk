@@ -222,10 +222,19 @@ prompt reads "Asks for deploy's password" with **Type server password**
 - It types the server's password from its `#@ password` (or `password-raw`) straight into the
   prompt: "sudo password sent".
 - With no prompt waiting, the same key copies the password instead: "server password copied".
-- While a `#@ password` comes from the vault, a "Loading password…" dialog holds the keyboard, so
-  an early <kbd>Enter</kbd> can't reach sudo before the password does. <kbd>Esc</kbd> or
-  **Cancel** stops it ("password load cancelled"); a `password-raw` one needs no wait.
 - With no password set for the server, the bar says so ("no #@ password for this server").
+
+While desk gets the password, a box over the pane lists what it is doing, step by step with each
+step's time, as the connection box does: "Looking up web1-item in pb", "Waiting for your master
+password" (in grey: that's your time, while the vault asks to be unlocked), "Unlocking pb",
+"Reading its password", then "Typing it into the prompt". It goes the moment the password is typed or copied.
+
+- While the box is up, what you type doesn't reach the prompt, so an early <kbd>Enter</kbd> can't
+  beat the password to sudo.
+- **Cancel** (<kbd>C</kbd> or <kbd>Esc</kbd>) stops the lookup and takes the box away; a password
+  that comes after is never typed or copied.
+- If it fails (no such item, the vault unreachable, the unlock cancelled), the box stays with the
+  step that failed and its error: **Try again** (<kbd>R</kbd>) or **Close** (<kbd>C</kbd>).
 
 ## Wake-on-LAN
 

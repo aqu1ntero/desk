@@ -466,7 +466,8 @@ split (SFTP, or `sh`/`tar` on servers without it), the `changes` tool and port f
 connection per server; questions (passwords, passphrases, yes/no) go to desk's ask box, a
 `#@ password` from the vault first (read only once the server asks for a password). A pane that opens a new connection shows each of its steps
 with its time (name lookup, connect, vault, key exchange, host key, each auth method, the shell),
-so a slow connect says where the time went. Not supported: GSSAPI/Kerberos, host-based auth, PKCS#11 smart
+so a slow connect says where the time went; typing the server's password into a sudo prompt
+(Ctrl+Shift+P) shows its steps the same way (the vault lookup, its unlock). Not supported: GSSAPI/Kerberos, host-based auth, PKCS#11 smart
 cards, FIDO keys outside an agent, X11 forwarding, compression; the pane says so. desk's own data
 are comment lines OpenSSH ignores, `#@ key value`:
 

@@ -216,7 +216,6 @@ type model struct {
 	palSel  int
 	saved   uiState
 	asks    []*question // integrations waiting for a passphrase or code
-	loading *pwLoad     // a server password on its way from a vault
 	flash   string      // a short note shown as a toast
 
 	onInvestigate func(org, host, service, state, output string, since time.Time) // desk's: an investigation is a card
@@ -798,12 +797,6 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.loading != nil { // the loading sheet: only Esc, so enter can't beat the password to sudo
-		if k == "esc" {
-			m.cancelLoad()
-		}
-		return m, nil
-	}
 	if at := m.approvalTab(); at != nil && !strings.HasPrefix(k, "alt+") {
 		return m, m.answer(at, msg)
 	}
@@ -844,7 +837,7 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	switch {
 	case k == "alt+p" && t != nil && t.term != nil:
-		return m, m.passwordCmd(t.focused())
+		return m, serverPasswordCmd(t.focused())
 	case k == "ctrl+y" && t != nil && t.term != nil && t.suggest != "":
 		t.term.TypeForClaude(t.suggest)
 		t.suggest = ""
@@ -1156,7 +1149,7 @@ func (m *model) palKey(msg tea.KeyPressMsg) tea.Cmd {
 					return tea.SetClipboard(sshCommand(p.term.Host, p.dir))
 				}
 			case it.label == "copy server password" && t != nil && t.term != nil:
-				return m.passwordCmd(t.focused())
+				return serverPasswordCmd(t.focused())
 			}
 		case "themes":
 			setTheme(it.theme)
@@ -1239,74 +1232,45 @@ func (m *model) answer(t *Tab, msg tea.KeyPressMsg) tea.Cmd {
 
 // passwordMsg brings a server password fetched off the UI goroutine.
 type passwordMsg struct {
-	term *Term
-	pw   string
-	err  error
-	load *pwLoad // the vault fetch it ends, nil for a raw password
+	term  *Term
+	pw    string
+	err   error
+	fetch *pwFetch // the fetch it ends: a cancelled or replaced one's password is dropped
 }
 
-// pwLoad is a password coming from a vault: the loading sheet shows it until
-// it arrives, so nobody presses enter at sudo's prompt before it's typed
-// (slow vaults), and Esc or Cancel stops it.
-type pwLoad struct {
-	host   string
-	cancel context.CancelFunc
-}
-
-// serverPasswordCmd fetches the pane's server password (the vault may ask for
-// its passphrase in the ask sheet, so not on the UI goroutine).
+// serverPasswordCmd fetches the pane's server password off the UI goroutine
+// (the vault may ask for its passphrase in the ask sheet), each step shown
+// in the pane's fetch box (pwfetch.go), whose Cancel stops it.
 func serverPasswordCmd(p *Pane) tea.Cmd {
+	ctx, cancel := context.WithCancel(context.Background())
+	f := p.term.fetchStart(cancel) // now: the box shows before the goroutine runs
 	return func() tea.Msg {
-		pw, err := serverPassword(p.dir, p.password)
-		return passwordMsg{p.term, pw, err, nil}
-	}
-}
-
-// passwordCmd is serverPasswordCmd with the loading sheet up while a vault
-// fetches it.
-func (m *model) passwordCmd(p *Pane) tea.Cmd {
-	if p.password == nil || p.password.Raw != "" {
-		return serverPasswordCmd(p)
-	}
-	m.cancelLoad()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	l := &pwLoad{p.name, cancel}
-	m.loading = l
-	return func() tea.Msg {
-		pw, err := serverPasswordCtx(ctx, p.dir, p.password)
-		return passwordMsg{p.term, pw, err, l}
-	}
-}
-
-// cancelLoad stops the vault fetch the loading sheet shows; what it brings
-// later is dropped by usePassword.
-func (m *model) cancelLoad() {
-	if m.loading != nil {
-		m.loading.cancel()
-		m.loading = nil
-		m.flash = "password load cancelled"
+		defer cancel()
+		pw, err := serverPasswordCtx(withStep(ctx, p.term.fetchStep), p.dir, p.password)
+		return passwordMsg{p.term, pw, err, f}
 	}
 }
 
 // usePassword types the password into a sudo prompt that is still waiting,
-// or else copies it to the clipboard.
+// or else copies it to the clipboard; nothing for a fetch the user cancelled.
 func (m *model) usePassword(msg passwordMsg) tea.Cmd {
-	if msg.load != nil {
-		if msg.load != m.loading {
-			return nil // cancelled
-		}
-		m.loading = nil
-		msg.load.cancel()
+	if !msg.term.fetchLive(msg.fetch) {
+		return nil
 	}
 	switch {
 	case msg.err != nil:
+		msg.term.fetchEnd(msg.err)
 		m.flash = "! " + msg.err.Error()
 		return nil
 	case func() bool { _, ok := msg.term.SudoPrompt(); return ok }():
+		msg.term.fetchStep("Typing it into the prompt", false)
 		msg.term.TypeSecret(msg.pw) // checked again now: never into a shell
+		msg.term.fetchEnd(nil)
 		m.flash = "✓ sudo password sent"
 		return nil
 	}
+	msg.term.fetchStep("Copying it: no prompt waits for it", false)
+	msg.term.fetchEnd(nil)
 	m.flash = "⧉ server password copied"
 	return tea.SetClipboard(msg.pw)
 }

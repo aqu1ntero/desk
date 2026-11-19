@@ -103,29 +103,34 @@ func passwordRef(dir, host string) *SecretRef {
 // serverPassword reads a host's password from its org's vault. It may ask the
 // user for the vault passphrase, so never call it from the UI goroutine.
 func serverPassword(dir string, ref *SecretRef) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	return serverPasswordCtx(ctx, dir, ref)
+	return serverPasswordCtx(context.Background(), dir, ref)
 }
 
-// serverPasswordCtx is serverPassword ending with ctx: the loading sheet's Cancel.
+// serverPasswordCtx is serverPassword telling its steps to ctx's stepOf,
+// and ending with ctx: the fetch box's Cancel.
 func serverPasswordCtx(ctx context.Context, dir string, ref *SecretRef) (string, error) {
+	step := stepOf(ctx)
 	if ref == nil {
 		return "", fmt.Errorf("no password for this server: add \"#@ password <item>\" to its Host in %s", sshConfigFor(dir))
 	}
 	if ref.Raw != "" {
+		step("Taking password-raw from the servers file", false)
 		return ref.Raw, nil
 	}
 	o, err := orgFor(dir)
 	if err != nil {
 		return "", err
 	}
-	v, _, err := o.vault(ref.Vault)
+	v, vc, err := o.vault(ref.Vault)
 	if err != nil {
 		return "", err
 	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	step("Looking up "+ref.Item+" in "+vc.Name, false)
 	it, err := resolve(ctx, v, ref.Item)
 	if dv, ok := v.(deskVault); ok && err == nil && ref.Field != "" && ref.Field != "password" {
+		step("Reading its "+ref.Field, false)
 		return unlocking(ctx, dv.v, func() (string, error) { return deskvault.Get(ctx, dv.v, it.ID, ref.Field) })
 	}
 	return it.Password, err // ponytail: a field other than password is Passbolt/Bitwarden only

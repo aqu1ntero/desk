@@ -918,6 +918,9 @@ func TestSudoFill(t *testing.T) {
 	if cmd := m.usePassword(serverPasswordCmd(pane)().(passwordMsg)); cmd == nil || m.flash != "⧉ server password copied" {
 		t.Errorf("copy: %q", m.flash)
 	}
+	if _, ok := term.Fetch(); ok || !slices.Equal(stepNames(term.fetch.steps), []string{"Looking up id9 in pb", "Copying it: no prompt waits for it"}) {
+		t.Errorf("copy: box %t, steps %q", ok, stepNames(term.fetch.steps))
+	}
 	go term.Run(`read -rs -p "[sudo] password for deploy: " pw; echo; [ "$pw" = "$(printf hunt%s er2)" ] && echo GO""OD`, 10*time.Second)
 	for end := time.Now().Add(testwait.Long); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
 		if _, ok := term.SudoPrompt(); ok {
@@ -929,6 +932,13 @@ func TestSudoFill(t *testing.T) {
 	}
 	if s := term.Screen().Text; !strings.Contains(s, "GOOD") || strings.Contains(s, "hunter2") {
 		t.Errorf("password not typed, or echoed:\n%s", s)
+	}
+	if ss := term.fetch.steps; len(ss) == 0 || ss[len(ss)-1].Name != "Typing it into the prompt" {
+		t.Errorf("sudo steps: %q", stepNames(ss))
+	}
+	pane.password = nil
+	if m.usePassword(serverPasswordCmd(pane)().(passwordMsg)); !fetchFailed(term.fetch.steps) {
+		t.Error("no password: the box says it failed")
 	}
 }
 
@@ -945,50 +955,36 @@ func (s slowVault) search(ctx context.Context, _ string) ([]vaultItem, error) {
 }
 func (s slowVault) get(context.Context, string) (vaultItem, error) { return vaultItem{}, nil }
 
-// TestPasswordLoading: a vault password puts the loading sheet up until it
-// comes; esc cancels it and drops what comes later; other keys wait; a raw
-// password needs no sheet.
-func TestPasswordLoading(t *testing.T) {
+// TestPasswordCancel: the fetch box's Cancel stops a vault fetch, and what
+// it brings anyway is dropped; a new fetch stops the one still going.
+func TestPasswordCancel(t *testing.T) {
 	g := filepath.Join(t.TempDir(), "Org", infraDir)
 	sv := make(slowVault, 1)
 	orgsMu.Lock()
 	orgs[g] = &orgConfig{Vaults: []VaultCfg{{Name: "pb", Type: "passbolt"}}, vaults: map[string]vault{"pb": sv}}
 	orgsMu.Unlock()
-	pane := &Pane{dir: g, name: "web-01", password: &SecretRef{Vault: "pb", Item: "x"}}
+	term := &Term{}
+	pane := &Pane{dir: g, name: "web-01", term: term, password: &SecretRef{Vault: "pb", Item: "x"}}
 	m := model{}
-	cmd := m.passwordCmd(pane)
-	if st := (&driver{}).snapshot(&m); st.Loading != "web-01" {
-		t.Fatalf("loading %q", st.Loading)
-	}
-	r, _ := m.Update(keyOf("enter")) // enter waits for the password
-	if m = r.(model); m.loading == nil {
-		t.Fatal("enter ended the load")
-	}
-	r, _ = m.Update(keyOf("esc"))
-	if m = r.(model); m.loading != nil || m.flash != "password load cancelled" {
-		t.Fatalf("esc: loading %v flash %q", m.loading, m.flash)
-	}
+	cmd := serverPasswordCmd(pane)
+	term.fetchHide()           // Cancel
 	msg := cmd().(passwordMsg) // the cancelled fetch ends with its context
-	if m.usePassword(msg) != nil || m.flash != "password load cancelled" {
-		t.Errorf("a cancelled load used: %q", m.flash)
+	if !errors.Is(msg.err, context.Canceled) || m.usePassword(msg) != nil || m.flash != "" {
+		t.Errorf("a cancelled fetch used: %v %q", msg.err, m.flash)
 	}
-	// one that arrives
-	cmd = m.passwordCmd(pane)
+	cmd = serverPasswordCmd(pane) // one that arrives
 	sv <- errors.New("vault down")
-	if m.usePassword(cmd().(passwordMsg)); m.loading != nil || m.flash != "! vault down" {
-		t.Errorf("arrived: loading %v flash %q", m.loading, m.flash)
+	if m.usePassword(cmd().(passwordMsg)); m.flash != "! vault down" {
+		t.Errorf("arrived: %q", m.flash)
 	}
-	// a new load replaces one still going
-	first := m.passwordCmd(pane)
-	m.passwordCmd(pane)
-	if msg := first().(passwordMsg); m.usePassword(msg) != nil || m.loading == nil {
-		t.Errorf("the replaced load ended the new one")
+	m.flash = ""
+	first := serverPasswordCmd(pane)
+	serverPasswordCmd(pane) // replaces it
+	if msg := first().(passwordMsg); !errors.Is(msg.err, context.Canceled) || m.usePassword(msg) != nil || m.flash != "" {
+		t.Errorf("the replaced fetch was used: %v %q", msg.err, m.flash)
 	}
-	m.cancelLoad()
-	// a raw password: no sheet
-	pane.password = &SecretRef{Raw: "pw"}
-	if m.loading = nil; m.passwordCmd(pane) == nil || m.loading != nil {
-		t.Error("raw password loaded")
+	if _, ok := term.Fetch(); !ok {
+		t.Error("the new fetch's box went with the old one")
 	}
 }
 

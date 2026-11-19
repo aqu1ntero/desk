@@ -411,6 +411,7 @@ func (d deskVault) get(ctx context.Context, id string) (vaultItem, error) {
 		return vaultItem{}, fmt.Errorf("no item %q", id)
 	}
 	it := items[i]
+	stepOf(ctx)("Reading its password", false)
 	it.Password, err = unlocking(ctx, d.v, func() (string, error) { return deskvault.Get(ctx, d.v, id, "password") })
 	return it, err
 }
@@ -425,8 +426,10 @@ func unlocking[T any](ctx context.Context, v deskorgs.Vault, f func() (T, error)
 		if !errors.As(err, &le) {
 			return r, err
 		}
+		step := stepOf(ctx)
 		code := ""
 		if le.Code {
+			step("Waiting for your one-time code · "+v.Name, true)
 			c, ok := askUser("One-time code · "+v.Name, false)
 			if !ok {
 				return r, errors.New("the user cancelled the one-time code")
@@ -437,12 +440,14 @@ func unlocking[T any](ctx context.Context, v deskorgs.Vault, f func() (T, error)
 			if v.Kind == "passbolt" {
 				title = "Passbolt passphrase · " + v.Name
 			}
+			step("Waiting for your "+strings.ToLower(strings.TrimSuffix(title, " · "+v.Name))+" · "+v.Name, true)
 			p, ok := askUser(title, true)
 			if !ok {
 				return r, errors.New("the user cancelled the vault unlock")
 			}
 			pw = p
 		}
+		step("Unlocking "+v.Name, false)
 		if err := deskvault.Unlock(ctx, v, pw, code); err != nil && !errors.As(err, &le) {
 			return r, err
 		}
